@@ -1,0 +1,16 @@
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.supabase.co; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+/admin.html
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+/review.html
+  X-Robots-Tag: noindex, nofollow
+/admin
+  Cache-Control: no-store
+  X-Robots-Tag: noindex, nofollow
+/review
+  X-Robots-Tag: noindex, nofollow
