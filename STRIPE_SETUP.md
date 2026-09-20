@@ -1,5 +1,7 @@
 # Stripe setup for Pixelalty
 
+For the September 20, 2026 policy update, use [STRIPE_LEGAL_SETUP.md](STRIPE_LEGAL_SETUP.md). The existing checkout links and redirects below remain unchanged.
+
 The website already uses your exact five Payment Link URLs. Stripe continues to own checkout and the existing post-payment redirects. These files do not change your Stripe account. Configure the following in your own Dashboard after the public policy pages are live.
 
 ## 1. Account-wide public details
@@ -7,10 +9,10 @@ The website already uses your exact five Payment Link URLs. Stripe continues to 
 1. Sign in to the correct Stripe business account and use **live mode** when editing the supplied live links.
 2. Open **Settings → Business → Public details**, or [Public details](https://dashboard.stripe.com/settings/public). The Dashboard may rearrange labels.
 3. Confirm the displayed business name is Pixelalty and that the website is `https://pixelalty.com`.
-4. Set **Terms of service URL** to `https://pixelalty.com/terms.html`.
-5. Set **Privacy policy URL** to `https://pixelalty.com/privacy.html`.
-6. Set the support/contact website, where available, to `https://pixelalty.com/contact.html`. Supply only real email/telephone details if Stripe requires them; none have been invented in the site.
-7. In checkout/public policy settings, where available, add the **refund/cancellation policy URL** `https://pixelalty.com/refund-policy.html`. Stripe layouts and fields vary; if there is no separate field for your payment type, keep the prominently linked policy in the Terms and add a clear checkout description referring to the refund policy. Do not claim a setting was configured merely because the website links exist.
+4. Set **Terms of service URL** to `https://pixelalty.com/terms`.
+5. Set **Privacy policy URL** to `https://pixelalty.com/privacy`.
+6. Set the support/contact website, where available, to `https://pixelalty.com/contact`. Supply only real email/telephone details if Stripe requires them; none have been invented in the site.
+7. In checkout/public policy settings, where available, add the **refund/cancellation policy URL** `https://pixelalty.com/refund-policy`. Stripe layouts and fields vary; if there is no separate field for your payment type, keep the prominently linked policy in the Terms and add a clear checkout description referring to the refund policy. Do not claim a setting was configured merely because the website links exist.
 8. Save. Under branding, upload your official Pixelalty logo and choose a restrained blue accent. This does not replace any necessary legal business identity Stripe requires.
 
 Stripe documents that setting the public Terms URL enables required agreement, and a configured privacy URL is linked by Checkout: [Payment Link customization](https://docs.stripe.com/payment-links/customize#collect-agreement-to-your-terms-of-service).

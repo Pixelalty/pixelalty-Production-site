@@ -1,0 +1,1056 @@
+{
+  "updated": "September 20, 2026",
+  "pages": {
+    "terms.html": {
+      "title": "Terms of Service",
+      "description": "Pixelalty service terms for website design and real estate listing videos: scope, payments, revisions, ownership, delivery, refunds, and responsibilities.",
+      "sections": [
+        {
+          "title": "About Pixelalty and acceptance",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Pixelalty — Digital Solutions (\"Pixelalty,\" \"we,\" \"us,\" or \"our\") provides website design and real estate listing video services and operates from Florida, United States. \"You\" means the customer purchasing or using a service and, if applicable, the business you are authorized to represent."
+            },
+            {
+              "type": "p",
+              "text": "By purchasing, ordering, or using a Pixelalty service after these Terms have been made available to you, you agree to the Terms applicable to that order, the agreed project scope, and our [Refund & Cancellation Policy](https://pixelalty.com/refund-policy). You must have legal capacity to enter the agreement and authority to authorize the project, payment, materials, and requested account access. Do not purchase on behalf of someone else without permission."
+            },
+            {
+              "type": "p",
+              "text": "Read these documents before payment and retain a copy. Checkout may separately require a Terms acceptance checkbox. A later website update does not retroactively change an existing order without your agreement. Our [Privacy Policy](https://pixelalty.com/privacy) explains information handling; these Terms do not substitute for consent where the law separately requires it."
+            }
+          ]
+        },
+        {
+          "title": "Services and the agreed scope",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "We provide the deliverables expressly included in the purchased service description and the project scope confirmed in writing. Written scope confirmations, quotes, approved change orders, and project messages can clarify details. A request in an intake questionnaire is a request, not automatic acceptance of additional work."
+            },
+            {
+              "type": "p",
+              "text": "Package examples describe the level of service, not an unlimited commitment to every feature a customer might request. Page counts, revision allowances, exclusions, platform capabilities, content responsibilities, and any agreed quantities apply. We are not required to perform materially expanded work merely because an initial package was purchased."
+            },
+            {
+              "type": "p",
+              "text": "The published description at the time of purchase remains part of the agreement. A project-specific term expressly agreed by both parties controls over a conflicting general provision on the same subject, subject to applicable law. We will not use an unpublished internal rule to reduce the purchased scope."
+            }
+          ]
+        },
+        {
+          "title": "Website design packages",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "The following current package limits and prices are in U.S. dollars. The relevant service page identifies the included features and exclusions. Turnaround periods are estimates after the start requirements in section 6 are satisfied; customer or third-party delays may extend them."
+            },
+            {
+              "type": "ul",
+              "items": [
+                "Launch Website — $799: up to 4 pages, 1 revision round, estimated 3–5 business days. See [Launch details](https://pixelalty.com/web-design-launch).",
+                "Growth Website — $1,299: up to 8 pages, 2 revision rounds, estimated 5–7 business days. See [Growth details](https://pixelalty.com/web-design-growth).",
+                "Premium Website — $1,999: up to 12 pages, up to 3 revision rounds, estimated 7–10 business days. See [Premium details](https://pixelalty.com/web-design-premium).",
+                "Advanced / Ecommerce — starting at $2,999: page count, products, features, revisions, deliverables, and schedule are custom scoped. See [Advanced details](https://pixelalty.com/web-design-advanced)."
+              ]
+            }
+          ]
+        },
+        {
+          "title": "Advanced / Ecommerce custom scope",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "The $2,999 amount is a starting price, not a guaranteed final price for every Advanced project. Final cost depends on page count, product count, catalog size, ecommerce requirements, booking, integrations, custom functionality, data migration, third-party software, complexity, and approved scope changes."
+            },
+            {
+              "type": "p",
+              "text": "Before purchasing an Advanced starting payment, obtain written confirmation of what that payment covers, any additional balance or payment milestones, recurring third-party costs, and the scope and schedule. A starting payment does not entitle you to an unlimited store, catalog, migration, application, or integration."
+            },
+            {
+              "type": "p",
+              "text": "If you pay before an adequate scope is confirmed and we cannot agree on a suitable project, we will not require you to accept an undisclosed higher price. We will address cancellation under the Refund & Cancellation Policy, including return of payment for work not performed, less only any permitted, previously authorized costs."
+            }
+          ]
+        },
+        {
+          "title": "Real estate listing video services",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Pixelalty Listing Video is $499 per video and uses authorized listing photography and information supplied by you. It includes the described motion treatment, transitions, supplied property details, agent/brokerage branding, commercially appropriate music, one consolidated revision round, and digital final delivery. Video length, format, photo count, and timing are confirmed for the project before production."
+            },
+            {
+              "type": "p",
+              "text": "Unless separately agreed in writing, property photography, a drone shoot, a physical property visit, and a videographer visit are not included. You must have rights sufficient for the photographs, logos, music, and other materials to be edited and used in the intended video and publication channels."
+            },
+            {
+              "type": "p",
+              "text": "You are responsible for reviewing the address, price, bedrooms, bathrooms, square footage, features, agent and brokerage information, required disclosures, and all listing claims. Tell us if a property changes status or a material detail changes. Later updates or new versions outside the agreed revision allowance may be separately quoted. We do not guarantee views, engagement, leads, offers, sale price, or a property sale."
+            }
+          ]
+        },
+        {
+          "title": "Project start requirements",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "We are not required to begin production until the required payment has successfully cleared and we have the completed questionnaire, usable content, images/assets, necessary permissions, required access, and initial approvals needed for the agreed work. We will identify material missing requirements when we become aware of them."
+            },
+            {
+              "type": "p",
+              "text": "For website packages, the estimated production window begins after those requirements are complete and usable, not merely when checkout occurs. A specific booked start date or different payment schedule must be agreed in writing. Provide account access through an appropriate invitation or secure method we arrange; do not send passwords, authenticator codes, or full card numbers through the ordinary inquiry form."
+            }
+          ]
+        },
+        {
+          "title": "Payments, taxes, and authorized costs",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Payment is processed through Stripe or another payment method expressly agreed in writing. Unless a written installment schedule applies, the required package or project payment is due before work begins. An attempted, declined, reversed, or uncleared payment does not satisfy that requirement."
+            },
+            {
+              "type": "p",
+              "text": "Additional work requires an approved scope and price and may require payment before it starts. You authorize only the amounts and payment schedule you actually agree to; purchasing one service does not authorize arbitrary later charges."
+            },
+            {
+              "type": "p",
+              "text": "Prices are stated in USD. Applicable transaction taxes will be identified at checkout or in the agreed quote when required. You remain responsible for taxes lawfully payable on your purchase, not Pixelalty’s own income taxes. Any currency conversion or issuer fees are governed by your payment provider. We do not add an undisclosed automatic late fee, cancellation penalty, or chargeback penalty."
+            }
+          ]
+        },
+        {
+          "title": "Customer responsibilities and accuracy",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Provide complete, timely, accurate information; designate someone authorized to consolidate feedback and give approvals; respond to material questions; maintain your own account access; and keep copies of originals and final deliverables. Review spelling, contact details, prices, products, claims, links, legal notices, property details, and other factual content before approving publication."
+            },
+            {
+              "type": "p",
+              "text": "You are responsible for the legality and truthfulness of your business’s products, services, advertising, disclosures, and instructions, including industry-specific requirements. We are not engaged as your attorney, accountant, real estate broker, or regulatory adviser. Do not ask us to publish claims that you cannot substantiate."
+            },
+            {
+              "type": "p",
+              "text": "Corrections to inaccurate or changed customer-supplied information may count toward the agreed revisions or require a new quote. This does not excuse mistakes we introduce or our failure to implement the agreed scope."
+            }
+          ]
+        },
+        {
+          "title": "Customer materials, content, and media rights",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "You retain your rights in materials you provide. You represent that you own, license, or otherwise have sufficient permission to supply and authorize our intended use of photos, videos, logos, trademarks, copy, music, graphics, MLS photography, listing images, product photos, customer data, and other business materials. Obtain necessary rights-holder, privacy, publicity, brokerage, MLS, or other permissions before submission."
+            },
+            {
+              "type": "p",
+              "text": "Sending us an image or link does not create rights to it. Zillow photos, Realtor.com photos, MLS photography, Google Images results, and competitor content are not automatically available for our use. A license to display an image in a listing may not permit editing, video adaptation, AI-assisted processing, advertising, or a portfolio use. Tell us about any restrictions and provide evidence of permission if reasonably requested."
+            },
+            {
+              "type": "p",
+              "text": "You authorize us and the service providers needed for the project to copy, process, resize, edit, transform, and temporarily host supplied materials only as reasonably necessary to perform and deliver the purchased service, subject to agreed restrictions. Separate, limited portfolio permission is addressed in section 20. Necessary records may be retained under the Privacy Policy. We may reject or pause use of materials where rights or security are reasonably in doubt."
+            }
+          ]
+        },
+        {
+          "title": "Production tools and AI assistance",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "We may use AI-assisted design and coding, automation, templates, libraries, development tools, and creative software to produce the agreed work. Tool use does not expand or reduce the agreed scope, remove our responsibility for the deliverables we promise, or remove your responsibility to review final factual information."
+            },
+            {
+              "type": "p",
+              "text": "Do not submit sensitive or confidential data for tool-assisted processing unless we have first agreed on suitable handling. Tell us before work starts about contractual restrictions on tools, licenses, or data processing; accommodating them may affect the available approach, scope, or price. We do not represent that every design element is unique, exclusively copyrightable, or free of third-party license conditions."
+            }
+          ]
+        },
+        {
+          "title": "Third-party software, platforms, and subscriptions",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Unless expressly included in writing, third-party costs are separate from the project price. Examples include domain registration, hosting, Shopify or other ecommerce platforms, plugins, applications, premium software, booking platforms, payment processors, licensed media, premium fonts, and integrations or APIs."
+            },
+            {
+              "type": "p",
+              "text": "You are responsible for approved recurring third-party charges, renewals, usage charges, and maintaining the accounts needed to operate your website unless we explicitly agree otherwise in writing. We will obtain approval before incurring an additional third-party charge on your behalf. A third party’s free plan or introductory price is not a promise of permanent free service."
+            },
+            {
+              "type": "p",
+              "text": "WordPress, Shopify, booking services, payment processors, hosting companies, applications, and other providers operate under their own terms and licenses. Integrations depend on supported features, account eligibility, permissions, and API availability. No package includes every possible plugin, subscription, checkout method, data import, or future compatibility update."
+            }
+          ]
+        },
+        {
+          "title": "Domains, hosting, SSL, and maintenance",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Domain connection and supported SSL/HTTPS assistance are provided to the extent included in your package and the selected providers’ capabilities. You must supply the required ownership verification, access, and approvals. Registrar transfers, DNS changes, propagation, certificates, domain disputes, provider restrictions, and existing configurations can affect timing."
+            },
+            {
+              "type": "p",
+              "text": "Unless separately agreed, you remain responsible for domain ownership and renewal, hosting subscriptions, ongoing backups, account recovery, and post-delivery maintenance or software updates. We do not acquire ownership of your domain merely by assisting with it. Keep your registrar and hosting accounts in the appropriate customer-controlled name where the provider permits."
+            },
+            {
+              "type": "p",
+              "text": "We remain responsible for correctly performing the setup work included in our scope. Problems caused by later customer/third-party changes, expired services, unsupported software, or lost credentials may require separately quoted assistance. A one-time design purchase is not an indefinite hosting, cybersecurity, uptime, or maintenance contract."
+            }
+          ]
+        },
+        {
+          "title": "Estimated timelines",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "The published website estimates are Launch 3–5, Growth 5–7, and Premium 7–10 business days after complete usable inputs and required payment. Advanced and listing video schedules are confirmed individually. For scheduling, business days are Monday through Friday, excluding U.S. federal holidays."
+            },
+            {
+              "type": "p",
+              "text": "These are good-faith estimates, not unconditional deadlines or guarantees of a particular launch or business event. They depend on timely feedback, approvals, agreed scope, and reasonably functioning third-party services. We will communicate material delays we know about. A deadline becomes a specific contractual commitment only if we expressly accept it in writing; we do not guarantee an unconfirmed rush request."
+            }
+          ]
+        },
+        {
+          "title": "Customer delays, holds, and inactive projects",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Late photos or copy, missing domain/login access, missing product information, slow feedback, changing requirements, and delayed approvals pause affected work and extend the schedule. We are not late to the extent delay results from a requirement or decision you have not supplied. On resumption, the project may need a new production slot."
+            },
+            {
+              "type": "p",
+              "text": "If a material response remains missing for 14 calendar days after a written request, we may give notice placing the project on hold. If there is no meaningful response for 60 consecutive calendar days, we may send a final written notice giving at least 14 further calendar days to respond before closing the inactive project. An agreed longer hold takes precedence."
+            },
+            {
+              "type": "p",
+              "text": "A long-delayed restart may require rescheduling and, where substantial additional work is genuinely necessary, an advance quote for reactivation or rework. There is no automatic restart penalty. Closing or pausing a project does not automatically forfeit the entire payment; we account for earned work and permitted costs and address any unearned balance under the Refund & Cancellation Policy."
+            }
+          ]
+        },
+        {
+          "title": "Revision rounds",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "A revision round means one consolidated batch of reasonable, sufficiently specific changes submitted together after a review stage, within the agreed concept and scope. We may collect related messages into that batch before starting the round. New changes submitted after a round has been implemented may require another round or an approved additional quote."
+            },
+            {
+              "type": "p",
+              "text": "Included allowances are Launch: 1 round; Growth: 2 rounds; Premium: up to 3 rounds; Listing Video: 1 round; Advanced: the written scope. Unused included revisions are not cash credits or an entitlement to unrelated work. Corrections needed because we failed to follow the agreed scope are not charged as optional revisions."
+            },
+            {
+              "type": "p",
+              "text": "A revision does not automatically include a completely new concept, complete redesign, new website, additional pages, new functionality, ecommerce features, booking system, integrations, substantial new copy/content, or a different project. We will identify material out-of-scope requests before undertaking chargeable extra work."
+            }
+          ]
+        },
+        {
+          "title": "Scope changes and additional work",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Requests beyond the purchased limits, included rounds, or confirmed scope may require a written change order identifying the additional work, cost, dependencies, and revised timing. We may pause the affected part of the project while the change is considered. Silence or an unanswered quote is not approval of additional charges."
+            },
+            {
+              "type": "p",
+              "text": "If you decline the additional quote, we can continue the original feasible scope. If a material scope dispute prevents that, either party may seek cancellation and an accounting under the Refund & Cancellation Policy. We are not required to deliver a materially different project for the original price."
+            }
+          ]
+        },
+        {
+          "title": "Review, approval, and correction",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Review proofs, staging sites, and drafts carefully and provide consolidated feedback or written approval. Please identify apparent errors promptly, preferably within 14 calendar days of the review or delivery notice, so we can investigate while the project is current. This requested review period does not eliminate rights concerning hidden defects or any non-waivable rights."
+            },
+            {
+              "type": "p",
+              "text": "Written approval or your authorized launch/use of a deliverable can evidence acceptance of the reviewed design and content. Silence alone does not authorize publication, new charges, or undisclosed changes to scope. Lack of a response may instead lead to a hold under section 14."
+            },
+            {
+              "type": "p",
+              "text": "We will reasonably investigate a reported failure to meet the agreed scope and provide an appropriate correction. A later preference change, new instruction, new factual information, third-party change, or customer modification may require additional work. Approval does not excuse a material problem we caused or eliminate a remedy required by law."
+            }
+          ]
+        },
+        {
+          "title": "Delivery and ongoing support",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Website delivery consists of the agreed final files, access, handover, and/or deployment work stated in the scope. Where a platform is used, its access, export, and transfer capabilities apply. Deployment assistance included in the purchased scope remains included. Unless expressly listed, internal prompts, workflows, unused concepts, working files, and reusable production tools are not deliverables."
+            },
+            {
+              "type": "p",
+              "text": "Listing videos are delivered digitally in the agreed final format. Raw/editable project files, extra aspect ratios, alternate versions, later listing updates, and ongoing distribution are included only if agreed. Keep a copy of delivered files and note any access expiry stated in the delivery notice; perpetual file hosting or archiving is not included by default."
+            },
+            {
+              "type": "p",
+              "text": "We may withhold undelivered work or a rights transfer for legitimately overdue project payments where lawful. We will not use this to seize a customer-owned account or domain, erase customer data, or withhold a remedy the law requires. Ongoing support, content updates, monitoring, and maintenance require a separate agreement unless expressly included."
+            }
+          ]
+        },
+        {
+          "title": "Website ownership and intellectual property",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "After full payment and delivery, you receive the agreed rights to the final custom deliverables specifically created for you. Unless the written scope provides otherwise, we transfer the ownership rights we hold in original, client-specific final work to the extent legally transferable, subject to the exclusions below and the limited portfolio permission. We will reasonably cooperate with written confirmation of a transfer where needed. We can transfer only rights we actually own."
+            },
+            {
+              "type": "p",
+              "text": "Pixelalty retains rights in pre-existing tools, templates, reusable components, general code techniques, design systems, workflows, know-how, utilities, automation, and other non-client-specific elements. To the extent our retained elements are incorporated in your paid final deliverable, we grant a perpetual, non-exclusive license to use, copy, modify, and maintain them as part of that deliverable, including through your hosting provider or maintenance contractor. This does not grant a right to extract and resell our reusable materials as standalone products."
+            },
+            {
+              "type": "p",
+              "text": "Third-party assets remain subject to their licenses; open-source software remains under its applicable license. You do not acquire ownership of Shopify, WordPress, hosting systems, booking services, payment processors, plugins, or other third-party software. Some AI-assisted or otherwise unprotectable elements may not carry exclusive intellectual property rights. Customer materials remain yours or their respective rights holders’ property."
+            }
+          ]
+        },
+        {
+          "title": "Confidentiality and portfolio use",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Subject to rights in the underlying materials, you permit us to show completed, non-confidential work and the associated business name/branding in Pixelalty’s portfolio, website, social media, or marketing unless you request confidentiality in writing before publication. Work that reasonably should remain confidential will not be displayed even without a prior request. This permission does not expand an underlying photographer’s or other third party’s license."
+            },
+            {
+              "type": "p",
+              "text": "We do not obtain permission to publish private admin data, passwords, payment information, customer lists, confidential documents, unpublished sensitive project information, or other private personal information. Contact us about a later confidentiality or rights concern; we will assess it and remove or adjust material where appropriate. Public materials already lawfully distributed may not be fully recoverable from third-party caches or copies."
+            }
+          ]
+        },
+        {
+          "title": "SEO, Google Business Profile, and business results",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Basic SEO, where included, may cover page titles, meta descriptions, semantic structure, and reasonable technical/performance practices. It is not an ongoing SEO campaign, ad campaign, content-marketing program, or search-engine endorsement. Google Business Profile assistance, where appropriate and included, depends on your eligibility, accurate information, and Google’s decisions."
+            },
+            {
+              "type": "p",
+              "text": "We do not guarantee Google rankings, search-engine placement or indexing, traffic, leads, phone calls, sales, revenue, profit, conversion rates, social engagement, Google Business Profile approval, Google verification, ad performance, property views, offers, sale price, or a property sale. Platform algorithms, competition, market conditions, your offer, and many other factors are outside our control."
+            },
+            {
+              "type": "p",
+              "text": "We also do not promise a specific third-party performance score, uninterrupted availability, or universal compatibility with every device or software version unless expressly agreed. These limitations do not reduce our obligation to deliver the actual design and functionality included in the agreed scope."
+            }
+          ]
+        },
+        {
+          "title": "Third-party availability and customer-caused problems",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Stripe, Shopify, Cloudflare, Supabase, Tally, domain registrars, hosting companies, Google, social platforms, booking providers, plugins, and APIs are independently operated. We do not control their outages, policy or price changes, account restrictions, suspensions, security incidents, or technical failures."
+            },
+            {
+              "type": "p",
+              "text": "To the extent a problem is outside our reasonable control and not caused by our breach or wrongdoing, we are not responsible for the third party’s failure. We will communicate known material effects on our work and discuss a practical alternative where reasonable. Replacing an integration or repairing changes after delivery may require a new quote. This section does not excuse our own incorrect implementation, negligence where liability cannot properly be excluded, or failure to perform our agreed obligations."
+            }
+          ]
+        },
+        {
+          "title": "Cancellation and refunds",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Our [Refund & Cancellation Policy](https://pixelalty.com/refund-policy) applies to both website design and listing videos. Contact us promptly if you need to cancel or believe the delivered work does not meet the agreed scope."
+            },
+            {
+              "type": "p",
+              "text": "Custom work is generally non-refundable to the extent payment covers work properly performed and permitted, reasonably incurred nonrecoverable costs. Before substantive work, a refund is generally the payment less any previously authorized, disclosed, nonrecoverable costs. An unearned balance is not automatically forfeited. Reserved production time is deductible only under the limited, advance-agreed conditions in that policy."
+            },
+            {
+              "type": "p",
+              "text": "If we cannot provide the purchased service for reasons attributable to us, we will provide an appropriate refund for undelivered work, including a full refund where no usable agreed work was delivered and no lawful deduction applies. Non-waivable legal rights remain unaffected."
+            }
+          ]
+        },
+        {
+          "title": "Chargebacks, disputes, and honest reviews",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Please contact Pixelalty first with a legitimate service concern so we have a reasonable opportunity to investigate and resolve it. This request does not prevent you from using lawful card-issuer, payment-provider, regulatory, or court remedies and is not a condition of a right that cannot legally be conditioned."
+            },
+            {
+              "type": "p",
+              "text": "We may pause affected work during an unresolved payment reversal or chargeback and submit relevant scope, communications, approval, delivery, and payment records to the processor. Knowingly fraudulent, duplicate, or bad-faith disputes may justify project suspension or termination and lawful recovery of legitimately owed amounts. We do not impose an automatic chargeback penalty or treat every disputed payment as fraud."
+            },
+            {
+              "type": "p",
+              "text": "We will account for any refund or reversed funds to prevent double collection. Nothing in these Terms prohibits honest reviews, imposes a fee for negative feedback, or requires you to transfer ownership of your review. We may address unlawful, clearly false, irrelevant, or privacy-infringing content through lawful means."
+            }
+          ]
+        },
+        {
+          "title": "Prohibited work, refusal, and suspension",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "We may decline or stop work involving illegal activity, fraud, malware, phishing, copyright infringement, stolen materials, deceptive impersonation, unlawful products/services, or an unreasonable legal or security risk. We may also pause affected work for nonpayment, failed or reversed payment, missing information, nonresponsiveness, unresolved scope disputes, or a material breach."
+            },
+            {
+              "type": "p",
+              "text": "Where practical, we will explain the issue and allow a reasonable opportunity to correct it. We may act immediately where continued work would create a material safety, security, rights, or legal risk. If the issue cannot reasonably be resolved, either party may terminate the affected project."
+            },
+            {
+              "type": "p",
+              "text": "Payment is then accounted for under the Refund & Cancellation Policy based on legitimate work performed and permitted costs. Suspension or refusal does not entitle us to keep unearned payment without a lawful basis. We do not acquire a right to use disputed or unauthorized material simply because work has begun."
+            }
+          ]
+        },
+        {
+          "title": "Service standard and warranty limitations",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "We will use reasonable care and skill to perform the agreed services and address a substantiated failure to meet the scope through an appropriate correction or other remedy. No portfolio example, informal suggestion, or estimate creates an additional guaranteed result beyond the agreement."
+            },
+            {
+              "type": "p",
+              "text": "To the maximum extent permitted by applicable law, apart from our express commitments, services and deliverables carry no additional implied warranty of merchantability, fitness for a particular purpose, or uninterrupted/error-free operation. We do not guarantee that a website or platform will remain compatible with every future update or be immune from security threats. These limitations do not disclaim rights that cannot lawfully be waived, excuse fraud or willful misconduct, or eliminate our obligation to provide the purchased service."
+            }
+          ]
+        },
+        {
+          "title": "Limitation of liability",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "To the maximum extent permitted by applicable law, Pixelalty is not liable for indirect, incidental, special, consequential, or exemplary damages, including lost profit or revenue, lost opportunities, or business interruption arising from the services, whether a claim is framed in contract, tort, or otherwise."
+            },
+            {
+              "type": "p",
+              "text": "Subject to the exceptions below, Pixelalty’s aggregate liability arising from a particular project is limited to the amount actually paid to Pixelalty for the specific service giving rise to the claim. Amounts paid directly to independent third-party providers are not payments to Pixelalty. This allocation of risk is reflected in the project price."
+            },
+            {
+              "type": "p",
+              "text": "These exclusions and the cap do not apply to Pixelalty’s fraud, intentional or willful misconduct, gross negligence, or liability that applicable law does not allow us to limit. They do not reduce an express refund obligation or any non-waivable consumer remedy. If the law does not permit a particular limitation, it applies only to the extent permitted."
+            }
+          ]
+        },
+        {
+          "title": "Narrow customer indemnity",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "To the extent permitted by law, you are responsible for third-party claims and reasonable, documented resulting losses, damages, and legal costs to the extent caused by materials you supplied without sufficient rights, false factual claims you supplied, illegal customer content, your unlawful misuse of delivered work, or your violation of applicable law in connection with the project."
+            },
+            {
+              "type": "p",
+              "text": "This obligation does not make you responsible for the portion caused by Pixelalty’s breach, negligence, or other wrongdoing. We will give reasonably prompt notice of a claim, allow reasonable participation in its defense, and take reasonable steps to limit losses. We will not agree to a settlement requiring an admission, payment, or non-monetary obligation from you without your reasonable written consent."
+            }
+          ]
+        },
+        {
+          "title": "Events beyond reasonable control",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Neither party is responsible for delay to the extent caused by an event beyond reasonable control, such as a natural disaster, serious infrastructure outage, governmental restriction, or comparable disruption that could not reasonably be avoided. The affected party should notify the other and take reasonable steps to reduce the impact."
+            },
+            {
+              "type": "p",
+              "text": "We will discuss a revised schedule or practical alternative. If the disruption makes completion impractical for an extended period, either party may request termination and a fair accounting under the Refund & Cancellation Policy. This provision does not permit indefinite retention of payment for undelivered work or excuse amounts already legitimately owed."
+            }
+          ]
+        },
+        {
+          "title": "Changes to services and these Terms",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "We may update future offerings, prices, and these Terms. The applicable version and agreed price for an existing order remain in place unless both parties agree to a change or a change is required by law. A website edit alone does not add retroactive charges or reduce an existing order’s rights."
+            },
+            {
+              "type": "p",
+              "text": "The Last Updated date identifies this version. Material changes will be made available before they govern a new order, and we will seek additional acknowledgment where required. Keep the scope confirmation, receipt, and policy version associated with your purchase."
+            }
+          ]
+        },
+        {
+          "title": "Florida law and resolving concerns",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "These Terms and the services are governed by the laws of the State of Florida, United States, subject to mandatory protections that apply to you and cannot be displaced by a choice-of-law clause. This provision does not require you to give up non-waivable rights under another applicable law."
+            },
+            {
+              "type": "p",
+              "text": "We encourage a good-faith effort to resolve a concern through our contact page. If it remains unresolved, either party may use an appropriate court with jurisdiction, including an available small-claims process. These Terms do not require mandatory arbitration or waive any available jury-trial, class-action, regulatory complaint, or lawful payment-dispute rights."
+            }
+          ]
+        },
+        {
+          "title": "Entire agreement, severability, and notices",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "These Terms, the applicable published service description, the Refund & Cancellation Policy, and the project scope and changes expressly agreed in writing form the service agreement. Prior discussions do not add a promised deliverable unless incorporated, but this does not exclude a legal remedy for fraud or misleading statements. The Privacy Policy separately governs our stated information practices."
+            },
+            {
+              "type": "p",
+              "text": "If a provision is unenforceable, the remaining provisions continue to the extent lawful; the invalid provision is limited or severed only as the law permits. A failure to enforce a term immediately is not a permanent waiver. Notices and approvals may be exchanged through the project’s agreed written communication channel. A contractual notice method does not replace any formal service requirement imposed by law."
+            }
+          ]
+        },
+        {
+          "title": "Contact Pixelalty",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "For project, scope, payment, rights, or policy questions, use [Contact Pixelalty](https://pixelalty.com/contact) or message [@pixelalty on Instagram](https://www.instagram.com/pixelalty/). Include your name, service, and order/reference when relevant. Do not send full card numbers, passwords, or authenticator codes. You can return to the [Pixelalty homepage](https://pixelalty.com) at any time."
+            }
+          ]
+        }
+      ]
+    },
+    "privacy.html": {
+      "title": "Privacy Policy",
+      "description": "How Pixelalty handles inquiries, reviews, project information, payments, administrator access, browser storage, and data processed by its service providers.",
+      "sections": [
+        {
+          "title": "Scope and who we are",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "This Privacy Policy explains how Pixelalty — Digital Solutions handles information in operating pixelalty.com and providing website design and real estate listing video services. Pixelalty operates from Florida, United States. Contact us through [our contact page](https://pixelalty.com/contact) or [@pixelalty on Instagram](https://www.instagram.com/pixelalty/)."
+            },
+            {
+              "type": "p",
+              "text": "This policy covers Pixelalty’s practices. Stripe checkout, Tally questionnaires, Instagram, and other third-party services also operate under their own privacy policies and terms. A client website we build may use different software and have its own owner’s privacy obligations; this policy does not automatically become that client’s policy."
+            }
+          ]
+        },
+        {
+          "title": "Information you provide",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Depending on how you interact with us, you may provide your name, email address, business or brokerage name, service interest, project inquiry, communications, review/rating, order or receipt reference, questionnaire responses, project instructions, and uploaded or otherwise supplied materials."
+            },
+            {
+              "type": "p",
+              "text": "Provide only information relevant to the request and make sure you are authorized to share information about others. The ordinary public inquiry and review forms are not intended for passwords, complete card numbers, government identifiers, medical information, or other highly sensitive information."
+            }
+          ]
+        },
+        {
+          "title": "Contact inquiries",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "The website contact form sends your name, email, optional business name, selected service, and message to Supabase. If you select Advanced / Ecommerce, it may also send the optional page/product counts, booking needs, integrations, and other functionality you enter."
+            },
+            {
+              "type": "p",
+              "text": "We use this information to assess fit and scope, answer questions, prepare a quote, communicate about a project, and keep relevant business records. Inquiry contents and administrative handling status are not intentionally published on the public website. An inquiry does not automatically enroll you in a newsletter or advertising campaign."
+            }
+          ]
+        },
+        {
+          "title": "Reviews and public information",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "A review submission may include your display name, business or brokerage name, service, rating, title, review text, email, order/reference, genuine-experience confirmation, and submission metadata. Reviews await moderation rather than publishing automatically."
+            },
+            {
+              "type": "p",
+              "text": "If published, your display name, optional business name, service, rating, title/text, and date may be visible publicly, along with a verification indicator or our public response. Featured approved reviews may appear on the homepage. Your reviewer email and order/reference are administrative/private fields and are not intentionally included in public review output. Moderation notes are private."
+            },
+            {
+              "type": "p",
+              "text": "Do not include private information in the public review text. Contact us about a correction, privacy concern, or removal request. We assess requests in light of authenticity, legal obligations, and legitimate records. Search engines and third parties may retain copies of material already made public. You retain ownership of your review; publication permission is limited and does not transfer that ownership."
+            }
+          ]
+        },
+        {
+          "title": "Payment information and Stripe",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Stripe processes customer payments on its checkout pages. Pixelalty’s public website has no card-number entry fields and does not need to receive or store complete credit/debit card numbers or card security codes."
+            },
+            {
+              "type": "p",
+              "text": "We may receive or access payment-related information through Stripe, such as payer/contact details, the service purchased, amount, currency, payment status, receipt/transaction references, limited payment-method details, refunds, and dispute records. We use these for fulfillment, accounting, verification, refunds, and handling disputes. Stripe processes payment and fraud-prevention information under its own policies. See [Stripe’s Privacy Policy](https://stripe.com/privacy)."
+            }
+          ]
+        },
+        {
+          "title": "Questionnaires, Tally, and project materials",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "After a website purchase, you may be redirected to a Tally questionnaire. Information and files you submit there are processed through Tally and made available for the project. Listing video customers should follow their applicable post-payment instructions; not every service necessarily uses the same questionnaire."
+            },
+            {
+              "type": "p",
+              "text": "Project information may include website addresses, business descriptions, branding, copy, photos, listing details, product/catalog information, functionality requirements, and authorized project materials. We use it to scope, produce, review, deliver, and support the agreed work. Materials may be supplied through a questionnaire or another channel we agree to use."
+            },
+            {
+              "type": "p",
+              "text": "Do not upload passwords, payment-card information, confidential customer lists, or sensitive personal data to ordinary forms. If a project genuinely needs restricted information or account access, agree on appropriate handling first. You are responsible for obtaining permission before sharing third-party materials or personal data. See [Tally’s Privacy Policy](https://tally.so/help/privacy-policy)."
+            }
+          ]
+        },
+        {
+          "title": "Administrator authentication and site settings",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Supabase provides authentication for Pixelalty administrators, including email/password login, authenticator-based multi-factor authentication, session tokens, account identifiers, and related security records. These administrative functions are separate from public customer forms; purchasing a service does not create a public administrator account."
+            },
+            {
+              "type": "p",
+              "text": "Supabase also stores site appearance settings. Only published design settings are exposed to public visitors. Drafts, version history, and administrative actor information are restricted to authorized administration. Authenticated administrative access to private application data requires an admin role and completed MFA in the current implementation."
+            }
+          ]
+        },
+        {
+          "title": "Technical and security information",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Requests to load the website or use connected services necessarily involve technical information such as IP address, request time, requested resource, browser/device information, connection details, and security/error information. Cloudflare and the relevant service providers may process this information to deliver their services and detect abuse."
+            },
+            {
+              "type": "p",
+              "text": "Public submissions also use a request identifier and form timing information for reliable retries and spam controls. Server-side rate limiting uses security metadata, including a salted hash derived from a submitted email address and submission type. These controls are not advertising profiles and do not imply that every submission has been identity-verified."
+            }
+          ]
+        },
+        {
+          "title": "Cookies, browser storage, and analytics",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "This website does not currently use Google Analytics, Meta Pixel, Cloudflare Web Analytics, advertising cookies, or behavioral advertising tags."
+            },
+            {
+              "type": "p",
+              "text": "The site uses browser local storage to save public appearance settings so your next page can load with consistent styling. The cache is treated as valid for up to 24 hours; its stored entry may remain until replaced or cleared. It contains public design values, not a customer profile, review, or administrator credential."
+            },
+            {
+              "type": "p",
+              "text": "The site uses sessionStorage for administrator sign-in sessions and recent public-form submission timestamps used for a short cooldown. Browser storage can normally be cleared in your browser settings; disabling it may affect sign-in or convenience features. The public website still has a built-in theme if appearance storage is unavailable. Browser session restoration may affect how long session data remains locally."
+            },
+            {
+              "type": "p",
+              "text": "Cloudflare and providers you visit, such as Stripe and Tally, may use their own cookies or equivalent technologies for necessary service, authentication, fraud prevention, or security functions under their policies. This description of Pixelalty’s installed code is not a claim that external checkout or questionnaire pages use no cookies. If we add analytics or advertising technology, we will update this policy and provide any legally required choices before using it."
+            }
+          ]
+        },
+        {
+          "title": "How we use information",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "We use relevant information for the following business purposes:"
+            },
+            {
+              "type": "ul",
+              "items": [
+                "Responding to inquiries; assessing and documenting project scope; communicating about orders and approvals.",
+                "Producing, checking, delivering, and supporting website or listing video work, including arranging necessary provider access.",
+                "Administering payments, receipts, accounting, refunds, and legitimate payment disputes.",
+                "Moderating and displaying genuine customer reviews and responding to feedback.",
+                "Operating the website and Appearance system; controlling administrative access; detecting errors, fraud, spam, or misuse.",
+                "Maintaining necessary records, complying with applicable law, and establishing or protecting legitimate rights."
+              ]
+            }
+          ]
+        },
+        {
+          "title": "Service providers and their roles",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Cloudflare Pages hosts and serves the production website and may process normal network, delivery, and security information. See [Cloudflare’s Privacy Policy](https://www.cloudflare.com/privacypolicy/)."
+            },
+            {
+              "type": "p",
+              "text": "GitHub stores website source code and supports deployment integration. It does not process Pixelalty customer payments. Public source files can include public business copy, branding, and published public configuration; private inquiries, review emails, project secrets, and administrator passwords are not intended for the public repository. See [GitHub’s Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement)."
+            },
+            {
+              "type": "p",
+              "text": "Supabase supplies the database for reviews, inquiries, and site settings and the authentication service for administrators. See [Supabase’s Privacy Policy](https://supabase.com/privacy). Stripe handles payments and related payment operations; Tally handles questionnaires and submitted project information. Their policies are linked in the relevant sections above."
+            },
+            {
+              "type": "p",
+              "text": "If you contact us on Instagram, that platform processes your account and messages under its own policies. Other providers may be needed for a particular agreed project, such as its hosting, domain, booking, ecommerce, or creative tools. Their involvement depends on the services actually used; this is not a claim that every example platform is installed on pixelalty.com."
+            }
+          ]
+        },
+        {
+          "title": "Production tools and confidential materials",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Project materials may be processed using design, development, automation, creative software, or AI-assisted tools to prepare the agreed deliverables. We limit the information shared with a tool to what is reasonably needed for the task, subject to agreed restrictions. Its provider’s terms and account settings also govern its processing."
+            },
+            {
+              "type": "p",
+              "text": "Tell us before sending confidential, regulated, or sensitive information so we can determine whether suitable handling can be agreed or whether the information should not be supplied. A standard website or listing video purchase does not itself establish a specialized sensitive-data processing agreement. We do not claim that all providers follow identical retention or processing practices."
+            }
+          ]
+        },
+        {
+          "title": "When information may be shared",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "We may disclose relevant information to providers needed to operate the business or perform the agreed service; to a person you authorize; or as needed for payment verification, accounting, professional advice, and resolving a legitimate dispute."
+            },
+            {
+              "type": "p",
+              "text": "We may also disclose information where required by law or valid legal process, or where reasonably necessary to protect people, accounts, security, or legal rights. We may share relevant records with a payment processor or issuer to address a payment dispute. We limit these disclosures to information reasonably relevant to the purpose."
+            },
+            {
+              "type": "p",
+              "text": "If Pixelalty undergoes a legitimate sale, merger, reorganization, or asset transfer, relevant business records may be transferred subject to appropriate confidentiality measures, applicable law, and notice or other protections where required."
+            },
+            {
+              "type": "p",
+              "text": "We do not sell personal information or use it for targeted behavioral advertising in the current operation of this website. We share information for fulfillment, hosting, security, payments, and the other purposes described in this policy."
+            }
+          ]
+        },
+        {
+          "title": "Portfolio and promotional displays",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Our Terms allow limited display of completed, non-confidential work unless the customer requests confidentiality in writing before publication or the work reasonably should remain confidential. This may include the finished website/video and public business branding, subject to underlying rights."
+            },
+            {
+              "type": "p",
+              "text": "This permission does not cover private admin data, payment information, passwords, customer lists, confidential documents, or sensitive personal information. Tell us about an objection or rights/privacy concern through our contact page so we can assess and address it."
+            }
+          ]
+        },
+        {
+          "title": "Data retention",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "We retain information for as long as reasonably needed for the purposes described here, considering the project relationship, support needs, accounting or legal requirements, payment disputes, security, and legitimate recordkeeping. Different categories may require different periods; we do not promise immediate deletion of every record on request."
+            },
+            {
+              "type": "p",
+              "text": "For example, published reviews may remain while relevant and lawfully maintained; private inquiry/project records may be needed for follow-up and proof of performance; and transaction/dispute records may need to be kept longer. Submission rate-limit records older than seven days are cleaned up when later submissions occur; this is not an automatic deletion of the associated inquiry or review."
+            },
+            {
+              "type": "p",
+              "text": "We delete or de-identify information no longer reasonably needed, subject to applicable retention obligations and technical limitations. Provider backups, security logs, legal holds, and recovery systems may retain copies for additional periods under applicable requirements. Clearing browser storage does not itself delete records held by Pixelalty or a provider. Contact us to ask about retention or deletion of a specific record."
+            }
+          ]
+        },
+        {
+          "title": "Security",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "The current site uses HTTPS delivery, restricted database access, public responses limited to intended public fields, and administrator authentication with MFA. We use reasonable safeguards appropriate to the information and services, but no internet transmission, software, account, or storage system can be guaranteed completely secure."
+            },
+            {
+              "type": "p",
+              "text": "Help protect your information by using secure accounts and by keeping passwords, authenticator codes, and full payment details out of ordinary forms and public review text. Contact us promptly if you believe information was exposed or an account was misused. We will respond and provide any notifications required by applicable law."
+            }
+          ]
+        },
+        {
+          "title": "International processing and legal bases",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Pixelalty operates in the United States. Providers and their authorized subprocessors may process information in the United States or other countries, depending on the service and configuration. Privacy laws may differ between locations. Where applicable law requires transfer safeguards, those requirements still apply; visiting this site does not waive them."
+            },
+            {
+              "type": "p",
+              "text": "Where a legal basis is required, relevant processing may be necessary to respond to a request or perform a contract, meet legal obligations, pursue legitimate interests such as operating and securing the service and managing records, or rely on consent where the law requires it. The appropriate basis depends on the activity and applicable law."
+            }
+          ]
+        },
+        {
+          "title": "Your choices and privacy requests",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "You can choose what optional information to provide, refrain from posting a review, adjust browser storage settings, and ask questions about information we hold. We may be unable to provide a requested service without information necessary to fulfill it."
+            },
+            {
+              "type": "p",
+              "text": "Depending on the law that applies to you, you may have rights to request access, correction, deletion, a copy of information, restriction of certain processing, an objection to processing, or withdrawal of consent where processing relies on consent. Withdrawal does not undo lawful prior processing. Rights may be subject to identity verification and lawful exceptions such as necessary records or another person’s rights."
+            },
+            {
+              "type": "p",
+              "text": "Send a request through [Contact Pixelalty](https://pixelalty.com/contact), or use Instagram if the form is unavailable. Identify the request and the relevant project or information without including full card numbers or credentials. We may ask for proportionate verification and will respond as required by applicable law. You may also contact an appropriate privacy regulator where you have that right. No account creation is required merely to submit a request."
+            }
+          ]
+        },
+        {
+          "title": "Children’s privacy",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Pixelalty’s business services and website are not directed to children under 13, and we do not knowingly collect personal information from children under 13. If you believe a child provided information, contact us so we can investigate and take appropriate steps, including deletion where required. The ability to enter a service agreement is addressed in our Terms."
+            }
+          ]
+        },
+        {
+          "title": "Changes to this policy",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "We may update this policy when our actual services, providers, technology, or legal obligations change. The Last Updated date identifies the current version. We will provide additional notice or obtain consent where required before a material change applies; posting an update does not by itself authorize an incompatible use of previously collected information."
+            }
+          ]
+        },
+        {
+          "title": "Contact",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "For privacy questions, requests, or concerns, use [Contact Pixelalty](https://pixelalty.com/contact) or message [@pixelalty on Instagram](https://www.instagram.com/pixelalty/). Return to [pixelalty.com](https://pixelalty.com) for our services, or read our [Terms](https://pixelalty.com/terms) and [Refund & Cancellation Policy](https://pixelalty.com/refund-policy)."
+            }
+          ]
+        }
+      ]
+    },
+    "refund-policy.html": {
+      "title": "Refund & Cancellation Policy",
+      "description": "Pixelalty cancellation and refund terms for custom websites and listing videos, including completed work, customer delays, duplicate payments, and undelivered services.",
+      "sections": [
+        {
+          "title": "Scope and guiding principle",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "This policy applies to Pixelalty’s custom website design services (Launch, Growth, Premium, and Advanced / Ecommerce) and $499 real estate listing videos. Read it with the [Terms of Service](https://pixelalty.com/terms) and your agreed project scope."
+            },
+            {
+              "type": "p",
+              "text": "Custom production commits time and may involve costs that cannot be recovered. Payments are generally non-refundable to the extent they properly compensate work performed and permitted nonrecoverable costs. That does not make every payment non-refundable or allow Pixelalty to retain an unearned balance without a lawful basis. Applicable non-waivable rights always remain in place."
+            }
+          ]
+        },
+        {
+          "title": "How to request cancellation or a refund",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Contact us promptly through [Contact Pixelalty](https://pixelalty.com/contact) or [@pixelalty on Instagram](https://www.instagram.com/pixelalty/). Provide your name, purchased service, order/receipt reference, the requested outcome, and a brief explanation. Do not send full card numbers, passwords, or authenticator codes."
+            },
+            {
+              "type": "p",
+              "text": "We may reasonably verify the payment and requester’s authority, review the agreed scope, work completed, approvals, and incurred costs, and ask for details needed to investigate. Once we receive a clear cancellation request, we will take reasonable steps to stop avoidable further work and costs while the request is assessed. We will communicate the outcome and the basis for any deduction in writing."
+            }
+          ]
+        },
+        {
+          "title": "Before substantive custom work begins",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "If you cancel before meaningful custom work has begun, the starting position is a full refund, less only previously authorized, disclosed, genuinely incurred nonrecoverable costs that may lawfully be deducted. If no such work or costs exist, we will refund the full service payment."
+            },
+            {
+              "type": "p",
+              "text": "Receiving an order, sending an automated acknowledgment, or simply opening a questionnaire does not by itself make the entire price earned. Substantive work may include project-specific planning or architecture, design, coding, content preparation, editing, or other custom production actually performed. We will explain what was done rather than rely solely on a label."
+            }
+          ]
+        },
+        {
+          "title": "After substantive work begins",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "If you cancel after work begins, we may retain the reasonable value of custom work properly performed within the agreed scope and permitted, authorized nonrecoverable costs. We will account for the remaining unearned payment and refund it where due. Partial completion is not automatically full completion."
+            },
+            {
+              "type": "p",
+              "text": "The assessment may use an agreed milestone allocation or a reasonable, explained assessment of the completed portion if no allocation was agreed. We do not invent an undisclosed hourly rate after cancellation, charge twice for the same item, or retain the whole price merely because some work occurred. Work outside the agreed scope is not automatically chargeable."
+            },
+            {
+              "type": "p",
+              "text": "A change of preference or cancellation does not require repayment of the properly earned portion for otherwise conforming custom work. Your statutory rights and remedies for a failure to deliver the promised service are unaffected."
+            }
+          ]
+        },
+        {
+          "title": "Reserved time and cancellation accounting",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "A deduction for reserved production time is not automatic. It requires a specific charge or method disclosed and agreed before booking, a reasonable relationship to an actual loss that could not reasonably be avoided, no double recovery with work or other costs, and permission under applicable law. We will take reasonable steps to mitigate avoidable losses. There is no standard punitive abandonment, restart, or cancellation fee in this policy."
+            },
+            {
+              "type": "p",
+              "text": "Where applicable, the cancellation accounting is: amounts paid to Pixelalty, less properly earned agreed work and permitted costs, with the balance refunded. A credit or substitute service can be offered as an option, but it will not replace a cash refund you are entitled to receive unless you agree."
+            }
+          ]
+        },
+        {
+          "title": "If Pixelalty cannot provide the service",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "If we cannot complete the purchased service for reasons attributable to Pixelalty, we will explain the issue and provide an appropriate refund for the undelivered work. A full refund is appropriate where no usable agreed work has been delivered and no lawful deduction applies. Where usable agreed work has been delivered, we will account for its value and any applicable rights concerning the unfinished or defective work."
+            },
+            {
+              "type": "p",
+              "text": "Where reasonable, we may first offer a correction or a revised plan, but you do not have to accept an unrelated substitute in place of a refund the law requires. This policy does not excuse failure to perform or permit us to keep money for work we have simply chosen not to provide."
+            }
+          ]
+        },
+        {
+          "title": "Quality concerns, revisions, and changed preferences",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Tell us specifically how the work differs from the agreed scope and give us a reasonable opportunity to investigate and correct a genuine issue where appropriate. An error we introduced or a failure to deliver an agreed feature is not an optional paid revision merely because you identify it during review."
+            },
+            {
+              "type": "p",
+              "text": "Included revisions remain Launch: 1 consolidated round; Growth: 2; Premium: up to 3; Listing Video: 1; Advanced: as agreed in writing. A new concept, complete redesign, extra pages, new functionality, ecommerce additions, booking system, integrations, or substantially new content may require a separate quote. Unused included rounds are not cash credits."
+            },
+            {
+              "type": "p",
+              "text": "Dissatisfaction based only on a later preference change, hoped-for business results, or functionality that was never included does not automatically create a full-refund entitlement. This does not limit a remedy for misleading promises, defective work, or another legally protected claim."
+            }
+          ]
+        },
+        {
+          "title": "Customer delays, holds, and abandonment",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Missing usable photos, copy, product details, access, feedback, or approvals pauses affected production. Launch, Growth, and Premium estimates begin after all start requirements are satisfied and do not guarantee completion despite customer delays."
+            },
+            {
+              "type": "p",
+              "text": "Consistent with the Terms, a material response missing for 14 calendar days after a written request may lead to a notified hold. After 60 consecutive calendar days without a meaningful response, we may send a final written notice allowing at least 14 further calendar days before closing the inactive project. A longer hold agreed in writing takes precedence."
+            },
+            {
+              "type": "p",
+              "text": "A later restart may need rescheduling. If substantial new rework is actually needed because of the delay, we may quote it in advance; no automatic reactivation penalty applies. Delay or closure does not automatically forfeit the entire payment. We will account for legitimate completed work and permitted costs and refund any unearned balance due."
+            }
+          ]
+        },
+        {
+          "title": "Scope disputes and Advanced projects",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Advanced / Ecommerce begins at $2,999 and is custom scoped; that is not a guaranteed final price for every project. Page/product counts, functionality, migration, integrations, subscriptions, complexity, and approved changes may increase the cost."
+            },
+            {
+              "type": "p",
+              "text": "A request for expanded work does not require us to do it at the original price. We will explain the change and quote it before undertaking additional chargeable work. If you decline, we can continue the original feasible scope. If no workable scope is agreed, cancellation is assessed using actual authorized work and permitted costs, not a blanket forfeiture."
+            },
+            {
+              "type": "p",
+              "text": "If an Advanced starting payment was made before a suitable scope was agreed and we cannot reach agreement, payment for work not performed will be returned, less only any permitted, previously authorized costs. We will not force acceptance of an undisclosed higher final price."
+            }
+          ]
+        },
+        {
+          "title": "Unusable or unauthorized materials",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "You must provide usable content and the rights needed for the intended project. A listing photograph or other material is not licensed for our use merely because it appears on Zillow, Realtor.com, an MLS, Google Images, or another website."
+            },
+            {
+              "type": "p",
+              "text": "We may request replacements, pause work, or decline an unlawful or unsafe instruction. If the project ends because appropriate inputs cannot be provided, we account for legitimate work already performed and permitted costs. This is not automatic forfeiture of the full payment."
+            }
+          ]
+        },
+        {
+          "title": "Third-party and payment-processing costs",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Domains, hosting, subscriptions, plugins/apps, booking or ecommerce platforms, licensed assets, integrations, and similar third-party charges are separate unless expressly included. Charges you pay directly to a provider are governed by that provider’s refund process; we cannot promise a refund on its behalf."
+            },
+            {
+              "type": "p",
+              "text": "A provider expense we incurred for your project may be deductible only if authorized, disclosed, actually incurred, nonrecoverable, and lawfully deductible. We will seek an available provider refund where appropriate and credit amounts recovered for the same cost to avoid double recovery."
+            },
+            {
+              "type": "p",
+              "text": "We do not automatically subtract an undisclosed Stripe or card-processing fee from a refund. Provider policies do not override a non-waivable right you have against Pixelalty. A service payment also does not automatically cover your future recurring platform bills."
+            }
+          ]
+        },
+        {
+          "title": "Duplicate, accidental, and disputed payments",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Report an accidental duplicate or double charge with the relevant receipt references. Once verified as an unintended duplicate for the same purchase, we will refund the duplicate amount. A separate intended order is not a duplicate simply because it uses the same payment method."
+            },
+            {
+              "type": "p",
+              "text": "If you selected the wrong service, contact us quickly; correction or cancellation depends on whether authorized work or costs have begun. Do not make another payment merely because you have not located your receipt or questionnaire."
+            },
+            {
+              "type": "p",
+              "text": "You retain lawful payment-dispute rights. We encourage contacting us first, may provide relevant records to the processor, and may pause affected work during an unresolved reversal. Knowingly fraudulent, duplicate, or bad-faith claims may lead to lawful recovery of legitimately owed sums. There is no automatic dispute penalty, and any reversed or refunded amount is accounted for so it is not collected twice."
+            }
+          ]
+        },
+        {
+          "title": "Refusal, termination, and circumstances outside our control",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Where work is paused or terminated for nonpayment, prohibited content, missing permissions, a material breach, or a genuine security/legal risk, the same fair accounting rules apply. We may keep only properly earned amounts and permitted costs, subject to law."
+            },
+            {
+              "type": "p",
+              "text": "If an event outside reasonable control makes completion impractical for an extended period, we will discuss rescheduling, an agreed alternative, or cancellation and a fair accounting. An outage or other disruption does not justify keeping an unearned payment indefinitely."
+            }
+          ]
+        },
+        {
+          "title": "Refund method, timing, and remaining rights",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "Approved refunds are normally returned through the original payment processor and payment method. We will confirm the approved amount, explain any lawful deductions, and initiate the refund without unreasonable delay, subject to applicable legal deadlines. When money appears in your account depends on the processor, bank, and payment method; we do not guarantee their posting date."
+            },
+            {
+              "type": "p",
+              "text": "If the original method is unavailable, we will work through the processor and reasonably verify any alternative arrangement. Refunds do not require you to supply a password or authenticator code. Where a payment dispute is already open, processor handling may determine the appropriate route to avoid a duplicate reimbursement."
+            },
+            {
+              "type": "p",
+              "text": "Nothing here excludes a refund, cancellation, correction, damages claim, or other remedy that cannot legally be waived. A review/approval period in our Terms is not a waiver of hidden defects or statutory rights. Applicable mandatory law controls over an inconsistent policy provision."
+            }
+          ]
+        },
+        {
+          "title": "Contact and related policies",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "For help with cancellation or a service concern, use [Contact Pixelalty](https://pixelalty.com/contact) or [@pixelalty on Instagram](https://www.instagram.com/pixelalty/). Read our [Terms of Service](https://pixelalty.com/terms) and [Privacy Policy](https://pixelalty.com/privacy), or return to the [Pixelalty homepage](https://pixelalty.com)."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
