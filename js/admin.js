@@ -1,4 +1,5 @@
 import { configured, getAdminClient, element, serviceNames, dateLabel } from './api.js';
+import { createAppearanceEditor } from './appearance-admin.js';
 const $ = selector => document.querySelector(selector);
 const status = $('#admin-status');
 const login = $('#login-form');
@@ -6,11 +7,13 @@ const mfaForm = $('#mfa-form');
 let client, factorId, busy = false, reviewStatus = 'pending', inquiryStatus = 'new', reviewOffset = 0, inquiryOffset = 0;
 let reviewGeneration = 0, inquiryGeneration = 0, lastActivity = Date.now();
 const PAGE = 20;
+const appearance = createAppearanceEditor({getClient:()=>client,ensureAdmin,onAuthError:()=>handleError(new Error('AUTH'),'Please verify your session again.')});
 function notice(text = '', type = '') { status.textContent = text; status.className = 'form-status ' + type; }
 function activeButtons(selector, chosen) {
   document.querySelectorAll(selector).forEach(button => { const active = button === chosen; button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); });
 }
 function clearPrivateUI() {
+  appearance.reset();
   $('#dashboard').hidden = true;
   $('#mfa-panel').hidden = true;
   $('#sign-out').hidden = true;
@@ -230,6 +233,7 @@ document.querySelectorAll('[data-panel]').forEach(button=>button.addEventListene
   if(button.dataset.panel==='overview')await overview();
   if(button.dataset.panel==='reviews')await loadReviews(true);
   if(button.dataset.panel==='inquiries')await loadInquiries(true);
+  if(button.dataset.panel==='appearance')await appearance.open();
 }));
 document.querySelectorAll('[data-review-status]').forEach(button=>button.addEventListener('click',()=>{reviewStatus=button.dataset.reviewStatus;activeButtons('[data-review-status]',button);loadReviews(true);}));
 document.querySelectorAll('[data-inquiry-status]').forEach(button=>button.addEventListener('click',()=>{inquiryStatus=button.dataset.inquiryStatus;activeButtons('[data-inquiry-status]',button);loadInquiries(true);}));

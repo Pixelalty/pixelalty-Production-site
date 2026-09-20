@@ -2,7 +2,43 @@
 
 Your completed site is plain HTML, CSS, and JavaScript. All 16 pages are already generated. **No build, React, Node server, or paid website theme is required.** The five supplied brand images are preserved in `assets/brand/`; optimized web versions and exact cropped logo elements are also included. Stripe links and existing Tally redirects are preserved.
 
-The site is not deployed and is not connected to a Supabase project yet. Real reviews, inquiry storage, and admin sign-in start working after the setup below. Without configuration, service pages and payment links work, review sections have a clean empty state, and forms clearly say they are not connected; they never pretend a submission succeeded.
+This update adds **Appearance** to the existing secured admin dashboard and a Premium Hybrid public design. The full archive retains the public Supabase configuration read from your deployed site. No password, service-role key, or private customer data is included. Your current GitHub → Cloudflare Pages structure and checkout destinations are preserved.
+
+## Update your LIVE Pixelalty site — start here
+
+**Do not repeat the first-install steps below. Do not rerun `SUPABASE_SETUP.sql`, recreate your administrator, reset MFA, or delete any existing tables.**
+
+1. In your existing Supabase project, open **SQL Editor → New query**. Paste and run **`supabase/ADD_APPEARANCE_EDITOR.sql` only**. This transaction adds Appearance tables, validation, narrow RPCs, and RLS. It is safe to rerun and preserves reviews, inquiries, profiles, Auth users, and MFA. It does not publish a design automatically.
+2. Extract **`Pixelalty-Appearance-Update.zip`**. Merge the contents of its `pixelalty-production-site` folder into the same level of your existing GitHub repository where `index.html` lives. Commit the changed files together. The update archive deliberately omits `js/config.js` and existing assets: keep your live configuration, logos, uploads, and any listing demo. Do not replace the entire repository with the smaller update archive.
+3. Let your existing Cloudflare Pages deployment finish. Keep the same framework/build/output settings; no Node server or new hosting service is needed. Open your existing `/admin` or `/admin.html`, sign in with your current account, and complete the current TOTP challenge.
+4. Choose **Appearance**. Start with **Premium Hybrid**, inspect desktop/mobile preview, then **Save Draft** or **Publish changes → Confirm & Publish**. A successful Save Draft never changes public settings. Publishing applies to the next public page load; open pages check again every 60 seconds while visible and when revisited.
+5. Open the public home, service, contact, and review pages on desktop and phone. With no published appearance yet, the deployed CSS immediately supplies Premium Hybrid. A backend outage cannot remove the site's styling.
+
+The updated `pixelalty-production-site.zip` is the full source archive. For this live upgrade, prefer the smaller update archive so your current config and uploaded assets are retained. If using the full archive, preserve your current `js/config.js` and any files you added after the original build.
+
+## Appearance: everyday use
+
+- **Theme preset:** Premium Hybrid, Light, Dark, or Custom. Changing an individual setting switches the label to Custom. Premium Hybrid uses a dark hero/header and footer, warm light content, white cards, and restrained blue.
+- **Palette:** page, section, and card surfaces; primary and muted text; accent; decorative border. Colors are exactly six-digit `#RRGGBB`. Both text colors must meet 4.5:1 on all three content backgrounds. Accent must meet 3:1; button text and accent-colored body text are safely derived. Failed checks prevent saving/publishing and retain the last valid preview.
+- **Style:** header Light / Dark / Transparent Hero; footer Light / Dark; Flat / Outlined / Elevated cards; Soft / Medium / Strong borders; None / Subtle / Medium shadows; Minimal / Medium / Rounded corners; Solid / Outline / Soft buttons; Clean / Soft light / Architectural grid hero; Compact / Normal / Spacious spacing; Off / Subtle / Full motion. Operating-system reduced motion always takes precedence. Hero textures are automatically suppressed if they would weaken text contrast.
+- **Brand:** Automatic, original dark lettering, or reversed light lettering using the supplied Pixelalty wordmark. Explicit variants retain their contrast-safe backing; automatic variants adapt to the header/footer. All tier graphics remain intact.
+- **Typography:** locally hosted Manrope, system sans, Trebuchet/Arial, or Georgia. These are fixed stacks; there is no remote font URL, font upload, HTML, JavaScript, or raw CSS input.
+- **Preview** opens the larger design preview. The inline preview scrolls independently; the view selector switches its width. It is a representative layout using the same public stylesheet and token engine. It is isolated from the admin controls and cannot submit forms or navigate. Check real pages after publishing for final copy/layout.
+- **Save Draft** saves private settings in Supabase. Unsaved edits live only in the current admin tab and are cleared at sign-out. Drafts are not put in persistent browser storage or served to anonymous visitors.
+- **Publish changes** opens an explicit confirmation. Only a confirmed, successful server response is reported as published. Publication creates a numbered history entry in the same transaction.
+- **Revert to Published** discards the saved/unsaved draft after confirmation. Before the first publication it returns to the built-in default. It never republishes by itself.
+- **Restore Previous Version** restores a selected prior publication into the draft after confirmation; preview and confirm Publish separately. The editor lists the latest 20 publications; the database retains every version.
+- **Reload saved settings** fetches the latest revision. If another tab has saved newer settings, stale saves are rejected instead of overwriting them. Your preview remains visible until you choose to reload.
+
+### Appearance troubleshooting
+
+If the editor says Appearance is not installed, run the separate migration in the existing project, then choose Reload saved settings. Do not rerun the base setup. If a save or publish response is uncertain, reload saved settings to see whether it committed before trying again. If your session expires, sign in and verify MFA again.
+
+Visitors use a validated last-published cache for up to 24 hours, applied before CSS to reduce wrong-theme flashes. Fresh published settings replace it after a successful request. If settings are unavailable, invalid, or missing, the site keeps a safe cached design or its complete built-in theme. A successful empty response clears an old cache. Storage denial and disabled JavaScript still leave a fully styled public site. Public pages load only `get_published_appearance`; private drafts/history are available only after admin + AAL2 verification.
+
+## First installation only
+
+The remaining A–R guide is for a completely new deployment. Existing live installations should use the migration procedure above.
 
 ## Choose your host before launch
 
@@ -28,7 +64,7 @@ A GitHub repository connected to Cloudflare Pages can serve these same static fi
 
 1. In that project open **SQL Editor** → **New query**.
 2. Open `supabase/SUPABASE_SETUP.sql` in a text editor.
-3. Copy the entire file into SQL Editor and click **Run**.
+3. Copy the entire file into SQL Editor and click **Run**, then run `supabase/ADD_APPEARANCE_EDITOR.sql` in a separate query to install Appearance.
 4. The script creates protected tables, read-safe public review functions, validated submission functions, and database authorization. It contains no example customer reviews.
 5. This is a **first-install script for a new project**. Do not run it on top of an existing installation or drop live tables to make it run. Back up and use a reviewed migration for later schema changes.
 6. Leave `pixelalty_private` out of Supabase's exposed Data API schemas. The default `public` schema is all the browser needs.
@@ -105,7 +141,7 @@ supabasePublishableKey: 'your-actual-publishable-or-legacy-anon-key',
 3. Drag the contents of `pixelalty-production-site` into the repository root so `index.html` is at the top level. Do not add an extra folder around the site.
 4. Include `assets`, `js`, the policy pages, `CNAME`, and `.nojekyll`. If your upload method hides `.nojekyll`, use GitHub's **Create new file** and name it `.nojekyll`; an empty file is sufficient.
 5. Commit with a message such as `Add Pixelalty website`.
-6. `README_SETUP.md`, `STRIPE_SETUP.md`, `QA_REPORT.md`, `SECURITY_NOTES.md`, `supabase`, and `tools` contain public implementation documentation, not secrets. They can be kept in the source repository. The sample config has no credentials. No Node installation is needed to host the site.
+6. `README_SETUP.md`, `STRIPE_SETUP.md`, `QA_REPORT.md`, `SECURITY_NOTES.md`, `supabase`, and `tools` contain public implementation documentation, not secrets. They can be kept in the source repository. The config contains only public settings and a browser-safe Supabase key. No Node installation is needed to host the site.
 
 ## N. Publish and connect pixelalty.com
 
@@ -166,7 +202,7 @@ Follow `STRIPE_SETUP.md` for all five Payment Links. Account settings and redire
 
 ## Everyday administration
 
-Go directly to `/admin.html`. Overview metrics use real database counts. Reviews: choose Pending / Published / Hidden; approve, hide with a reason, delete, verify after checking records, feature/unfeature, or add a public Pixelalty response. Customer review words, titles, identities, and ratings cannot be rewritten. Contact inquiries: choose New / Read / Archived, change status, or delete. Lists paginate in groups of 20.
+Go directly to `/admin.html`. Overview metrics use real database counts. Reviews: choose Pending / Published / Hidden; approve, hide with a reason, delete, verify after checking records, feature/unfeature, or add a public Pixelalty response. Customer review words, titles, identities, and ratings cannot be rewritten. Appearance controls the public design with draft, preview, confirmed publication, and version restoration. Contact inquiries: choose New / Read / Archived, change status, or delete. Lists paginate in groups of 20.
 
 The homepage shows at most three featured approved reviews. The full reviews page loads 12 at a time and filters by service. There is no fabricated rating schema. Sign out when finished. A tab-scoped session is used; the app signs out after 15 minutes without activity. Existing token lifetimes and revocation are also governed by Supabase.
 

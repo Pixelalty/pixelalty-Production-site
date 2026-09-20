@@ -1,4 +1,7 @@
--- Pixelalty: run ONCE in a NEW Supabase project's SQL Editor as project owner.
+-- Pixelalty BASE schema: run ONCE in a NEW Supabase project as project owner.
+-- NEW installations: run this base file, then ADD_APPEARANCE_EDITOR.sql.
+-- LIVE installations: run ONLY ADD_APPEARANCE_EDITOR.sql to add Appearance.
+-- Never rerun this base file against the live Pixelalty database.
 -- No secret is needed by the browser. Public submissions use narrowly scoped RPCs.
 -- Existing installations: back up and use a reviewed migration; do not drop live tables.
 begin;
