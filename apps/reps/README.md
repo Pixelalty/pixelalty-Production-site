@@ -1,11 +1,57 @@
 # Pixelalty Sales
 
-Independent application for reps.pixelalty.com. This is a work-in-progress recovery branch, not a production release. The earlier unsaved local build was lost during a workspace reset. This branch preserves replacement source as it is rebuilt.
+CRM and rep portal intended for `reps.pixelalty.com`. This branch contains a staging candidate, not a production release. No remote migrations, live payments, or production deployments have been performed.
 
-The existing customer website stays at the repository root. This app has its own package manifest, build, deployment, and additive database migrations under `apps/reps`; the public site's files are not modified. A separate repository can be created by copying this directory without changing its runtime paths.
+Start with [the step-by-step account setup](docs/SETUP_STEP_BY_STEP.md). See [validation status](docs/QA.md) and [operations](docs/OPERATIONS.md) before launch.
 
-GitHub access and the existing Pixelalty Supabase project have been verified. No migrations or deployments have been applied. Cloudflare hosting and Stripe sandbox credentials still require account-side setup after validation.
+The existing customer website stays at the repository root. This application has its own build, runtime configuration, and additive database migrations in `apps/reps`. Its source can later move to a dedicated repository without changing its internal paths.
 
-Required default sale / commission amounts in USD: Launch $799 / $125; Growth $1,299 / $250; Premium $1,999 / $400; Advanced $2,999+ / $600. Store cents and immutable deal snapshots. An increased Advanced sale price does not automatically increase commission.
+## Implemented workflows
 
-Do not merge or deploy this draft until the validation and provider acceptance checklist is complete.
+- Public recruiting with Turnstile; administrative review, invitation and gated rep onboarding.
+- Supabase authentication, administrator MFA, database roles, team scope and row-level security.
+- Lead import, validation, duplicate/DNC rejection, claim capacity, ownership expiry, focus calling, append-only call history and timezone-aware follow-ups.
+- Server-priced deals, Stripe Checkout, verified payment attribution, separate commission/transfer/bank payout ledgers, holds and refund/dispute recovery.
+- Contractor Connect onboarding, explicit finance transfers, persisted reversal requests and reconciliation controls.
+- Academy, private quiz answer keys, versioned agreements, support, fulfillment, notifications, XP and leaderboard.
+- Administrative recruiting, rep access, finance, compliance, content, reporting, audit and health views.
+
+Calling starts disabled. Automatic transfers are disabled. Legal agreements are supplied by the business owner. Employee payroll is handled outside Stripe Connect. No customer, rep, earnings or lead demo records are seeded into a real database.
+
+| Package  | Default customer price | Default commission |
+| -------- | ---------------------: | -----------------: |
+| Launch   |                   $799 |               $125 |
+| Growth   |                 $1,299 |               $250 |
+| Premium  |                 $1,999 |               $400 |
+| Advanced |         $2,999 minimum |               $600 |
+
+Amounts are integer USD cents. Each deal preserves its package version and commission snapshot. An increased Advanced price does not automatically change the $600 commission. Later package edits affect new deals only.
+
+## Development
+
+Use Node 24 and the committed lockfile:
+
+```sh
+cd apps/reps
+npm ci
+npm run check
+npx wrangler deploy --dry-run --env staging
+```
+
+`npm run check` runs lint, TypeScript, isolated database/Worker tests and the frontend build. PGlite applies the real migrations with test-only Auth roles and records. It does not contact the connected project.
+
+For a full local app, copy `.env.example` to the ignored `.dev.vars`, use a dedicated test database and sandbox credentials, run `npm run build`, then `npm run preview`. Set `APP_URL` to the exact origin printed by Wrangler. Vite alone serves the frontend; it does not provide the Worker API.
+
+The browser fixture harness is `tests/browser-qa.mjs`; it expects Vite on `127.0.0.1:5173` and a working Playwright Chromium installation. It mocks responses only in the test process. Its execution is currently unverified in this environment; it is not a substitute for hosted acceptance tests.
+
+## Architecture
+
+React/Vite assets and the TypeScript API run in one Cloudflare Worker. The browser receives only public Supabase/Turnstile configuration. The server verifies access tokens through Supabase Auth and executes user RPCs under the user's JWT. Database policies remain the read authorization boundary.
+
+Exposed tables use a `px_` prefix. Private helpers and quiz keys live in `px_private`. Clients cannot write tables directly. Checked RPCs perform mutations; provider reconciliation uses a separate service-only RPC. Financial updates have unique provider identifiers and append-only event histories. Webhook signatures are verified against the raw body before retrieving current Stripe objects.
+
+The staging cron runs every 15 minutes for ownership expiry, follow-up reminders, commission eligibility and bounded payment reconciliation. It does not automatically transfer money.
+
+## Release status
+
+The full master specification is not yet accepted end to end. Hosted browser, real Supabase Auth/PostgREST, concurrent database operations, email, Stripe Connect/webhooks and deployment limits remain staging gates. See `docs/QA.md`. Keep the pull request in draft until acceptance is complete.

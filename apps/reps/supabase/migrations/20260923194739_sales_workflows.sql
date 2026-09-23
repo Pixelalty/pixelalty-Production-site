@@ -17,12 +17,14 @@ begin
  select * into rep from public.px_reps where id=uid for update;
  if action='claim' then
   if rep.id is null or rep.status<>'active' then raise exception 'An active rep account is required.' using errcode='42501';end if;
-  select greatest(0,least(coalesce((p->>'count')::int,5),20,rep.capacity-count(*)::int)) into count_n from public.px_businesses where owner_id=uid and not customer and not dnc and not archived;
+  select greatest(0,least(coalesce((p->>'count')::int,5),20,rep.capacity-count(*)::int)) into count_n from public.px_businesses where owner_id=uid and not customer and not dnc and not archived and stage not in ('lost','won','dnc');
+  n:=0;
   for lead in select b.* from public.px_businesses b where b.owner_id is null and not b.dnc and not b.customer and not b.archived and b.stage not in ('lost','won','dnc') and not exists(select 1 from public.px_dnc d where d.phone=b.phone and d.active) order by b.created_at for update skip locked limit count_n loop
    update public.px_businesses set owner_id=uid,claimed_at=now(),expires_at=now()+make_interval(hours=>(cfg->>'first_attempt_hours')::int),first_attempt_at=null where id=lead.id;
    insert into public.px_assignments(business_id,rep_id,action,actor_id) values(lead.id,uid,'claim',uid);
+   n:=n+1;
   end loop;
-  perform px_private.audit('claim',uid::text);return jsonb_build_object('claimed',count_n);
+  perform px_private.audit('claim',uid::text);return jsonb_build_object('claimed',n);
  end if;
 
  if action in ('call','followup','deal') then
@@ -100,7 +102,7 @@ begin
  -- Every administrative mutation is reasoned, checked independently, and audited.
  if length(why)<5 then raise exception 'Enter an audit reason of at least five characters.';end if;
  if action in ('applicant_stage','applicant_note','approval_begin','rep_classification','rep_activate','rep_suspend','assign','import_start','import_stage','import_commit','import_archive','save_view','export','fulfillment') then perform px_private.require_role(array['sales_admin']);
- elsif action in ('commission_hold','commission_release','queue_transfer','package') then perform px_private.require_role(array['finance_admin']);
+ elsif action in ('commission_hold','commission_release','queue_transfer','package','finance_reconcile') then perform px_private.require_role(array['finance_admin']);
  elsif action in ('dnc_add','dnc_remove') then perform px_private.require_role(array['compliance_admin']);
  elsif action='content' then perform px_private.require_role(array['content_admin']);
  elsif action='support_reply' then perform px_private.require_role(array['support']);
@@ -172,7 +174,7 @@ begin
   update public.px_settings set value=cfg||data||'{"auto_transfers":false}';
  elsif action='content' then
   if p->>'kind'='agreement' then perform px_private.require_role(array['owner']);end if;
-  perform pg_advisory_xact_lock(hashtext(p->>'kind'||':'||p->>'slug'));
+  perform pg_advisory_xact_lock(hashtext((p->>'kind')||':'||(p->>'slug')));
   select coalesce(max(version),0)+1 into n from public.px_content where kind=p->>'kind' and slug=p->>'slug';
   update public.px_content set active=false where kind=p->>'kind' and slug=p->>'slug' and active;
   insert into public.px_content(kind,slug,title,body,version,required) values(p->>'kind',p->>'slug',p->>'title',p->>'body',n,coalesce((p->>'required')::boolean,false)) returning id into v_id;
@@ -212,8 +214,8 @@ begin
   why:=p->>'reason';
  elsif action='import_archive' then
   update public.px_imports set status='archived' where id=v_id;
-  update public.px_businesses set archived=true where import_id=v_id and owner_id is null and first_attempt_at is null and not customer;
- elsif action='export' then null;
+  update public.px_businesses set archived=true where import_id=v_id and owner_id is null and first_attempt_at is null and not customer and not exists(select 1 from public.px_calls c where c.business_id=public.px_businesses.id) and not exists(select 1 from public.px_deals d where d.business_id=public.px_businesses.id);
+ elsif action in ('export','finance_reconcile') then null;
  else raise exception 'Unknown action.';end if;
  perform px_private.audit(action,coalesce(v_id::text,''),why);return jsonb_build_object('id',v_id)||result;
 end $$;

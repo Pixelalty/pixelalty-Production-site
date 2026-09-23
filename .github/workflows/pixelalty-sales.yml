@@ -1,0 +1,29 @@
+name: Pixelalty Sales checks
+on:
+  push:
+    branches: [codex/pixelalty-sales-v1, main]
+    paths: ["apps/reps/**", ".github/workflows/pixelalty-sales.yml"]
+  pull_request:
+    paths: ["apps/reps/**", ".github/workflows/pixelalty-sales.yml"]
+permissions:
+  contents: read
+concurrency:
+  group: sales-checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/reps
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/reps/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npx wrangler deploy --dry-run --env staging

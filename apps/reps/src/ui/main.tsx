@@ -1,30 +1,484 @@
-import {useCallback,useEffect,useState} from 'react';import {createRoot} from 'react-dom/client';import {createClient,type SupabaseClient} from '@supabase/supabase-js';
-import {LayoutDashboard,Target,Users,Calendar,GitBranch,Wallet,BookOpen,Trophy,UserCircle,HelpCircle,Bell,Menu,LogOut,ShieldCheck,Upload,Settings,FileText,Activity,X,Sun,ArrowRight} from 'lucide-react';
-import {api,setClient,AppContext,State,Listing,Modal,Heading} from './lib';import {SignIn,Apply,MFA} from './public';import {Dashboard,Leads,Focus,Followups,Pipeline,Money,Academy,Onboarding,Profile,Leaderboard,Support} from './pages';import {Admin} from './admin';import type {Row} from '../shared/core';import './styles.css';
-function App(){const [config,setConfig]=useState<Row|null>(null),[client,setAuth]=useState<SupabaseClient|null>(null),[session,setSession]=useState<any>(null),[ctx,setCtx]=useState<Row|null>(null),[error,setError]=useState(''),[version,setVersion]=useState(0),[path,setPath]=useState(location.pathname+location.search),[toast,setToast]=useState(''),[link,setLink]=useState(''),[menu,setMenu]=useState(false),[theme,setTheme]=useState(localStorage.getItem('pixelalty-theme')||'system');const refresh=useCallback(()=>setVersion(v=>v+1),[]);const notify=(s:string)=>{setToast(s);setTimeout(()=>setToast(''),6000);};const navigate=(s:string)=>{history.pushState({},'',s);setPath(s);setMenu(false);window.scrollTo(0,0)};
- useEffect(()=>{const fn=()=>setPath(location.pathname+location.search);window.addEventListener('popstate',fn);api('/config').then(c=>{setConfig(c);if(c.configured){const s=createClient(c.supabaseUrl,c.publishableKey,{auth:{storage:sessionStorage,persistSession:true,detectSessionInUrl:true}});setClient(s);setAuth(s);s.auth.getSession().then(r=>setSession(r.data.session));s.auth.onAuthStateChange((_event,newSession)=>setSession(newSession));}}).catch(e=>setError(e.message));return()=>window.removeEventListener('popstate',fn);},[]);
- const reloadContext=useCallback(()=>{if(session)api('/me').then(setCtx).catch(e=>setError(e.message));},[session]);useEffect(()=>{if(session)reloadContext();else setCtx(null)},[session]);
- useEffect(()=>{localStorage.setItem('pixelalty-theme',theme);const media=window.matchMedia('(prefers-color-scheme: dark)');const apply=()=>document.documentElement.dataset.theme=theme==='system'?(media.matches?'dark':'light'):theme;apply();media.addEventListener('change',apply);return()=>media.removeEventListener('change',apply);},[theme]);
- const run=async(fn:()=>Promise<unknown>)=>{try{return await fn()}catch(e){notify((e as Error).message);}};
- const mutate=async(action:string,p:Row={})=>{const result=await api('/action',{action,p});refresh();return result;};
- if(error)return <div className="center-card"><h1>Workspace unavailable</h1><State error={error}/><button onClick={()=>location.reload()}>Try again</button></div>;
- if(!config)return <State loading/>;
- if(path.startsWith('/apply'))return <Apply siteKey={config.turnstileSiteKey}/>;
- if(path.startsWith('/payment-return'))return <div className="center-card"><ShieldCheck size={40}/><h1>{path.includes('success')?'Thank you.':'Checkout closed.'}</h1><p>{path.includes('success')?'We’re verifying the payment with Stripe. Your Pixelalty contact can confirm the next steps once verification is complete.':'No payment is confirmed by this page. Contact your Pixelalty representative if you would like to continue.'}</p><a className="button" href="https://pixelalty.com">Return to Pixelalty</a></div>;
- if(!session)return <SignIn client={client} configured={config.configured}/>;
- if(!ctx)return <State loading/>;
- if(ctx.roles.length&&ctx.aal!=='aal2')return <MFA client={client!} onSuccess={reloadContext}/>;
- if(!ctx.rep&&!ctx.roles.length)return <div className="center-card"><h1>Your account isn’t active here yet.</h1><p>A Pixelalty administrator needs to approve your access.</p><button onClick={()=>client?.auth.signOut()}>Sign out</button></div>;
- const has=(role:string)=>ctx.roles.includes('owner')||ctx.roles.includes(role),active=ctx.rep?.status==='active',root=path.split('?')[0];
- const personal=[['/','Overview',LayoutDashboard],...active?[['/focus','Focus mode',Target],['/leads','My leads',Users],['/followups','Follow-ups',Calendar],['/pipeline','Pipeline',GitBranch]]:[['/onboarding','Onboarding',ShieldCheck]],['/money','My money',Wallet],['/academy','Academy',BookOpen],['/leaderboard','Leaderboard',Trophy],['/notifications','Notifications',Bell],['/profile','My profile',UserCircle],['/support','Help & support',HelpCircle]];
- const admin=[...has('sales_admin')?[['/admin','Command center',LayoutDashboard],['/admin/recruiting','Recruiting',Users],['/admin/reps','Reps',UserCircle],['/admin/leads','Businesses',Users],['/admin/imports','Import leads',Upload],['/admin/fulfillment','Fulfillment',GitBranch]]:[],...has('manager')?[['/team','My team',Users]]:[],...has('finance_admin')?[['/admin/finance','Finance',Wallet]]:[],...has('compliance_admin')?[['/admin/compliance','Compliance',ShieldCheck]]:[],...has('content_admin')?[['/admin/content','Content',BookOpen]]:[],...has('support')?[['/admin/support','Support inbox',HelpCircle]]:[],...has('owner')?[['/admin/settings','Settings',Settings],['/admin/audit','Audit log',FileText],['/admin/health','System health',Activity]]:[]];
- const allowed=new Set([...personal,...admin].map(x=>x[0]));let screen:React.ReactNode;
- if(!allowed.has(root))screen=<div className="notice">This page is not available for your role.</div>;
- else if(root.startsWith('/admin'))screen=<Admin/>;
- else if(root==='/team')screen=<><Heading title="My team" description="Only the reps and businesses in your assigned teams appear here."/><Listing name="reps" columns={[["name","Rep"],["code","Rep ID"],["status","Status"]]}/><Listing name="businesses" columns={[["name","Business"],["stage","Stage"],["owner_id","Rep"]]}/></>;
- else if(root==='/notifications')screen=<><Heading title="Notifications"/><Listing name="notifications" query="&own=true" columns={[["title","Update"],["body","Details"],["created_at","Time"]]} actions={r=>!r.read_at&&<button onClick={()=>run(()=>mutate('notification_read',{id:r.id}))}>Mark read</button>}/></>;
- else screen=({'/':ctx.rep?<Dashboard/>:<Admin/>,'/focus':<Focus/>,'/leads':<Leads/>,'/followups':<Followups/>,'/pipeline':<Pipeline/>,'/money':<Money/>,'/academy':<Academy/>,'/onboarding':<Onboarding/>,'/profile':<Profile/>,'/leaderboard':<Leaderboard/>,'/support':<Support/>} as Record<string,React.ReactNode>)[root];
- const nav=(items:any[])=>items.map(([to,title,Icon])=><button key={to} className={root===to?'nav-item active':'nav-item'} onClick={()=>navigate(to)}><Icon size={18}/><span>{title}</span>{root===to&&<span className="nav-dot"/>}</button>);
- return <AppContext.Provider value={{ctx,client,config,version,path,navigate,refresh,notify,run,mutate,has,setLink,theme,setTheme,reloadContext}}><div className="app-shell"><aside className={'sidebar '+(menu?'open':'')}><a className="brand" href="/" onClick={e=>{e.preventDefault();navigate('/')}}>P<span>PIXELALTY<small>SALES WORKSPACE</small></span></a><button className="close-menu icon" aria-label="Close menu" onClick={()=>setMenu(false)}><X/></button><div className="nav-label">WORKSPACE</div>{nav(personal)}{!!admin.length&&<><div className="nav-label">ADMINISTRATION</div>{nav(admin)}</>}<div className="sidebar-footer"><div className="avatar">{(ctx.rep?.name||'Admin')[0]}</div><div><strong>{ctx.rep?.name||'Administrator'}</strong><small>{ctx.rep?.code||'Pixelalty'}</small></div><button className="icon" aria-label="Sign out" onClick={()=>client?.auth.signOut()}><LogOut size={17}/></button></div></aside><div className="main-shell"><header className="topbar"><button className="mobile-menu icon" aria-label="Open menu" onClick={()=>setMenu(true)}><Menu/></button><div className="breadcrumb">Workspace <span>/</span> <strong>{[...personal,...admin].find(x=>x[0]===root)?.[1] as string||'Overview'}</strong></div><div className="top-actions">{config.mode==='test'&&<span className="test-label">TEST ENVIRONMENT</span>}<button className="icon" aria-label="Switch appearance" onClick={()=>setTheme(theme==='dark'?'light':'dark')}><Sun size={18}/></button><button className="icon" aria-label="Notifications" onClick={()=>navigate('/notifications')}><Bell size={18}/></button><span className="avatar small">{(ctx.rep?.name||'A')[0]}</span></div></header><main key={root}>{screen}</main><footer className="app-footer"><span>PIXELALTY SALES</span><span>Make the next conversation count.</span></footer></div>{toast&&<div className="toast" role="status">{toast}<button className="icon" aria-label="Dismiss notification" onClick={()=>setToast('')}><X size={16}/></button></div>}{link&&<Modal title="Customer checkout" onClose={()=>setLink('')}><p>This link is attributed to the selected deal and its saved package version.</p><label className="field"><span>Checkout link</span><input readOnly value={link}/></label><div className="actions"><button onClick={()=>run(async()=>{await navigator.clipboard.writeText(link);notify('Checkout link copied.');})}>Copy link</button><a className="button primary" href={link} target="_blank" rel="noreferrer">Open checkout <ArrowRight size={16}/></a></div></Modal>}</div></AppContext.Provider>;
+import { useCallback, useEffect, useState, lazy, Suspense } from "react";
+import { createRoot } from "react-dom/client";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import {
+  LayoutDashboard,
+  Target,
+  Users,
+  Calendar,
+  GitBranch,
+  Wallet,
+  BookOpen,
+  Trophy,
+  UserCircle,
+  HelpCircle,
+  Bell,
+  Menu,
+  LogOut,
+  ShieldCheck,
+  Upload,
+  Settings,
+  FileText,
+  Activity,
+  X,
+  Sun,
+  ArrowRight,
+} from "lucide-react";
+import {
+  api,
+  setClient,
+  AppContext,
+  State,
+  Listing,
+  Modal,
+  Heading,
+} from "./lib";
+import { SignIn, Apply, MFA } from "./public";
+import {
+  Dashboard,
+  Leads,
+  Focus,
+  Followups,
+  Pipeline,
+  Money,
+  Academy,
+  Onboarding,
+  Profile,
+  Leaderboard,
+  Support,
+} from "./pages";
+const Admin = lazy(() => import("./admin").then((m) => ({ default: m.Admin })));
+import type { Row } from "../shared/core";
+import "./styles.css";
+function App() {
+  const [config, setConfig] = useState<Row | null>(null),
+    [client, setAuth] = useState<SupabaseClient | null>(null),
+    [session, setSession] = useState<any>(null),
+    [ctx, setCtx] = useState<Row | null>(null),
+    [error, setError] = useState(""),
+    [version, setVersion] = useState(0),
+    [path, setPath] = useState(location.pathname + location.search),
+    [toast, setToast] = useState(""),
+    [link, setLink] = useState(""),
+    [menu, setMenu] = useState(false),
+    [theme, setTheme] = useState(
+      localStorage.getItem("pixelalty-theme") || "system",
+    );
+  const refresh = useCallback(() => setVersion((v) => v + 1), []);
+  const notify = (s: string) => {
+    setToast(s);
+    setTimeout(() => setToast(""), 6000);
+  };
+  const navigate = (s: string) => {
+    history.pushState({}, "", s);
+    setPath(s);
+    setMenu(false);
+    window.scrollTo(0, 0);
+  };
+  useEffect(() => {
+    const fn = () => setPath(location.pathname + location.search);
+    window.addEventListener("popstate", fn);
+    api("/config")
+      .then((c) => {
+        setConfig(c);
+        if (c.configured) {
+          const s = createClient(c.supabaseUrl, c.publishableKey, {
+            auth: {
+              storage: sessionStorage,
+              persistSession: true,
+              detectSessionInUrl: true,
+            },
+          });
+          setClient(s);
+          setAuth(s);
+          s.auth.getSession().then((r) => setSession(r.data.session));
+          s.auth.onAuthStateChange((_event, newSession) =>
+            setSession(newSession),
+          );
+        }
+      })
+      .catch((e) => setError(e.message));
+    return () => window.removeEventListener("popstate", fn);
+  }, []);
+  const reloadContext = useCallback(() => {
+    if (session)
+      api("/me")
+        .then(setCtx)
+        .catch((e) => setError(e.message));
+  }, [session]);
+  useEffect(() => {
+    if (session) reloadContext();
+    else setCtx(null);
+  }, [session]);
+  useEffect(() => {
+    localStorage.setItem("pixelalty-theme", theme);
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () =>
+      (document.documentElement.dataset.theme =
+        theme === "system" ? (media.matches ? "dark" : "light") : theme);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, [theme]);
+  const run = async (fn: () => Promise<unknown>) => {
+    try {
+      return await fn();
+    } catch (e) {
+      notify((e as Error).message);
+    }
+  };
+  const mutate = async (action: string, p: Row = {}) => {
+    const result = await api("/action", { action, p });
+    refresh();
+    return result;
+  };
+  if (error)
+    return (
+      <div className="center-card">
+        <h1>Workspace unavailable</h1>
+        <State error={error} />
+        <button onClick={() => location.reload()}>Try again</button>
+      </div>
+    );
+  if (!config) return <State loading />;
+  if (path.startsWith("/apply"))
+    return <Apply siteKey={config.turnstileSiteKey} />;
+  if (path.startsWith("/payment-return"))
+    return (
+      <div className="center-card">
+        <ShieldCheck size={40} />
+        <h1>{path.includes("success") ? "Thank you." : "Checkout closed."}</h1>
+        <p>
+          {path.includes("success")
+            ? "We’re verifying the payment with Stripe. Your Pixelalty contact can confirm the next steps once verification is complete."
+            : "No payment is confirmed by this page. Contact your Pixelalty representative if you would like to continue."}
+        </p>
+        <a className="button" href="https://pixelalty.com">
+          Return to Pixelalty
+        </a>
+      </div>
+    );
+  if (!session)
+    return <SignIn client={client} configured={config.configured} />;
+  if (!ctx) return <State loading />;
+  if (ctx.roles.length && ctx.aal !== "aal2")
+    return <MFA client={client!} onSuccess={reloadContext} />;
+  if (!ctx.rep && !ctx.roles.length)
+    return (
+      <div className="center-card">
+        <h1>Your account isn’t active here yet.</h1>
+        <p>A Pixelalty administrator needs to approve your access.</p>
+        <button onClick={() => client?.auth.signOut()}>Sign out</button>
+      </div>
+    );
+  const has = (role: string) =>
+      ctx.roles.includes("owner") || ctx.roles.includes(role),
+    active = ctx.rep?.status === "active",
+    root = path.split("?")[0];
+  const personal = [
+    ["/", "Overview", LayoutDashboard],
+    ...(active
+      ? [
+          ["/focus", "Focus mode", Target],
+          ["/leads", "My leads", Users],
+          ["/followups", "Follow-ups", Calendar],
+          ["/pipeline", "Pipeline", GitBranch],
+        ]
+      : [["/onboarding", "Onboarding", ShieldCheck]]),
+    ["/money", "My money", Wallet],
+    ["/academy", "Academy", BookOpen],
+    ["/leaderboard", "Leaderboard", Trophy],
+    ["/notifications", "Notifications", Bell],
+    ["/profile", "My profile", UserCircle],
+    ["/support", "Help & support", HelpCircle],
+  ];
+  const admin = [
+    ...(has("sales_admin")
+      ? [
+          ["/admin", "Command center", LayoutDashboard],
+          ["/admin/recruiting", "Recruiting", Users],
+          ["/admin/reps", "Reps", UserCircle],
+          ["/admin/leads", "Businesses", Users],
+          ["/admin/imports", "Import leads", Upload],
+          ["/admin/fulfillment", "Fulfillment", GitBranch],
+        ]
+      : []),
+    ...(has("manager") ? [["/team", "My team", Users]] : []),
+    ...(has("finance_admin") ? [["/admin/finance", "Finance", Wallet]] : []),
+    ...(has("compliance_admin")
+      ? [["/admin/compliance", "Compliance", ShieldCheck]]
+      : []),
+    ...(has("content_admin") ? [["/admin/content", "Content", BookOpen]] : []),
+    ...(has("support")
+      ? [["/admin/support", "Support inbox", HelpCircle]]
+      : []),
+    ...(has("owner")
+      ? [
+          ["/admin/settings", "Settings", Settings],
+          ["/admin/audit", "Audit log", FileText],
+          ["/admin/health", "System health", Activity],
+        ]
+      : []),
+  ];
+  const allowed = new Set([...personal, ...admin].map((x) => x[0]));
+  let screen: React.ReactNode;
+  if (!allowed.has(root))
+    screen = (
+      <div className="notice">This page is not available for your role.</div>
+    );
+  else if (root.startsWith("/admin")) screen = <Admin />;
+  else if (root === "/team")
+    screen = (
+      <>
+        <Heading
+          title="My team"
+          description="Only the reps and businesses in your assigned teams appear here."
+        />
+        <Listing
+          name="reps"
+          columns={[
+            ["name", "Rep"],
+            ["code", "Rep ID"],
+            ["status", "Status"],
+          ]}
+        />
+        <Listing
+          name="businesses"
+          columns={[
+            ["name", "Business"],
+            ["stage", "Stage"],
+            ["owner_id", "Rep"],
+          ]}
+        />
+      </>
+    );
+  else if (root === "/notifications")
+    screen = (
+      <>
+        <Heading title="Notifications" />
+        <Listing
+          name="notifications"
+          query="&own=true"
+          columns={[
+            ["title", "Update"],
+            ["body", "Details"],
+            ["created_at", "Time"],
+          ]}
+          actions={(r) =>
+            !r.read_at && (
+              <button
+                onClick={() =>
+                  run(() => mutate("notification_read", { id: r.id }))
+                }
+              >
+                Mark read
+              </button>
+            )
+          }
+        />
+      </>
+    );
+  else
+    screen = (
+      {
+        "/": ctx.rep ? (
+          <Dashboard />
+        ) : (
+          <>
+            <Heading
+              title="Your workspace"
+              description="Choose an area available to your role."
+            />
+            <div className="button-row">
+              {admin.map(([to, title]) => (
+                <button key={String(to)} onClick={() => navigate(String(to))}>
+                  {String(title)}
+                </button>
+              ))}
+            </div>
+          </>
+        ),
+        "/focus": <Focus />,
+        "/leads": <Leads />,
+        "/followups": <Followups />,
+        "/pipeline": <Pipeline />,
+        "/money": <Money />,
+        "/academy": <Academy />,
+        "/onboarding": <Onboarding />,
+        "/profile": <Profile />,
+        "/leaderboard": <Leaderboard />,
+        "/support": <Support />,
+      } as Record<string, React.ReactNode>
+    )[root];
+  const nav = (items: any[]) =>
+    items.map(([to, title, Icon]) => (
+      <button
+        key={to}
+        className={root === to ? "nav-item active" : "nav-item"}
+        onClick={() => navigate(to)}
+      >
+        <Icon size={18} />
+        <span>{title}</span>
+        {root === to && <span className="nav-dot" />}
+      </button>
+    ));
+  return (
+    <AppContext.Provider
+      value={{
+        ctx,
+        client,
+        config,
+        version,
+        path,
+        navigate,
+        refresh,
+        notify,
+        run,
+        mutate,
+        has,
+        setLink,
+        theme,
+        setTheme,
+        reloadContext,
+      }}
+    >
+      <div className="app-shell">
+        <aside className={"sidebar " + (menu ? "open" : "")}>
+          <a
+            className="brand"
+            href="/"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate("/");
+            }}
+          >
+            P
+            <span>
+              PIXELALTY<small>SALES WORKSPACE</small>
+            </span>
+          </a>
+          <button
+            className="close-menu icon"
+            aria-label="Close menu"
+            onClick={() => setMenu(false)}
+          >
+            <X />
+          </button>
+          <div className="nav-label">WORKSPACE</div>
+          {nav(personal)}
+          {!!admin.length && (
+            <>
+              <div className="nav-label">ADMINISTRATION</div>
+              {nav(admin)}
+            </>
+          )}
+          <div className="sidebar-footer">
+            <div className="avatar">{(ctx.rep?.name || "Admin")[0]}</div>
+            <div>
+              <strong>{ctx.rep?.name || "Administrator"}</strong>
+              <small>{ctx.rep?.code || "Pixelalty"}</small>
+            </div>
+            <button
+              className="icon"
+              aria-label="Sign out"
+              onClick={() => client?.auth.signOut()}
+            >
+              <LogOut size={17} />
+            </button>
+          </div>
+        </aside>
+        <div className="main-shell">
+          <header className="topbar">
+            <button
+              className="mobile-menu icon"
+              aria-label="Open menu"
+              onClick={() => setMenu(true)}
+            >
+              <Menu />
+            </button>
+            <div className="breadcrumb">
+              Workspace <span>/</span>{" "}
+              <strong>
+                {([...personal, ...admin].find(
+                  (x) => x[0] === root,
+                )?.[1] as string) || "Overview"}
+              </strong>
+            </div>
+            <div className="top-actions">
+              {config.mode === "test" && (
+                <span className="test-label">TEST ENVIRONMENT</span>
+              )}
+              <button
+                className="icon"
+                aria-label="Switch appearance"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              >
+                <Sun size={18} />
+              </button>
+              <button
+                className="icon"
+                aria-label="Notifications"
+                onClick={() => navigate("/notifications")}
+              >
+                <Bell size={18} />
+              </button>
+              <span className="avatar small">{(ctx.rep?.name || "A")[0]}</span>
+            </div>
+          </header>
+          <main key={root}>
+            <Suspense fallback={<State loading />}>{screen}</Suspense>
+          </main>
+          <footer className="app-footer">
+            <span>PIXELALTY SALES</span>
+            <span>Make the next conversation count.</span>
+          </footer>
+        </div>
+        {toast && (
+          <div className="toast" role="status">
+            {toast}
+            <button
+              className="icon"
+              aria-label="Dismiss notification"
+              onClick={() => setToast("")}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+        {link && (
+          <Modal title="Customer checkout" onClose={() => setLink("")}>
+            <p>
+              This link is attributed to the selected deal and its saved package
+              version.
+            </p>
+            <label className="field">
+              <span>Checkout link</span>
+              <input readOnly value={link} />
+            </label>
+            <div className="actions">
+              <button
+                onClick={() =>
+                  run(async () => {
+                    await navigator.clipboard.writeText(link);
+                    notify("Checkout link copied.");
+                  })
+                }
+              >
+                Copy link
+              </button>
+              <a
+                className="button primary"
+                href={link}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open checkout <ArrowRight size={16} />
+              </a>
+            </div>
+          </Modal>
+        )}
+      </div>
+    </AppContext.Provider>
+  );
 }
-createRoot(document.getElementById('root')!).render(<App/>);
+createRoot(document.getElementById("root")!).render(<App />);
