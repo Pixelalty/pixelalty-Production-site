@@ -1,6 +1,6 @@
 # Pixelalty Sales
 
-CRM and rep portal intended for `reps.pixelalty.com`. This branch contains a staging candidate, not a production release. No remote migrations, live payments, or production deployments have been performed.
+CRM and rep portal intended for `reps.pixelalty.com`. This branch contains a staging candidate, not a production release. The five sales migrations are now applied to the dedicated staging project. See [staging status](docs/STAGING_STATUS.md) for the exact target, migration mapping and verified boundaries. No production database changes or live payments have been performed.
 
 Start with [the step-by-step account setup](docs/SETUP_STEP_BY_STEP.md). See [validation status](docs/QA.md) and [operations](docs/OPERATIONS.md) before launch.
 

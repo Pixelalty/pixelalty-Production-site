@@ -1,6 +1,6 @@
 # Validation and remaining acceptance
 
-Status: staging candidate. No production database writes, invitations, live payments, transfers, DNS changes or deployments have been performed. GitHub source checkpoints are on `codex/pixelalty-sales-v1`.
+Status: staging candidate. The user deployed the staging Worker and configured provider bindings. All five migrations were applied to staging on 2026-09-23. See [staging status](STAGING_STATUS.md) for completed checks. No production database writes, invitations, live payments, transfers or production deployments have been performed by this work. GitHub source checkpoints are on `codex/pixelalty-sales-v1`.
 
 ## Local checks
 
@@ -12,7 +12,7 @@ The import case stages 5,003 rows: 5,000 accepted, one duplicate, one suppressed
 
 ## Unverified hosted gates
 
-- Apply all migrations to a dedicated Supabase staging project, then exercise actual Auth JWTs and PostgREST through the Worker. The local harness simulates Supabase's Auth functions; it does not test the gateway.
+- Migrations and anonymous PostgREST boundaries are verified on the dedicated staging project. Actual user Auth JWTs and authenticated flows through the Worker still need acceptance.
 - Run concurrent claims and financial retries on a full Postgres server with separate connections. PGlite tests logical capacity and deduplication, not true multi-connection races.
 - Review desktop, tablet and mobile layouts, keyboard/focus behavior, dark/system themes, empty/error/loading states, row pagination, and all role-specific navigation in a supported browser. No browser screenshots were captured: local Chromium crashed, and the supported remote browser could not access the local preview.
 - Verify owner MFA setup, invitation acceptance, email delivery, recovery links, session expiry, sign-out and reauthentication using intended test accounts. Test support/finance/content/manager access as separate users.
