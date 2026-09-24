@@ -4,6 +4,7 @@ import { chromium } from "playwright";
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { startIntegration } from "./integration-server";
+import { verifyWorkspace } from "./workspace-browser";
 const out = new URL("../test-results/v1/", import.meta.url);
 await mkdir(out, { recursive: true });
 const fixture = await startIntegration();
@@ -87,6 +88,7 @@ try {
     .getByRole("heading", { name: "The business, at a glance." })
     .waitFor();
   console.log("Owner signed in");
+  await verifyWorkspace(page, fixture, out, checks);
   await page.goto(fixture.base + "/profile?reset=1");
   await page
     .getByLabel("New password", { exact: true })
@@ -119,6 +121,7 @@ try {
     "/admin/health",
     "/notifications",
     "/profile",
+    "/appearance",
   ])
     await go(path);
   await go("/admin/recruiting");
@@ -377,7 +380,17 @@ try {
     fullPage: true,
     timeout: 5000,
   });
-  await page.getByRole("button", { name: "Switch appearance" }).click();
+  await page
+    .getByRole("button", { name: "Customize appearance", exact: true })
+    .click();
+  await page.getByRole("radio", { name: "Dark", exact: true }).check();
+  await page
+    .getByRole("button", { name: "Save appearance", exact: true })
+    .click();
+  await page
+    .getByText("Appearance saved to your account.", { exact: true })
+    .waitFor();
+  await go("/");
   assert.equal(await page.locator("html").getAttribute("data-theme"), "dark");
   await page.screenshot({
     path: new URL("dashboard-dark.png", out).pathname,

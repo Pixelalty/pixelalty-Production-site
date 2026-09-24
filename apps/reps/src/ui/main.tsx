@@ -1,27 +1,23 @@
-import { useCallback, useEffect, useState, lazy, Suspense } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useMemo,
+  useRef,
+  lazy,
+  Suspense,
+} from "react";
 import { createRoot } from "react-dom/client";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
-  LayoutDashboard,
-  Target,
-  Users,
-  Calendar,
-  GitBranch,
-  Wallet,
-  BookOpen,
-  Trophy,
-  UserCircle,
-  HelpCircle,
   Bell,
   Menu,
   LogOut,
   ShieldCheck,
-  Upload,
-  Settings,
-  FileText,
-  Activity,
   X,
-  Sun,
+  Palette,
+  Search,
+  Pin,
   ArrowRight,
 } from "lucide-react";
 import {
@@ -49,7 +45,21 @@ import {
 } from "./pages";
 const Admin = lazy(() => import("./admin").then((m) => ({ default: m.Admin })));
 import type { Row } from "../shared/core";
+import {
+  workspacePreferences,
+  type WorkspacePreferences,
+} from "../shared/workspace";
+import { workspacePages, WorkspaceNavigation, PageFinder } from "./navigation";
+import { Appearance } from "./appearance";
 import "./styles.css";
+import "./workspace.css";
+function storedTheme() {
+  try {
+    return localStorage.getItem("pixelalty-theme") || "system";
+  } catch {
+    return "system";
+  }
+}
 function App() {
   const [config, setConfig] = useState<Row | null>(null),
     [client, setAuth] = useState<SupabaseClient | null>(null),
@@ -61,15 +71,39 @@ function App() {
     [toast, setToast] = useState(""),
     [link, setLink] = useState(""),
     [menu, setMenu] = useState(false),
-    [theme, setTheme] = useState(
-      localStorage.getItem("pixelalty-theme") || "system",
-    );
+    [finder, setFinder] = useState(false),
+    [mobile, setMobile] = useState(
+      window.matchMedia("(max-width: 900px)").matches,
+    ),
+    [legacyTheme] = useState(storedTheme),
+    [previewPreferences, setPreviewPreferences] =
+      useState<WorkspacePreferences | null>(null),
+    [savingPreferences, setSavingPreferences] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const preferences = useMemo(
+    () =>
+      workspacePreferences({
+        theme: legacyTheme,
+        density: ctx?.rep?.preferences?.compact ? "compact" : "comfortable",
+        reduced_motion: !!ctx?.rep?.preferences?.reduced_motion,
+        ...session?.user?.user_metadata?.pixelalty_workspace,
+      }),
+    [session?.user?.user_metadata, ctx?.rep?.preferences, legacyTheme],
+  );
+  const displayPreferences = previewPreferences || preferences;
+  const theme = displayPreferences.theme;
+  useEffect(() => {
+    document
+      .getElementById("workspace-content")
+      ?.focus({ preventScroll: true });
+  }, [path]);
   const refresh = useCallback(() => setVersion((v) => v + 1), []);
   const notify = (s: string) => {
     setToast(s);
     setTimeout(() => setToast(""), 6000);
   };
   const navigate = (s: string) => {
+    setPreviewPreferences(null);
     history.pushState({}, "", s);
     setPath(s);
     setMenu(false);
@@ -82,7 +116,11 @@ function App() {
     let handledAuthFlow = false;
     let subscription: { unsubscribe: () => void } | undefined;
     let mounted = true;
-    const fn = () => setPath(location.pathname + location.search);
+    const fn = () => {
+      setPath(location.pathname + location.search);
+      setMenu(false);
+      setPreviewPreferences(null);
+    };
     window.addEventListener("popstate", fn);
     api("/config")
       .then((c) => {
@@ -123,13 +161,69 @@ function App() {
     };
   }, []);
   useEffect(() => {
-    document.documentElement.dataset.compact = String(
-      !!ctx?.rep?.preferences?.compact,
-    );
-    document.documentElement.dataset.motion = ctx?.rep?.preferences
-      ?.reduced_motion
-      ? "reduced"
-      : "auto";
+    const d = document.documentElement.dataset;
+    d.compact = String(displayPreferences.density === "compact");
+    d.motion = displayPreferences.reduced_motion ? "reduced" : "auto";
+    d.accent = displayPreferences.accent;
+    d.textSize = displayPreferences.text_size;
+    d.sidebar = displayPreferences.sidebar;
+  }, [displayPreferences]);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 900px)");
+    const change = () => {
+      setMobile(media.matches);
+      if (!media.matches) setMenu(false);
+    };
+    media.addEventListener("change", change);
+    return () => media.removeEventListener("change", change);
+  }, []);
+  useEffect(() => {
+    if (!menu) return;
+    const previous = document.activeElement as HTMLElement;
+    const priorOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    sidebarRef.current?.querySelector<HTMLElement>(".close-menu")?.focus();
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMenu(false);
+      }
+      if (e.key === "Tab") {
+        const nodes = Array.from(
+          sidebarRef.current?.querySelectorAll<HTMLElement>(
+            "a[href],button,summary",
+          ) || [],
+        ).filter(
+          (el) => el.getClientRects().length && !el.hasAttribute("disabled"),
+        );
+        const first = nodes[0],
+          last = nodes.at(-1);
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", key);
+    return () => {
+      document.body.style.overflow = priorOverflow;
+      document.removeEventListener("keydown", key);
+      previous?.focus();
+    };
+  }, [menu]);
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (ctx && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setMenu(false);
+        setFinder((value) => !value);
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
   }, [ctx]);
   const reloadContext = useCallback(() => {
     if (session)
@@ -148,7 +242,11 @@ function App() {
     else setCtx(null);
   }, [session]);
   useEffect(() => {
-    localStorage.setItem("pixelalty-theme", theme);
+    try {
+      localStorage.setItem("pixelalty-theme", theme);
+    } catch {
+      /* The signed-in preference still saves to the account. */
+    }
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const apply = () =>
       (document.documentElement.dataset.theme =
@@ -169,6 +267,32 @@ function App() {
     refresh();
     return result;
   };
+  const savePreferences = async (patch: Partial<WorkspacePreferences>) => {
+    if (!client || !session) throw Error("Sign in to save your preferences.");
+    if (savingPreferences) throw Error("Wait for the current save to finish.");
+    setSavingPreferences(true);
+    try {
+      const next = workspacePreferences({ ...preferences, ...patch });
+      const result = await client.auth.updateUser({
+        data: { pixelalty_workspace: next },
+      });
+      if (result.error) throw result.error;
+      if (!result.data.user)
+        throw Error("Your preferences were not saved. Please try again.");
+      setSession((current: any) =>
+        current?.user?.id === result.data.user.id
+          ? { ...current, user: result.data.user }
+          : current,
+      );
+      return next;
+    } finally {
+      setSavingPreferences(false);
+    }
+  };
+  const setTheme = (next: string) =>
+    run(() =>
+      savePreferences({ theme: workspacePreferences({ theme: next }).theme }),
+    );
   if (error)
     return (
       <div className="center-card">
@@ -236,57 +360,13 @@ function App() {
     );
   const has = (role: string) =>
       ctx.roles.includes("owner") || ctx.roles.includes(role),
-    active = ctx.rep?.status === "active",
     root = path.split("?")[0];
-  const personal = [
-    ["/", "Overview", LayoutDashboard],
-    ...(ctx.rep
-      ? active
-        ? [
-            ["/focus", "Focus mode", Target],
-            ["/leads", "My leads", Users],
-            ["/followups", "Follow-ups", Calendar],
-            ["/pipeline", "Pipeline", GitBranch],
-          ]
-        : [["/onboarding", "Onboarding", ShieldCheck]]
-      : []),
-    ...(ctx.rep ? [["/money", "My money", Wallet]] : []),
-    ["/academy", "Academy", BookOpen],
-    ["/leaderboard", "Leaderboard", Trophy],
-    ["/notifications", "Notifications", Bell],
-    ["/profile", "My profile", UserCircle],
-    ...(ctx.rep ? [["/support", "Help & support", HelpCircle]] : []),
-  ];
-  const admin = [
-    ...(has("sales_admin")
-      ? [
-          ["/admin", "Command center", LayoutDashboard],
-          ["/admin/recruiting", "Recruiting", Users],
-          ["/admin/reps", "Reps", UserCircle],
-          ["/admin/leads", "Businesses", Users],
-          ["/admin/imports", "Import leads", Upload],
-          ["/admin/pipeline", "Deals & quotes", GitBranch],
-          ["/admin/fulfillment", "Fulfillment", GitBranch],
-        ]
-      : []),
-    ...(has("manager") ? [["/team", "My team", Users]] : []),
-    ...(has("finance_admin") ? [["/admin/finance", "Finance", Wallet]] : []),
-    ...(has("compliance_admin")
-      ? [["/admin/compliance", "Compliance", ShieldCheck]]
-      : []),
-    ...(has("content_admin") ? [["/admin/content", "Content", BookOpen]] : []),
-    ...(has("support")
-      ? [["/admin/support", "Support inbox", HelpCircle]]
-      : []),
-    ...(has("owner")
-      ? [
-          ["/admin/settings", "Settings", Settings],
-          ["/admin/audit", "Audit log", FileText],
-          ["/admin/health", "System health", Activity],
-        ]
-      : []),
-  ];
-  const allowed = new Set([...personal, ...admin].map((x) => x[0]));
+  const pages = workspacePages(ctx);
+  const admin = pages.filter(
+    (p) => p.to.startsWith("/admin") || p.to === "/team",
+  );
+  const allowed = new Set(pages.map((p) => p.to));
+  if (has("sales_admin")) allowed.add("/admin");
   if (ctx.rep) allowed.add("/onboarding");
   let screen: React.ReactNode;
   if (!allowed.has(root))
@@ -384,7 +464,7 @@ function App() {
                 description="Choose an area available to your role."
               />
               <div className="button-row">
-                {admin.map(([to, title]) => (
+                {admin.map(({ to, title }) => (
                   <button key={String(to)} onClick={() => navigate(String(to))}>
                     {String(title)}
                   </button>
@@ -400,22 +480,14 @@ function App() {
         "/academy": <Academy />,
         "/onboarding": <Onboarding />,
         "/profile": <Profile />,
+        "/appearance": <Appearance />,
         "/leaderboard": <Leaderboard />,
         "/support": <Support />,
       } as Record<string, React.ReactNode>
     )[root];
-  const nav = (items: any[]) =>
-    items.map(([to, title, Icon]) => (
-      <button
-        key={to}
-        className={root === to ? "nav-item active" : "nav-item"}
-        onClick={() => navigate(to)}
-      >
-        <Icon size={18} />
-        <span>{title}</span>
-        {root === to && <span className="nav-dot" />}
-      </button>
-    ));
+  const currentPage =
+    pages.find((p) => p.to === root) ||
+    (root === "/admin" ? pages.find((p) => p.to === "/") : undefined);
   return (
     <AppContext.Provider
       value={{
@@ -434,6 +506,11 @@ function App() {
         theme,
         setTheme,
         reloadContext,
+        preferences,
+        previewPreferences: setPreviewPreferences,
+        savePreferences,
+        savingPreferences,
+        pages,
       }}
     >
       <div className="app-shell">
@@ -447,7 +524,15 @@ function App() {
             onClick={() => setMenu(false)}
           />
         )}
-        <aside className={"sidebar " + (menu ? "open" : "")}>
+        <aside
+          ref={sidebarRef}
+          id="workspace-sidebar"
+          className={"sidebar " + (menu ? "open" : "")}
+          inert={mobile && !menu}
+          aria-label="Workspace navigation"
+          role={menu ? "dialog" : undefined}
+          aria-modal={menu || undefined}
+        >
           <a
             className="brand"
             href="/"
@@ -468,14 +553,31 @@ function App() {
           >
             <X />
           </button>
-          <div className="nav-label">WORKSPACE</div>
-          {nav(personal)}
-          {!!admin.length && (
-            <>
-              <div className="nav-label">ADMINISTRATION</div>
-              {nav(admin)}
-            </>
-          )}
+          <button
+            className="sidebar-search"
+            onClick={() => {
+              setMenu(false);
+              setFinder(true);
+            }}
+          >
+            <Search size={17} />
+            <span>Find a page</span>
+            <kbd>⌘ / Ctrl K</kbd>
+          </button>
+          <WorkspaceNavigation
+            pages={pages}
+            current={currentPage?.to || root}
+          />
+          <a
+            className="sidebar-customize"
+            href="/appearance"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate("/appearance");
+            }}
+          >
+            <Palette size={17} /> Customize workspace
+          </a>
           <div className="sidebar-footer">
             <div className="avatar">{(ctx.rep?.name || "Admin")[0]}</div>
             <div>
@@ -491,33 +593,77 @@ function App() {
             </button>
           </div>
         </aside>
-        <div className="main-shell">
+        <div className="main-shell" inert={menu}>
           <header className="topbar">
             <button
               className="mobile-menu icon"
               aria-label="Open menu"
+              aria-expanded={menu}
+              aria-controls="workspace-sidebar"
               onClick={() => setMenu(true)}
             >
               <Menu />
             </button>
             <div className="breadcrumb">
-              Workspace <span>/</span>{" "}
-              <strong>
-                {([...personal, ...admin].find(
-                  (x) => x[0] === root,
-                )?.[1] as string) || "Overview"}
-              </strong>
+              <span>{currentPage?.group || "Workspace"}</span>
+              <span aria-hidden="true">/</span>
+              <strong>{currentPage?.title || "Home"}</strong>
             </div>
             <div className="top-actions">
               {config.mode === "test" && (
-                <span className="test-label">TEST ENVIRONMENT</span>
+                <span className="test-label" title="Stripe sandbox environment">
+                  Sandbox
+                </span>
               )}
               <button
-                className="icon"
-                aria-label="Switch appearance"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="icon top-search"
+                aria-label="Find a page"
+                onClick={() => setFinder(true)}
               >
-                <Sun size={18} />
+                <Search size={19} />
+              </button>
+              {currentPage &&
+                !["/", "/appearance"].includes(currentPage.to) && (
+                  <button
+                    className="icon page-pin"
+                    aria-label={
+                      (preferences.pinned.includes(currentPage.to)
+                        ? "Unpin "
+                        : "Pin ") + currentPage.title
+                    }
+                    aria-pressed={preferences.pinned.includes(currentPage.to)}
+                    disabled={savingPreferences}
+                    onClick={() =>
+                      run(async () => {
+                        const pinned = preferences.pinned.includes(
+                          currentPage.to,
+                        )
+                          ? preferences.pinned.filter(
+                              (p) => p !== currentPage.to,
+                            )
+                          : [...preferences.pinned, currentPage.to];
+                        if (pinned.length > 6)
+                          throw Error(
+                            "You can pin six pages. Open Appearance to change your shortcuts.",
+                          );
+                        await savePreferences({ pinned });
+                        notify(
+                          preferences.pinned.includes(currentPage.to)
+                            ? "Page unpinned."
+                            : "Page pinned to your sidebar.",
+                        );
+                      })
+                    }
+                  >
+                    <Pin size={18} />
+                  </button>
+                )}
+              <button
+                className="icon"
+                aria-label="Customize appearance"
+                onClick={() => navigate("/appearance")}
+              >
+                <Palette size={19} />
               </button>
               <button
                 className="icon"
@@ -537,6 +683,9 @@ function App() {
             <span>Make the next conversation count.</span>
           </footer>
         </div>
+        {finder && (
+          <PageFinder pages={pages} onClose={() => setFinder(false)} />
+        )}
         {toast && (
           <div className="toast" role="status">
             {toast}

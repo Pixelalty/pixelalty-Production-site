@@ -921,7 +921,7 @@ export function Profile() {
           </Card>
         )}
         {rep && (
-          <Card title="Goals & workspace preferences">
+          <Card title="Goals & calling preferences">
             <Form
               initial={{ shortcuts: true, ...rep.preferences }}
               fields={[
@@ -945,16 +945,6 @@ export function Profile() {
                   type: "checkbox",
                 },
                 {
-                  name: "compact",
-                  label: "Compact table spacing",
-                  type: "checkbox",
-                },
-                {
-                  name: "reduced_motion",
-                  label: "Reduce motion",
-                  type: "checkbox",
-                },
-                {
                   name: "frame",
                   label: "Profile frame",
                   options: [
@@ -968,7 +958,7 @@ export function Profile() {
             />
           </Card>
         )}
-        <Card title="Password & appearance">
+        <Card title="Password & account">
           <Form
             fields={[
               {
@@ -991,17 +981,14 @@ export function Profile() {
             }}
           />
           <div className="divider" />
-          <label className="field">
-            <span>Appearance</span>
-            <select
-              value={app.theme}
-              onChange={(e) => app.setTheme(e.target.value)}
-            >
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </label>
+          <h3>Make this workspace yours</h3>
+          <p>
+            Choose your theme, accent color, text size, spacing and pinned
+            pages.
+          </p>
+          <LinkButton to="/appearance">
+            Customize appearance <ArrowRight size={16} />
+          </LinkButton>
         </Card>
       </div>
     </>

@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { X, ArrowUpRight, LoaderCircle } from "lucide-react";
+import { X, LoaderCircle } from "lucide-react";
 import { label, money, type Row } from "../shared/core";
 let auth: SupabaseClient;
 export function setClient(value: SupabaseClient) {
@@ -164,7 +164,10 @@ export function Modal({
   useEffect(() => {
     const prev = document.activeElement as HTMLElement;
     const el = ref.current;
-    el?.querySelector<HTMLElement>("input,select,textarea,button")?.focus();
+    (
+      el?.querySelector<HTMLElement>("[data-autofocus]") ||
+      el?.querySelector<HTMLElement>("input,select,textarea,button")
+    )?.focus();
     const key = (e: KeyboardEvent) => {
       if (
         document
@@ -181,7 +184,9 @@ export function Modal({
           el?.querySelectorAll<HTMLElement>(
             "button,input,select,textarea,a[href]",
           ) || [],
-        ).filter((x) => !x.hasAttribute("disabled"));
+        ).filter(
+          (x) => !x.hasAttribute("disabled") && x.getClientRects().length,
+        );
         const first = a[0],
           last = a[a.length - 1];
         if (e.shiftKey && document.activeElement === first) {
@@ -849,15 +854,25 @@ function SavedViews({
 export const LinkButton = ({
   to,
   children,
+  primary = false,
 }: {
   to: string;
   children: ReactNode;
+  primary?: boolean;
 }) => {
   const { navigate } = useApp();
   return (
-    <button onClick={() => navigate(to)}>
+    <a
+      href={to}
+      className={primary ? "button primary" : "button"}
+      onClick={(e) => {
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+          return;
+        e.preventDefault();
+        navigate(to);
+      }}
+    >
       {children}
-      <ArrowUpRight size={15} />
-    </button>
+    </a>
   );
 };

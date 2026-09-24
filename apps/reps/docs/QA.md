@@ -5,21 +5,27 @@ The release is a staging candidate on `codex/pixelalty-sales-v1`. Production has
 ## Verified locally
 
 - ESLint and TypeScript pass.
-- All 49 automated tests pass against the actual SQL migrations and Worker code.
+- All 52 automated tests pass against the actual SQL migrations, Worker code and workspace navigation/preferences.
 - The 5,003-row import case accepts 5,000 records and reports duplicate, DNC and invalid exceptions; repeating commit creates no duplicate records.
 - Coverage includes RLS/role/MFA boundaries, approval retries, activation gates, immutable notes, focus sessions, local-day XP caps, follow-up completion, configurable progression, private quiz grading, reviewed imports, metadata preservation and all exact commissions.
 - Financial tests cover verified attribution, refunds, disputes, hold/settlement gating, transfer and reversal persistence, bank payouts, and uncertain Checkout/Connect/reversal attempts beyond safe idempotency windows.
 - The browser suite runs the actual frontend and Worker with SQL-backed persistence. It covers public application, recruiting approval, settings, content/quiz publication, import, attributed deal/checkout requests, profile/goals, business notes/favorites, focus pause/resume, training and role-specific screens.
-- Chromium walkthroughs at 390, 768 and 1440 pixels have no page overflow, console errors or failed application API requests. Light/dark screenshots were inspected.
-- Vite production build and Wrangler staging dry run pass. The main client bundle has an advisory size warning (about 149 kB compressed).
+- The workspace revision verifies the single owner Home, permission-filtered page search, empty search, cancelable appearance preview, account preference save/failure/retry, pin removal/reordering and persistence after clearing browser storage and signing in again. The owner fixture has no rep profile.
+- Settings sections survive reload and browser Back. Recruiting changes persist to SQL. Owner Home, Appearance and Settings are checked at 390/768/1440 px, including the mobile drawer's inert state, Escape/focus return, page search and visible sandbox indicator.
+- Chromium walkthroughs at 390, 768 and 1440 pixels have no page overflow, unexpected console errors or failed application API requests. Light/dark screenshots were inspected.
+- Vite production build and Wrangler staging dry run pass. The main client bundle has an advisory size warning (about 154 kB compressed).
 
 The integration suite uses local simulations at the Supabase Auth/PostgREST HTTP, email, Turnstile and Stripe boundaries. SQL statements, transactions, functions, RLS and application code are real. A simulated checkout request is not proof of a real payment, email delivery or hosted webhook.
+
+The reviewed [owner Home](images/workspace-home-desktop.png), [mobile Home](images/workspace-home-mobile.png) and [Appearance](images/workspace-appearance.png) screenshots use isolated fixture data. They document the implemented UI, not a signed-in hosted acceptance session.
 
 ## Verified in GitHub CI
 
 The [PostgreSQL concurrency run](https://github.com/Pixelalty/pixelalty-Production-site/actions/runs/35942160935) passes all six scenarios against twelve separate connections with a lock barrier. This confirms real request overlap while testing same-rep capacity, competing assignments, call idempotency, duplicate payment events, transfer reservations and concurrent reversal limits. The suite runs all migrations on a fresh PostgreSQL 17 service. No remote application database is used.
 
 The preceding [complete application check](https://github.com/Pixelalty/pixelalty-Production-site/actions/runs/35941349767) also passed lint, types, all 49 tests, production build, Chromium browser acceptance and Wrangler staging dry run.
+
+These linked runs predate the workspace revision. The current revision adds three navigation/preference tests and the browser checks described above; its CI result is recorded on the pull request.
 
 ## Staging database
 

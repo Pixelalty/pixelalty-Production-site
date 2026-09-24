@@ -1,5 +1,25 @@
 # Operating Pixelalty Sales
 
+## Finding and configuring your workspace
+
+Home brings together the work queue, recruiting, lead imports, commissions and
+setup links. The sidebar groups pages by job. Use **Find a page** or **Ctrl/Cmd K**
+to search the pages available to your account. On a phone, open the menu button;
+Escape closes the drawer and returns keyboard focus to that button.
+
+Open **Customize workspace** or **Appearance** to preview light/dark/system mode,
+an accent color, sidebar style, spacing, text size and reduced motion. Select up
+to six pinned pages and move them into your preferred order. **Save appearance**
+saves these choices to your account, including administrator accounts without a
+rep profile. Cancel discards the preview; Reset to defaults also needs Save.
+These settings affect only your presentation, never account permissions.
+
+Workspace settings separates **Workflow & calling**, **Recruiting page**,
+**Progression & training** and **Rep activation**. Each section has its own save
+action and audit reason. Recruiting copy can be previewed on the public application
+page. Edit training and agreements under **Training & content**; edit prospective
+packages and commissions under **Finance**. Existing deals keep their saved terms.
+
 ## Environment boundaries
 
 Keep staging Supabase, Stripe sandbox keys/webhooks, Turnstile and the staging Worker together. Production uses its own bindings. A wrong Stripe mode or webhook signature is rejected. Do not copy live customer records into fixtures.

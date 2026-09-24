@@ -44,6 +44,12 @@ Power Hours, teams and advanced fulfillment analytics. Section 175 defers predic
 routing, experiments, advanced retention, PWA/push and external lead providers.
 These are not visible placeholder features in V1.
 
+The owner's subsequent request for usable customization brings personal workspace
+appearance into this revision: themes, fixed accent colors, sidebar style, density,
+text size, reduced motion and ordered pinned pages. It applies to all authorized
+accounts, including administrators without a rep profile. It is not the generalized
+later-release page/layout editor.
+
 ## External acceptance gates
 
 - [ ] User-controlled invitation/reset delivery with configured SMTP.
@@ -57,7 +63,7 @@ No hosted gate may be checked using a simulated provider result.
 
 ## Current evidence
 
-`npm run check`: 49 passing tests, clean lint/type checks and a successful production build. `npm run test:e2e`: SQL-backed browser flows pass with no console/API errors at 390/768/1440 px, including visual review of light/dark and onboarding screens. The actual Worker and SQL functions are exercised; external provider boundaries are simulated. The original five migrations plus the additive V1 completion/index migrations are recorded on staging. The original migration files and production are untouched.
+`npm run check`: 52 passing tests, clean lint/type checks and a successful production build. `npm run test:e2e`: SQL-backed browser flows pass with no unexpected console/API errors at 390/768/1440 px, including visual review of light/dark, owner configuration and onboarding screens. Workspace preference tests exercise intentional Auth save failure, retry, account restoration and safe metadata; navigation tests include owner, rep, onboarding and specialist roles. The actual Worker and SQL functions are exercised; external provider boundaries are simulated. The original five migrations plus the additive V1 completion/index migrations are recorded on staging. The original migration files and production are untouched.
 
 Six additional contention scenarios pass in GitHub CI against twelve simultaneous connections to full PostgreSQL 17. A lock barrier verifies actual overlap for claims, calls, payment deduplication, transfer requests and reversal reservations.
 

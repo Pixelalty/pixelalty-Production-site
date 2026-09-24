@@ -8,6 +8,7 @@ import { database } from "./helpers";
 import worker from "../src/server/index";
 import type { Env } from "../src/server/types";
 export async function startIntegration() {
+  const userMetadata = new Map<string, Record<string, unknown>>();
   const db = await database(),
     owner = crypto.randomUUID(),
     rep = crypto.randomUUID(),
@@ -125,7 +126,7 @@ export async function startIntegration() {
         ...u,
         aud: "authenticated",
         app_metadata: {},
-        user_metadata: {},
+        user_metadata: userMetadata.get(u.id) || {},
         created_at: new Date().toISOString(),
       },
     };
@@ -412,6 +413,14 @@ export async function startIntegration() {
         } else if (u.pathname.endsWith("/logout")) response = Response.json({});
         else {
           const person = users.find((x) => x.id === c.sub);
+          if (person && u.pathname.endsWith("/user") && req.method === "PUT") {
+            const attributes = (await req.json()) as any;
+            if (attributes.data)
+              userMetadata.set(person.id, {
+                ...userMetadata.get(person.id),
+                ...attributes.data,
+              });
+          }
           response = person
             ? Response.json({
                 ...session(person).user,
@@ -441,6 +450,7 @@ export async function startIntegration() {
     providerCalls,
     session,
     users,
+    userMetadata,
     async close() {
       await new Promise<void>((r) => server.close(() => r()));
       globalThis.fetch = realFetch;

@@ -1,5 +1,18 @@
 import { useState } from "react";
-import { ShieldCheck, Activity } from "lucide-react";
+import {
+  ShieldCheck,
+  Activity,
+  ArrowRight,
+  Users,
+  Upload,
+  Wallet,
+  Palette,
+  Settings as SettingsIcon,
+  CheckCircle2,
+  Circle,
+  BookOpen,
+  ExternalLink,
+} from "lucide-react";
 import {
   download,
   useApp,
@@ -11,6 +24,7 @@ import {
   Modal,
   Form,
   ActionDialog,
+  LinkButton,
   type Field,
 } from "./lib";
 import { label, money, type Row } from "../shared/core";
@@ -756,190 +770,436 @@ export function Admin() {
   return <AdminHome />;
 }
 function AdminHome() {
-  const state = useData("/report?kind=admin");
+  const app = useApp(),
+    state = useData("/report?kind=admin"),
+    d = state.data || {};
+  const accessible = (to: string) =>
+    app.pages.some((p: { to: string }) => p.to === to);
+  const destinations = [
+    {
+      to: "/admin/recruiting",
+      title: "Build your sales team",
+      body: "Review applications, invite reps and follow their onboarding.",
+      icon: Users,
+      action: "Open recruiting",
+    },
+    {
+      to: "/admin/imports",
+      title: "Add your next prospects",
+      body: "Import a spreadsheet, review duplicates and prepare leads for your team.",
+      icon: Upload,
+      action: "Import leads",
+    },
+    {
+      to: "/admin/finance",
+      title: "Manage commissions",
+      body: "Review earned commission, holds, transfers and payout records.",
+      icon: Wallet,
+      action: "Open finance",
+    },
+  ].filter((p) => accessible(p.to));
   return (
     <>
       <Heading
-        eyebrow="ADMINISTRATION"
+        eyebrow="PIXELALTY SALES"
         title="The business, at a glance."
-        description="A clear starting point for running Pixelalty Sales."
-      />
+        description="Your team, your pipeline, and a clear next step."
+      >
+        <LinkButton to="/appearance">
+          <Palette size={16} /> Customize workspace
+        </LinkButton>
+        <LinkButton to="/admin/imports" primary>
+          <Upload size={16} /> Import leads
+        </LinkButton>
+      </Heading>
       <State {...state}>
-        <div className="stats">
-          {Object.entries(state.data || {}).map(([k, v]) => (
-            <Card key={k}>
-              <div className="stat-label">{label(k)}</div>
-              <div className="stat-value">
-                {k.endsWith("_cents") ? money(Number(v)) : String(v)}
+        <div className="stats overview-stats">
+          {[
+            ["Active reps", d.active_reps || 0, "Ready to work", "/admin/reps"],
+            [
+              "Available leads",
+              d.available_leads || 0,
+              "Ready to assign",
+              "/admin/leads",
+            ],
+            [
+              "Verified sales",
+              d.paid_deals || 0,
+              "Payment confirmed",
+              "/admin/pipeline",
+            ],
+            [
+              "Net payment revenue",
+              money(d.revenue_cents || 0),
+              "Recorded payments less refunds",
+              "/admin/pipeline",
+            ],
+          ].map(([title, value, caption, to]) => (
+            <Card key={String(title)}>
+              <div className="stat-label">{title}</div>
+              <div className="stat-value">{value}</div>
+              <div className="stat-bottom">
+                <span>{caption}</span>
+                <LinkButton to={String(to)}>
+                  <ArrowRight size={16} />
+                  <span className="sr-only">View {title}</span>
+                </LinkButton>
               </div>
             </Card>
           ))}
         </div>
+        <section className="work-queue" aria-labelledby="work-queue-title">
+          <div>
+            <span className="eyebrow">YOUR WORK QUEUE</span>
+            <h2 id="work-queue-title">Keep things moving</h2>
+          </div>
+          <div className="queue-links">
+            {[
+              [d.applicants || 0, "New applications", "/admin/recruiting"],
+              [d.onboarding_reps || 0, "Reps onboarding", "/admin/reps"],
+              [d.pending_quotes || 0, "Quotes to review", "/admin/pipeline"],
+            ].map(([count, title, to]) => (
+              <LinkButton to={String(to)} key={String(title)}>
+                <strong>{count}</strong>
+                <span>{title}</span>
+                <ArrowRight size={17} />
+              </LinkButton>
+            ))}
+          </div>
+        </section>
       </State>
-      <Card title="Operating order">
-        <ol className="operating-order">
-          <li>Review applications and invite approved reps.</li>
-          <li>Verify onboarding and activate eligible accounts.</li>
-          <li>Import businesses, review exceptions, and assign leads.</li>
-          <li>Monitor verified payments and commission holds.</li>
-          <li>Authorize eligible transfers and track bank payouts.</li>
-        </ol>
-      </Card>
+      <div className="launch-grid">
+        {destinations.map(({ to, title, body, icon: Icon, action }) => (
+          <Card key={to}>
+            <span className="launch-icon">
+              <Icon size={22} />
+            </span>
+            <h2>{title}</h2>
+            <p>{body}</p>
+            <LinkButton to={to}>
+              {action}
+              <ArrowRight size={16} />
+            </LinkButton>
+          </Card>
+        ))}
+      </div>
+      <div className="owner-home-grid">
+        <Card
+          title="Make Pixelalty work your way"
+          extra={<SettingsIcon size={19} />}
+        >
+          <div className="configuration-links">
+            {[
+              {
+                to: "/appearance",
+                title: "Customize your workspace",
+                detail: "Theme, accent color, spacing and pinned pages",
+                icon: Palette,
+              },
+              {
+                to: "/admin/settings",
+                title: "Set your operating rules",
+                detail:
+                  "Lead ownership, calling windows and onboarding requirements",
+                icon: SettingsIcon,
+              },
+              {
+                to: "/admin/content",
+                title: "Publish training & agreements",
+                detail: "Lessons, quizzes, scripts and versioned documents",
+                icon: BookOpen,
+              },
+              {
+                to: "/admin/finance",
+                title: "Configure packages & commissions",
+                detail:
+                  "Create prospective versions without changing past deals",
+                icon: Wallet,
+              },
+            ]
+              .filter((p) => accessible(p.to))
+              .map(({ to, title, detail, icon: Icon }) => (
+                <LinkButton to={to} key={to}>
+                  <Icon size={19} />
+                  <span>
+                    <strong>{title}</strong>
+                    <small>{detail}</small>
+                  </span>
+                  <ArrowRight size={16} />
+                </LinkButton>
+              ))}
+          </div>
+        </Card>
+        <Card title="Team readiness" extra={<ShieldCheck size={19} />}>
+          <State {...state}>
+            {[
+              {
+                done: !!app.ctx.settings.recruiting_open,
+                title: "Recruiting applications",
+                detail: app.ctx.settings.recruiting_open
+                  ? "Your application form is open."
+                  : "Applications are currently closed.",
+                to: "/admin/settings?section=recruiting",
+                permission: "/admin/settings",
+              },
+              {
+                done: d.required_agreements > 0,
+                title: "Required agreement",
+                detail:
+                  d.required_agreements > 0
+                    ? "An active agreement is published."
+                    : "Publish your approved agreement before activating reps.",
+                to: "/admin/content",
+                permission: "/admin/content",
+              },
+              {
+                done: !!app.ctx.settings.calling_enabled,
+                title: "Manual calling",
+                detail: app.ctx.settings.calling_enabled
+                  ? "Enabled within your approved calling window."
+                  : "Off until you approve the calling policy.",
+                to: "/admin/settings",
+                permission: "/admin/settings",
+              },
+            ]
+              .filter((p) => accessible(p.permission))
+              .map((p) => (
+                <div className="readiness-item" key={p.title}>
+                  {p.done ? (
+                    <CheckCircle2 className="ready" size={20} />
+                  ) : (
+                    <Circle size={20} />
+                  )}
+                  <div>
+                    <h3>{p.title}</h3>
+                    <p>{p.detail}</p>
+                  </div>
+                  <LinkButton to={p.to}>
+                    {p.done ? "Manage" : "Set up"}
+                  </LinkButton>
+                </div>
+              ))}
+          </State>
+          <a className="button" href="/apply" target="_blank" rel="noreferrer">
+            View recruiting page <ExternalLink size={15} />
+          </a>
+        </Card>
+      </div>
     </>
   );
 }
 function Settings() {
   const app = useApp();
+  const sections = [
+    ["workflow", "Workflow & calling"],
+    ["recruiting", "Recruiting page"],
+    ["progression", "Progression & training"],
+    ["activation", "Rep activation"],
+  ];
+  const requested = new URLSearchParams(app.path.split("?")[1]).get("section");
+  const selected = sections.some(([key]) => key === requested)
+    ? requested
+    : "workflow";
   return (
     <>
       <Heading
         title="Workspace settings"
         description="Configuration changes are audited. Calling must be explicitly enabled after review."
       />
-      <div className="onboarding-grid">
-        <Card title="Workflow policy">
-          <Form
-            initial={app.ctx.settings}
+      <nav className="settings-tabs" aria-label="Settings sections">
+        {sections.map(([key, title]) => (
+          <button
+            key={key}
+            className={selected === key ? "selected" : ""}
+            aria-current={selected === key ? "page" : undefined}
+            onClick={() => app.navigate("/admin/settings?section=" + key)}
+          >
+            {title}
+          </button>
+        ))}
+      </nav>
+      <div className="settings-content" key={selected}>
+        {selected === "workflow" && (
+          <>
+            <Card title="Workflow policy">
+              <Form
+                initial={Object.fromEntries(
+                  [
+                    "hold_days",
+                    "first_attempt_hours",
+                    "ownership_days",
+                    "call_start",
+                    "call_end",
+                    "calling_enabled",
+                    "claim_count",
+                  ].map((key) => [key, app.ctx.settings[key]]),
+                )}
+                fields={[
+                  {
+                    name: "hold_days",
+                    label: "Commission hold (days)",
+                    type: "number",
+                    min: 0,
+                    max: 90,
+                    required: true,
+                  },
+                  {
+                    name: "first_attempt_hours",
+                    label: "First attempt deadline (hours)",
+                    type: "number",
+                    min: 1,
+                    max: 720,
+                    required: true,
+                  },
+                  {
+                    name: "ownership_days",
+                    label: "Lead ownership (days)",
+                    type: "number",
+                    min: 1,
+                    max: 90,
+                    required: true,
+                  },
+                  {
+                    name: "call_start",
+                    label: "Calling window starts (local hour)",
+                    type: "number",
+                    min: 0,
+                    max: 23,
+                    required: true,
+                  },
+                  {
+                    name: "call_end",
+                    label: "Calling window ends (local hour)",
+                    type: "number",
+                    min: 1,
+                    max: 24,
+                    required: true,
+                  },
+                  {
+                    name: "calling_enabled",
+                    label: "Approved manual calling hours are configured",
+                    type: "checkbox",
+                  },
+                  {
+                    name: "claim_count",
+                    label: "Leads per claim",
+                    type: "number",
+                    min: 1,
+                    max: 20,
+                    required: true,
+                  },
+                  {
+                    name: "reason",
+                    label: "Reason for changing policy",
+                    type: "textarea",
+                    required: true,
+                  },
+                ]}
+                submit="Save policy"
+                onSubmit={async (p) => {
+                  const { reason, ...value } = p;
+                  await app.mutate("settings", { reason, value });
+                  app.reloadContext();
+                }}
+              />
+            </Card>
+          </>
+        )}
+        {selected === "recruiting" && (
+          <>
+            <Card title="Application form">
+              <p>
+                Your recruiting headline and description appear on the public
+                application page.
+              </p>
+              <a
+                className="button"
+                href="/apply"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Preview recruiting page <ExternalLink size={15} />
+              </a>
+            </Card>
+            <SettingsGroup
+              title="Recruiting page"
+              fields={[
+                {
+                  name: "recruiting_open",
+                  label: "Accept applications",
+                  type: "checkbox",
+                },
+                {
+                  name: "recruiting_title",
+                  label: "Headline",
+                  required: true,
+                  minLength: 5,
+                  maxLength: 180,
+                },
+                {
+                  name: "recruiting_body",
+                  label: "Opportunity description",
+                  type: "textarea",
+                  required: true,
+                  minLength: 20,
+                  maxLength: 3000,
+                },
+              ]}
+            />
+          </>
+        )}
+        {selected === "progression" && (
+          <SettingsGroup
+            title="Progression & training"
             fields={[
-              {
-                name: "hold_days",
-                label: "Commission hold (days)",
+              ...[
+                ["xp_per_level", "XP per level", 50, 10000],
+                ["xp_attempt", "Call attempt XP", 0, 50],
+                ["xp_conversation", "Conversation XP", 0, 100],
+                ["xp_interested", "Interested outcome XP", 0, 100],
+                ["xp_training", "Lesson XP", 0, 500],
+                ["xp_first_call", "First call milestone XP", 0, 100],
+                ["xp_followup", "Completed follow-up XP", 0, 50],
+                ["raw_xp_cap", "Daily call XP cap", 1, 500],
+                ["streak_target", "Optional daily streak target", 1, 500],
+                ["streak_freezes", "Monthly streak freezes", 0, 10],
+                ["quiz_pass_score", "Quiz passing percentage", 1, 100],
+              ].map(([name, label, min, max]) => ({
+                name: String(name),
+                label: String(label),
                 type: "number",
-                min: 0,
-                max: 90,
+                min: Number(min),
+                max: Number(max),
                 required: true,
-              },
-              {
-                name: "first_attempt_hours",
-                label: "First attempt deadline (hours)",
-                type: "number",
-                min: 1,
-                max: 720,
-                required: true,
-              },
-              {
-                name: "ownership_days",
-                label: "Lead ownership (days)",
-                type: "number",
-                min: 1,
-                max: 90,
-                required: true,
-              },
-              {
-                name: "call_start",
-                label: "Calling window starts (local hour)",
-                type: "number",
-                min: 0,
-                max: 23,
-                required: true,
-              },
-              {
-                name: "call_end",
-                label: "Calling window ends (local hour)",
-                type: "number",
-                min: 1,
-                max: 24,
-                required: true,
-              },
-              {
-                name: "calling_enabled",
-                label: "Approved manual calling hours are configured",
-                type: "checkbox",
-              },
-              {
-                name: "claim_count",
-                label: "Leads per claim",
-                type: "number",
-                min: 1,
-                max: 20,
-                required: true,
-              },
-              {
-                name: "recruiting_open",
-                label: "Accept applications",
-                type: "checkbox",
-              },
-              {
-                name: "reason",
-                label: "Reason for changing policy",
-                type: "textarea",
-                required: true,
-              },
+              })),
             ]}
-            submit="Save policy"
-            onSubmit={async (p) => {
-              const { reason, ...value } = p;
-              await app.mutate("settings", { reason, value });
-              app.reloadContext();
-            }}
           />
-        </Card>
-        <SettingsGroup
-          title="Recruiting page"
-          fields={[
-            {
-              name: "recruiting_title",
-              label: "Headline",
-              required: true,
-              minLength: 5,
-              maxLength: 180,
-            },
-            {
-              name: "recruiting_body",
-              label: "Opportunity description",
-              type: "textarea",
-              required: true,
-              minLength: 20,
-              maxLength: 3000,
-            },
-          ]}
-        />
-        <SettingsGroup
-          title="Progression & training"
-          fields={[
-            ...[
-              ["xp_per_level", "XP per level", 50, 10000],
-              ["xp_attempt", "Call attempt XP", 0, 50],
-              ["xp_conversation", "Conversation XP", 0, 100],
-              ["xp_interested", "Interested outcome XP", 0, 100],
-              ["xp_training", "Lesson XP", 0, 500],
-              ["xp_first_call", "First call milestone XP", 0, 100],
-              ["xp_followup", "Completed follow-up XP", 0, 50],
-              ["raw_xp_cap", "Daily call XP cap", 1, 500],
-              ["streak_target", "Optional daily streak target", 1, 500],
-              ["streak_freezes", "Monthly streak freezes", 0, 10],
-              ["quiz_pass_score", "Quiz passing percentage", 1, 100],
-            ].map(([name, label, min, max]) => ({
-              name: String(name),
-              label: String(label),
-              type: "number",
-              min: Number(min),
-              max: Number(max),
-              required: true,
-            })),
-          ]}
-        />
-        <SettingsGroup
-          title="Activation requirements"
-          fields={[
-            ["require_profile", "Completed profile"],
-            ["require_agreement", "Accepted current agreement"],
-            ["require_tax", "Verified tax status"],
-            ["require_payout", "Verified payout setup"],
-          ].map(([name, label]) => ({ name, label, type: "checkbox" }))}
-        />
-        <Card title="Feature readiness">
-          <ShieldCheck size={32} />
-          <h3>V1 keeps contact methods explicit.</h3>
-          <p>
-            Integrated calling, call recording, AI calling, SMS, automated
-            transfers, and cash competitions are disabled.
-          </p>
-          <p>
-            Tax verification, worker classification, approved agreements, and
-            payout eligibility remain required.
-          </p>
-        </Card>
+        )}
+        {selected === "activation" && (
+          <SettingsGroup
+            title="Activation requirements"
+            fields={[
+              ["require_profile", "Completed profile"],
+              ["require_agreement", "Accepted current agreement"],
+              ["require_tax", "Verified tax status"],
+              ["require_payout", "Verified payout setup"],
+            ].map(([name, label]) => ({ name, label, type: "checkbox" }))}
+          />
+        )}
+        {selected === "workflow" && (
+          <Card title="Feature readiness">
+            <ShieldCheck size={32} />
+            <h3>V1 keeps contact methods explicit.</h3>
+            <p>
+              Integrated calling, call recording, AI calling, SMS, automated
+              transfers, and cash competitions are disabled.
+            </p>
+            <p>
+              Tax verification, worker classification, approved agreements, and
+              payout eligibility remain required.
+            </p>
+          </Card>
+        )}
       </div>
     </>
   );
@@ -949,7 +1209,9 @@ function SettingsGroup({ title, fields }: { title: string; fields: Field[] }) {
   return (
     <Card title={title}>
       <Form
-        initial={app.ctx.settings}
+        initial={Object.fromEntries(
+          fields.map((field) => [field.name, app.ctx.settings[field.name]]),
+        )}
         fields={[
           ...fields,
           {
