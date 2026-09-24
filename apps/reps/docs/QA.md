@@ -24,9 +24,13 @@ The original five migrations and `sales_v1_completion` / `sales_v1_indexes` are 
 - Verify the new branch revision is the deployed staging Worker, inspect its logs and runtime resource limits, and perform a hosted browser walkthrough.
 - Use intended test accounts for invitation/reset delivery, MFA, verification, session expiry and role navigation. The local identity provider does not certify Supabase Auth/SMTP configuration.
 - Exercise real Turnstile and a hosted large import, including interrupted upload recovery.
-- Run separate-connection claims and financial retries on full Postgres; PGlite proves transaction logic but cannot model multi-connection contention.
+- Confirm the separate-connection suite passes in CI. It uses twelve concurrent PostgreSQL connections and a lock barrier to check claims, call retries, payment deduplication, transfer requests and reversal reservations.
 - Complete Stripe sandbox Checkout for all packages, higher Advanced pricing, Connect onboarding, settlement, transfers, refunds/disputes, reversals and bank payout events. Verify duplicate and out-of-order webhook processing.
 - Publish the business-approved agreement and verify the business's classification, tax, payout and calling policies. The application does not invent or approve these documents.
 - Confirm cron delivery, monitoring and backup/restore procedures under the actual hosting plan.
 
 Keep the pull request in draft and do not enable production DNS or live payments until these gates have evidence. No hosted gate is marked complete using a provider simulation.
+
+## Reproduce concurrency checks
+
+`npm run test:concurrency` requires `PIXELALTY_TEST_DATABASE_URL` pointing to a fresh local PostgreSQL database named `pixelalty_test`. The script refuses remote hosts and nonempty databases. CI provisions its own PostgreSQL 17 service; no Supabase database is used by this test. Role and Auth claim fixtures are isolated to that disposable cluster.
