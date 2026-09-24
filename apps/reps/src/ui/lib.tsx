@@ -14,6 +14,15 @@ let auth: SupabaseClient;
 export function setClient(value: SupabaseClient) {
   auth = value;
 }
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 export async function api(path: string, data?: unknown): Promise<any> {
   const session = auth ? await auth.auth.getSession() : null;
   const response = await fetch("/api" + path, {
@@ -38,7 +47,8 @@ export async function api(path: string, data?: unknown): Promise<any> {
   const out = (await response.json().catch(() => ({
     error: "The service returned an unreadable response. Please try again.",
   }))) as Row;
-  if (!response.ok) throw Error(out.error || "The request failed.");
+  if (!response.ok)
+    throw new ApiError(out.error || "The request failed.", response.status);
   return out;
 }
 export async function uploadPdf(file: File, requestId: string) {
@@ -52,11 +62,9 @@ export async function uploadPdf(file: File, requestId: string) {
     },
     body: file,
   });
-  const out = (await response
-    .json()
-    .catch(() => ({
-      error: "Your upload could not be confirmed. Retry the same file.",
-    }))) as Row;
+  const out = (await response.json().catch(() => ({
+    error: "Your upload could not be confirmed. Retry the same file.",
+  }))) as Row;
   if (!response.ok)
     throw Error(out.error || "Your upload could not be confirmed.");
   return out;

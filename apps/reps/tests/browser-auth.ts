@@ -21,7 +21,7 @@ const errors: string[] = [],
   checks: string[] = [];
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => {
-  if (m.type() === "error" && !/status of (400|403|422|429)/.test(m.text()))
+  if (m.type() === "error" && !/status of (400|401|403|422|429)/.test(m.text()))
     errors.push(m.text());
 });
 page.on("response", (r) => {
@@ -83,6 +83,31 @@ try {
       "select c.title,c.kind,c.body,k.answers from px_content c left join px_private.quiz_keys k on k.content_id=c.id where c.active and c.required and c.kind in ('lesson','quiz')",
     )
   ).rows;
+  // Exercise the hosted failure: the Worker receives a workspace request
+  // without a session header after the sign-in screen has already advanced.
+  await page.route(
+    "**/api/me",
+    async (route) => {
+      const headers = { ...route.request().headers() };
+      delete headers.authorization;
+      await route.continue({ headers });
+    },
+    { times: 1 },
+  );
+  await login("owner@example.test");
+  await page
+    .getByText("Your session has ended. Please sign in again.")
+    .waitFor();
+  await page
+    .getByRole("heading", { name: "Sign in to your workspace" })
+    .waitFor();
+  assert.equal(
+    await page.getByRole("heading", { name: "Workspace unavailable" }).count(),
+    0,
+  );
+  checks.push(
+    "Missing-session workspace responses return to a usable sign-in form with an explicit session-ended message",
+  );
   await login("owner@example.test", "incorrect-password");
   await page
     .getByText("The email or password is incorrect. Please try again.")
@@ -174,6 +199,51 @@ try {
   checks.push(
     "Login reaches MFA; invalid password/code feedback is safe; admin API denied until MFA; light/dark/system and viewport resizing at 390/768/1440 verified",
   );
+  // A response started before sign-out must not replace the new signed-out
+  // screen or another session. Hold one real context request across sign-out.
+  let releaseContext: () => void = () => {};
+  const contextGate = new Promise<void>((resolve) => {
+    releaseContext = resolve;
+  });
+  await page.route(
+    "**/api/me",
+    async (route) => {
+      await contextGate;
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Sign in to continue." }),
+      });
+    },
+    { times: 1 },
+  );
+  const contextStarted = page.waitForRequest(
+    (request) => new URL(request.url()).pathname === "/api/me",
+  );
+  await page.getByLabel("Six-digit authentication code").fill("123456");
+  await page
+    .getByRole("button", { name: "Verify session", exact: true })
+    .click();
+  await contextStarted;
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await page
+    .getByRole("heading", { name: "Sign in to your workspace" })
+    .waitFor();
+  releaseContext();
+  await page.waitForLoadState("networkidle");
+  assert.equal(
+    await page.getByRole("heading", { name: "Workspace unavailable" }).count(),
+    0,
+  );
+  assert.ok(
+    await page
+      .getByRole("heading", { name: "Sign in to your workspace" })
+      .isVisible(),
+  );
+  checks.push(
+    "Delayed workspace failures after MFA/sign-out cannot overwrite the current authentication state",
+  );
+  await login("owner@example.test");
   await verify();
   assert.equal((await signedApi("/table?name=applicants")).status, 200);
   await page.getByRole("button", { name: "Sign out", exact: true }).click();

@@ -13,7 +13,7 @@ This is a staging candidate. A passing isolated test does not certify inbox deli
 | Activation and operations | Explicit missing-gate actions, activation enabled only when real gates pass; overview of applicants, reps, tax queue, failed email and payment events | Pending real account activation |
 | Canonical hosts | workers.dev browser UI goes to reps/join with safe path; internal API, webhook and asset behavior preserved; credentials removed from visible URLs | Verified internal /admin/recruiting opens https://reps.pixelalty.com/admin/recruiting and requires sign-in |
 | Recruiting privacy | Internal package commissions removed from public UI and public RPC; benefits and earnings disclaimer retained | Verified updated benefits UI at join.pixelalty.com and staging public RPC returns no package data |
-| Customer site | Native secondary homepage recruiting section, footer link and /apply redirect; focused PR #2 | Pending publishing the tested customer-site change |
+| Customer site | Native secondary homepage recruiting section, footer link and /apply redirect; focused PR #2 | PR #2 merged as 1792bac6; Cloudflare Pages passed; live homepage button and /apply both verified reaching join.pixelalty.com |
 | Test indicator | Subtle “Test environment” for admin roles only; ordinary reps see no test badge | Pending updated hosted deployment verification |
 
 ## Secure document operation
@@ -48,5 +48,11 @@ The security advisor reports informational deny-by-default RLS on private helper
 ## Recorded automated verification
 
 Commit `7e8267496caf1653df80d7dccfefb43f60c7bd03` passed [CI run 36015373723](https://github.com/Pixelalty/pixelalty-Production-site/actions/runs/36015373723): lint, type checks, 74 unit/SQL/Worker integration tests, production build, PostgreSQL 17 contention checks, all four browser suites, and Worker deployment dry run. Browser evidence is retained in the run artifact. MFA screenshots show viewport-filling backgrounds. Responsive onboarding screenshots identified final spacing fixes and a need to wait for navigation/resize to settle; the follow-up includes explicit mobile sidebar assertions and a rerun.
+
+Commit `42e8c851a84b261637311aa1d6d0c4cc93e7b851` passed [CI run 36017134652](https://github.com/Pixelalty/pixelalty-Production-site/actions/runs/36017134652): 74 tests, 9 PostgreSQL concurrency checks, all four browser suites, lint, type checks, build and Worker dry run. The final mobile/tablet/desktop onboarding screenshots were reviewed; mobile drawers are correctly hidden. The hosted invitation-error page shows the branded recovery state and removes the error fragment from the address.
+
+The first secure owner sign-in handoff reached a session error before a usable authenticated workspace could be verified. Staging operational logs confirm successful password authentication, MFA verification and context RPCs; the visible error was a later Worker request without a session header. Follow-up code treats a current 401 as an ended session, returns to the sign-in form, and prevents stale workspace responses or initial session restoration from overwriting a newer auth state. Browser regressions exercise a real Worker missing-header response, delayed responses across MFA/sign-out, and successful sign-in afterward. This does not count as successful hosted owner acceptance.
+
+At the final staging data check, there were three onboarding reps with unreviewed classifications, zero required agreements, eleven required lessons, one required quiz, and zero uploaded tax documents. The owner must supply approved agreement content and business/classification decisions; no legal document, tax evidence, or business approval was fabricated.
 
 These results cover isolated provider transports, not real inbox delivery, Connect identity setup, hosted Checkout, or hosted webhook delivery. Those acceptance items remain open until exercised with the owner-controlled test account and approved business/legal inputs.

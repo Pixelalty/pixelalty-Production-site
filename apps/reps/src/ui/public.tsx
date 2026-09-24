@@ -9,11 +9,13 @@ export function SignIn({
   configured,
   appUrl,
   recruitingUrl,
+  notice = "",
 }: {
   client: SupabaseClient | null;
   configured: boolean;
   appUrl: string;
   recruitingUrl: string;
+  notice?: string;
 }) {
   const [reset, setReset] = useState(
       new URLSearchParams(location.search).has("reset"),
@@ -44,6 +46,11 @@ export function SignIn({
         <span className="eyebrow">WELCOME BACK</span>
         <h2>{reset ? "Reset your password" : "Sign in to your workspace"}</h2>
         <p>Use the email associated with your Pixelalty invitation.</p>
+        {notice && (
+          <p className="notice" role="status">
+            {notice}
+          </p>
+        )}
         {!configured ? (
           <div className="notice">
             This workspace is awaiting configuration. An administrator needs to

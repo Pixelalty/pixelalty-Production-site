@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import {
   api,
+  ApiError,
   setClient,
   AppContext,
   State,
@@ -76,6 +77,7 @@ function App() {
     [authLinkVersion, setAuthLinkVersion] = useState(0),
     [ctx, setCtx] = useState<Row | null>(null),
     [error, setError] = useState(""),
+    [signInNotice, setSignInNotice] = useState(""),
     [version, setVersion] = useState(0),
     [path, setPath] = useState(location.pathname + location.search),
     [toast, setToast] = useState(""),
@@ -91,6 +93,17 @@ function App() {
     [savingPreferences, setSavingPreferences] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
   const processedLocation = useRef(location.href);
+  const sessionRef = useRef<any>(null);
+  const contextRequest = useRef(0);
+  const syncSession = useCallback((next: any) => {
+    if (sessionRef.current === next) return;
+    sessionRef.current = next;
+    contextRequest.current++;
+    setSession(next);
+    setError("");
+    if (next) setSignInNotice("");
+    else setCtx(null);
+  }, []);
   const preferences = useMemo(
     () =>
       workspacePreferences({
@@ -124,6 +137,7 @@ function App() {
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | undefined;
     let mounted = true;
+    let sessionChanged = false;
     const fn = () => {
       if (processedLocation.current === location.href) return;
       const current = readAuthLink(new URL(location.href));
@@ -158,21 +172,23 @@ function App() {
             .getSession()
             .then((r) => {
               if (mounted) {
-                setSession(r.data.session);
+                if (!sessionChanged) syncSession(r.data.session);
                 setAuthReady(true);
               }
             })
             .catch(() => {
               if (mounted) {
                 setAuthReady(true);
-                setError(
-                  "We couldn’t restore your session. Please sign in again.",
-                );
+                if (!sessionChanged)
+                  setError(
+                    "We couldn’t restore your session. Please sign in again.",
+                  );
               }
             });
           const { data } = s.auth.onAuthStateChange((_event, newSession) => {
             if (mounted) {
-              setSession(newSession);
+              sessionChanged = true;
+              syncSession(newSession);
             }
           });
           subscription = data.subscription;
@@ -251,15 +267,33 @@ function App() {
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [ctx]);
-  const reloadContext = useCallback(() => {
-    if (session)
-      api("/me")
-        .then((value) => {
-          setCtx({ ...value, contextUserId: session.user.id });
-          setError("");
-        })
-        .catch((e) => setError(e.message));
-  }, [session]);
+  const reloadContext = useCallback(async () => {
+    const expectedSession = sessionRef.current;
+    if (!expectedSession) return;
+    const request = ++contextRequest.current;
+    const current = () =>
+      request === contextRequest.current &&
+      sessionRef.current === expectedSession;
+    try {
+      const value = await api("/me");
+      if (!current()) return;
+      setCtx({ ...value, contextUserId: expectedSession.user.id });
+      setError("");
+    } catch (e) {
+      if (!current()) return;
+      if (e instanceof ApiError && e.status === 401) {
+        syncSession(null);
+        setSignInNotice("Your session has ended. Please sign in again.");
+        await client?.auth.signOut({ scope: "local" });
+      } else {
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Your workspace could not be loaded.",
+        );
+      }
+    }
+  }, [client, syncSession]);
   useEffect(() => {
     if (session) reloadContext();
   }, [version]);
@@ -397,6 +431,7 @@ function App() {
         configured={config.configured}
         appUrl={config.appUrl}
         recruitingUrl={config.recruitingUrl}
+        notice={signInNotice}
       />
     );
   if (
