@@ -123,7 +123,7 @@ test("real Postgres workflows, authorization, and payment ledger", async (t) => 
       const r = await db.query<{ result: any }>(
         "select public.px_public_config() result",
       );
-      assert.equal(r.rows[0].result.packages, undefined);
+      assert.deepEqual(r.rows[0].result.packages, []);
       assert.ok(!JSON.stringify(r.rows[0].result).includes("commission_cents"));
       await assert.rejects(
         db.query("select * from public.px_businesses"),

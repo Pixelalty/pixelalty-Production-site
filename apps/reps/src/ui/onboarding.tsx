@@ -938,13 +938,16 @@ export function OperationsQueue({ compact = false }: { compact?: boolean }) {
                   {d.tax_review} tax documents awaiting review
                 </LinkButton>
               )}
-              {d.failed_emails > 0 && (
-                <LinkButton
-                  to={app.has("owner") ? "/admin/health" : "/admin/recruiting"}
-                >
-                  {d.failed_emails} emails need attention
-                </LinkButton>
-              )}
+              {d.failed_emails > 0 &&
+                (app.has("owner") ? (
+                  <LinkButton to="/admin/health">
+                    {d.failed_emails} emails need attention
+                  </LinkButton>
+                ) : (
+                  <p className="muted">
+                    {d.failed_emails} emails are waiting for Owner review.
+                  </p>
+                ))}
               {d.webhook_issues > 0 && (
                 <LinkButton to="/admin/finance">
                   {d.webhook_issues} payment events need review

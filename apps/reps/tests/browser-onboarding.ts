@@ -23,6 +23,7 @@ const browser = await chromium.launch({
 });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 page.setDefaultTimeout(15000);
+await page.emulateMedia({ reducedMotion: "reduce" });
 const out = new URL("../test-results/onboarding/", import.meta.url);
 await mkdir(out, { recursive: true });
 const errors: string[] = [],
@@ -69,13 +70,11 @@ async function submitPdf(replace = false) {
       "SYNTHETIC TEST ONLY. No personal tax information. " +
         (replace ? "Corrected" : "Initial"),
     );
-  await page
-    .getByLabel("Completed, signed W-9 PDF")
-    .setInputFiles({
-      name: "isolated-test.pdf",
-      mimeType: "application/pdf",
-      buffer: Buffer.from(await pdf.save()),
-    });
+  await page.getByLabel("Completed, signed W-9 PDF").setInputFiles({
+    name: "isolated-test.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from(await pdf.save()),
+  });
   await page
     .locator("#onboarding-tax")
     .getByRole("button", {
@@ -184,13 +183,11 @@ try {
     .locator(".onboarding-checklist")
     .getByRole("button", { name: "Submit W-9 securely", exact: true })
     .click();
-  await page
-    .getByLabel("Completed, signed W-9 PDF")
-    .setInputFiles({
-      name: "invalid.pdf",
-      mimeType: "application/pdf",
-      buffer: Buffer.from("This is not a PDF document."),
-    });
+  await page.getByLabel("Completed, signed W-9 PDF").setInputFiles({
+    name: "invalid.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("This is not a PDF document."),
+  });
   await page
     .locator("#onboarding-tax")
     .getByRole("button", { name: "Submit W-9 securely", exact: true })
@@ -243,6 +240,18 @@ try {
   assert.ok(f.providerCalls.some((x) => x.path === "/v1/account_links"));
   for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
+    await page.goto(f.base + "/onboarding");
+    await page
+      .locator("#onboarding-tax .tax-status")
+      .getByText("Submitted", { exact: true })
+      .waitFor();
+    await page.waitForLoadState("networkidle");
+    if (width < 900)
+      assert.ok(
+        await page
+          .locator(".sidebar")
+          .evaluate((el) => el.getBoundingClientRect().right <= 1),
+      );
     assert.ok(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth + 1,
@@ -303,6 +312,17 @@ try {
     .waitFor();
   for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
+    await page.goto(f.base + "/admin/reps?rep_code=" + code);
+    await page
+      .getByRole("heading", { name: "Ready for activation", exact: true })
+      .waitFor();
+    await page.waitForLoadState("networkidle");
+    if (width < 900)
+      assert.ok(
+        await page
+          .locator(".sidebar")
+          .evaluate((el) => el.getBoundingClientRect().right <= 1),
+      );
     assert.ok(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth + 1,

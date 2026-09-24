@@ -1477,6 +1477,7 @@ tbody tr:last-child td {
   margin-top: 20px;
 }
 .checklist-step {
+  display: flex;
   justify-content: flex-start;
   text-align: left;
   gap: 12px;
@@ -1599,7 +1600,6 @@ tbody tr:last-child td {
 .onboarding-grid > .card {
   margin: 0;
   min-width: 0;
-  height: 100%;
 }
 .onboarding-grid h2 {
   margin-top: 0;

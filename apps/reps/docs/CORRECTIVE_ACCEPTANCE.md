@@ -11,8 +11,8 @@ This is a staging candidate. A passing isolated test does not certify inbox deli
 | Document lifecycle | Submitted, under review, verified, needs correction; correction notification; replacement/archival revokes verification; append-only upload/download/review/history audit | Pending real upload/review |
 | Payout setup | Contractor starts actual Connect account-link flow; return refresh and webhook-driven status; explicit classification blockers | Pending real Stripe sandbox completion |
 | Activation and operations | Explicit missing-gate actions, activation enabled only when real gates pass; overview of applicants, reps, tax queue, failed email and payment events | Pending real account activation |
-| Canonical hosts | workers.dev browser UI goes to reps/join with safe path; internal API, webhook and asset behavior preserved; credentials removed from visible URLs | Pending updated hosted deployment verification |
-| Recruiting privacy | Internal package commissions removed from public UI and public RPC; benefits and earnings disclaimer retained | Pending updated hosted deployment verification |
+| Canonical hosts | workers.dev browser UI goes to reps/join with safe path; internal API, webhook and asset behavior preserved; credentials removed from visible URLs | Verified internal /admin/recruiting opens https://reps.pixelalty.com/admin/recruiting and requires sign-in |
+| Recruiting privacy | Internal package commissions removed from public UI and public RPC; benefits and earnings disclaimer retained | Verified updated benefits UI at join.pixelalty.com and staging public RPC returns no package data |
 | Customer site | Native secondary homepage recruiting section, footer link and /apply redirect; focused PR #2 | Pending publishing the tested customer-site change |
 | Test indicator | Subtle “Test environment” for admin roles only; ordinary reps see no test badge | Pending updated hosted deployment verification |
 
@@ -36,3 +36,17 @@ Do not mark hosted acceptance complete based on these isolated transports. Keep 
 ## Migration scope
 
 `20260924140417_sales_secure_tax_onboarding.sql` is additive and targets only staging project `bqycqmiaacoeulotjyrv`. Preserve the remote migration version mapping when recorded. Never reapply previously completed migrations or point this deployment at the customer production database.
+
+### Recorded staging application
+
+Applied on September 24: remote migration version `20260924144253` maps to `20260924140417_sales_secure_tax_onboarding.sql`. Verified the private bucket, 5 MiB/PDF limits, restrictive object policy, empty tax-document table, and commission-free public RPC. Existing reps, classifications and legal content were not changed.
+
+Remote version `20260924145448` maps to `20260924145303_sales_recruiting_compatibility.sql`. A hosted rollout check caught the preceding frontend calling `packages.map()` before the new frontend was deployed. The public response now retains an empty `packages: []` for compatibility, with no commission or package information. The new frontend is also deployed and was checked on the owned domain.
+
+The security advisor reports informational deny-by-default RLS on private helper tables (intentional) and an existing [leaked-password protection setting](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection) that is disabled. Review that Auth setting for release; no paid plan change was made. The performance advisor reports unused indexes only; workload indexes are retained.
+
+## Recorded automated verification
+
+Commit `7e8267496caf1653df80d7dccfefb43f60c7bd03` passed [CI run 36015373723](https://github.com/Pixelalty/pixelalty-Production-site/actions/runs/36015373723): lint, type checks, 74 unit/SQL/Worker integration tests, production build, PostgreSQL 17 contention checks, all four browser suites, and Worker deployment dry run. Browser evidence is retained in the run artifact. MFA screenshots show viewport-filling backgrounds. Responsive onboarding screenshots identified final spacing fixes and a need to wait for navigation/resize to settle; the follow-up includes explicit mobile sidebar assertions and a rerun.
+
+These results cover isolated provider transports, not real inbox delivery, Connect identity setup, hosted Checkout, or hosted webhook delivery. Those acceptance items remain open until exercised with the owner-controlled test account and approved business/legal inputs.

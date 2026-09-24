@@ -410,7 +410,7 @@ test("private tax documents, role separation, replacement and activation use rea
         await db.exec("reset role;set role anon");
         const config = (await db.query<any>("select px_public_config() config"))
           .rows[0].config;
-        assert.equal(config.packages, undefined);
+        assert.deepEqual(config.packages, []);
         assert.ok(!JSON.stringify(config).includes("commission_cents"));
       },
     );
