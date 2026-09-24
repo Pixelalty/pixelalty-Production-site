@@ -5,16 +5,16 @@ This is a staging candidate. A passing isolated test does not certify inbox deli
 | Requirement | Implementation and regression coverage | Hosted acceptance |
 | --- | --- | --- |
 | Actionable checklist | Required incomplete steps identify rep actions or Pixelalty review; working deep links; in-place status polling | Pending real account walkthrough |
-| Required agreement | Owner publishes immutable versions; rep reads and signs exact version; acceptance persists and is audited | Blocked until owner supplies approved agreement content |
-| Classification | Owner/Sales Admin review with MFA, reason and visible audit history; rep cannot self-select; Finance controls employee tax/payroll verification | Owner business decision required |
+| Required agreement | Owner publishes immutable versions; rep reads and signs exact version; acceptance persists and is audited | Live editor and required-agreement defaults verified; publication/acceptance awaits owner-approved content |
+| Classification | Owner/Sales Admin review with MFA, reason and visible audit history; rep cannot self-select; Finance controls employee tax/payroll verification | Live review dialog verified; owner business decision required |
 | Secure signed-PDF W-9 | Private bucket; bounded PDF structural validation; no extracted tax IDs or original filename; only MFA Owner/Finance downloads; on-demand authorized response, never public/signed object URLs | Pending approved test document and Finance review |
 | Document lifecycle | Submitted, under review, verified, needs correction; correction notification; replacement/archival revokes verification; append-only upload/download/review/history audit | Pending real upload/review |
 | Payout setup | Contractor starts actual Connect account-link flow; return refresh and webhook-driven status; explicit classification blockers | Pending real Stripe sandbox completion |
-| Activation and operations | Explicit missing-gate actions, activation enabled only when real gates pass; overview of applicants, reps, tax queue, failed email and payment events | Pending real account activation |
+| Activation and operations | Explicit missing-gate actions, activation enabled only when real gates pass; overview of applicants, reps, tax queue, failed email and payment events | Hosted demo rep correctly shows agreement/classification/tax/payout blockers with working links; activation waits for genuine completion |
 | Canonical hosts | workers.dev browser UI goes to reps/join with safe path; internal API, webhook and asset behavior preserved; credentials removed from visible URLs | Verified internal /admin/recruiting opens https://reps.pixelalty.com/admin/recruiting and requires sign-in |
 | Recruiting privacy | Internal package commissions removed from public UI and public RPC; benefits and earnings disclaimer retained | Verified updated benefits UI at join.pixelalty.com and staging public RPC returns no package data |
 | Customer site | Native secondary homepage recruiting section, footer link and /apply redirect; focused PR #2 | PR #2 merged as 1792bac6; Cloudflare Pages passed; live homepage button and /apply both verified reaching join.pixelalty.com |
-| Test indicator | Subtle “Test environment” for admin roles only; ordinary reps see no test badge | Pending updated hosted deployment verification |
+| Test indicator | Subtle “Test environment” for admin roles only; ordinary reps see no test badge | Owner indicator verified in hosted Admin; ordinary-rep absence verified in browser regression suite |
 
 ## Secure document operation
 
@@ -54,5 +54,15 @@ Commit `42e8c851a84b261637311aa1d6d0c4cc93e7b851` passed [CI run 36017134652](ht
 The first secure owner sign-in handoff reached a session error before a usable authenticated workspace could be verified. Staging operational logs confirm successful password authentication, MFA verification and context RPCs; the visible error was a later Worker request without a session header. Follow-up code treats a current 401 as an ended session, returns to the sign-in form, and prevents stale workspace responses or initial session restoration from overwriting a newer auth state. Browser regressions exercise a real Worker missing-header response, delayed responses across MFA/sign-out, and successful sign-in afterward. This does not count as successful hosted owner acceptance.
 
 At the final staging data check, there were three onboarding reps with unreviewed classifications, zero required agreements, eleven required lessons, one required quiz, and zero uploaded tax documents. The owner must supply approved agreement content and business/classification decisions; no legal document, tax evidence, or business approval was fabricated.
+
+## Final corrective verification and hosted handoff
+
+The session follow-up, commit `72156e37216d4b560189f94aa462116d28e11448`, passed [CI run 36022013170](https://github.com/Pixelalty/pixelalty-Production-site/actions/runs/36022013170). All 74 unit/SQL/Worker tests, 9 PostgreSQL concurrency checks, four browser suites, lint, type checks, build and Worker dry run passed. The auth suite includes both new session regressions and reported no runtime errors or unexpected API failures. Browser artifact: `10817905085`.
+
+After the secure owner authentication handoff, the real owned-domain login and MFA reached the Admin workspace. Its authenticated state persisted through navigation and a full page load. The live operations queue, rep-management page, demo rep readiness, classification dialog and agreement editor were exercised without changing business decisions. The demo rep has completed profile/training/quiz and is blocked specifically on agreement, classification, tax and payout setup. The agreement editor is ready for the owner's approved document; no agreement was published during this pass.
+
+The real Finance queue also contains 39 pre-existing failed account/payout events with “Connected account is not attributed to a rep” or “Connected account not found” errors. There are no Sales Connect setup attempts, payments or commissions yet. These events were left visible for authorized review; no account association or payment success was invented, and no financial history was erased. A successful Sales-created sandbox Connect/Checkout/payment/webhook/commission journey is still required before release.
+
+Next owner input: provide the approved rep agreement document/content. Full hosted acceptance subsequently requires authorized classification/tax review and the test rep's actual inbox, account and sandbox payout/payment steps. Keep Stripe test mode and leave the customer production Supabase project untouched.
 
 These results cover isolated provider transports, not real inbox delivery, Connect identity setup, hosted Checkout, or hosted webhook delivery. Those acceptance items remain open until exercised with the owner-controlled test account and approved business/legal inputs.
