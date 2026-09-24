@@ -1,0 +1,57 @@
+name: Pixelalty Sales checks
+on:
+  push:
+    branches: [codex/pixelalty-sales-v1, main]
+    paths: ["apps/reps/**", ".github/workflows/pixelalty-sales.yml"]
+  pull_request:
+    paths: ["apps/reps/**", ".github/workflows/pixelalty-sales.yml"]
+permissions:
+  contents: read
+concurrency:
+  group: sales-checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: pixelalty_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-test-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: apps/reps
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/reps/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm run test:concurrency
+        env:
+          PIXELALTY_TEST_DATABASE_URL: postgresql://postgres:isolated-test-only@127.0.0.1:5432/pixelalty_test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - run: npm run test:auth
+      - run: npm run test:onboarding
+      - run: npm run test:branding
+      - run: npx wrangler deploy --dry-run --env staging
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: pixelalty-sales-browser-evidence
+          path: apps/reps/test-results/
+          retention-days: 7
+          if-no-files-found: ignore

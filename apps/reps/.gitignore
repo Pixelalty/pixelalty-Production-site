@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.dev.vars*
+.env*
+!.env.example
+.wrangler/
+test-results/
+
+supabase/.temp/

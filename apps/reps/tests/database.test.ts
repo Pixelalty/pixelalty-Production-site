@@ -1,0 +1,692 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { database, actor, service, rpc, submitTaxFixture } from "./helpers";
+const ids = Array.from(
+  { length: 8 },
+  (_, i) => `00000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+);
+const [owner, rep, other, finance, manager, content, compliance, onboarding] =
+  ids;
+test("real Postgres workflows, authorization, and payment ledger", async (t) => {
+  const db = await database();
+  let serial = 0;
+  const business = async (assigned: string | null = rep) => {
+    await db.exec("reset role");
+    const r = await db.query<{ id: string }>(
+      `insert into public.px_businesses(name,phone,timezone,owner_id,claimed_at,expires_at) values($1,$2,'America/New_York',$3,now(),now()+interval '14 days') returning id`,
+      [
+        "Test Business " + ++serial,
+        "+1212555" + String(serial).padStart(4, "0"),
+        assigned,
+      ],
+    );
+    return r.rows[0].id;
+  };
+  const act = (a: string, p: any = {}) => rpc(db, "px_action", a, p);
+  const srv = (a: string, p: any = {}) => rpc(db, "px_service", a, p);
+  try {
+    for (let i = 0; i < ids.length; i++) {
+      await db.query(`insert into auth.users values($1,$2,now())`, [
+        ids[i],
+        `test${i}@example.test`,
+      ]);
+      await db.query(
+        `insert into public.px_reps(id,name,status,timezone) values($1,$2,$3,'America/New_York')`,
+        [ids[i], "Test " + i, i === 7 ? "onboarding" : "active"],
+      );
+      await db.query(
+        `insert into public.px_rep_private(rep_id,email,classification,tax_status) values($1,$2,'contractor','verified')`,
+        [ids[i], `test${i}@example.test`],
+      );
+    }
+    for (const [id, role] of [
+      [owner, "owner"],
+      [finance, "finance_admin"],
+      [manager, "manager"],
+      [content, "content_admin"],
+      [compliance, "compliance_admin"],
+    ])
+      await db.query("insert into public.px_roles values($1,$2)", [id, role]);
+    let lead = await business();
+    const otherLead = await business(other);
+    await t.test(
+      "every exposed table has RLS and client writes are revoked",
+      async () => {
+        const r = await db.query<{ n: number }>(
+          `select count(*)::int n from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and relname like 'px_%' and relkind='r' and not relrowsecurity`,
+        );
+        assert.equal(r.rows[0].n, 0);
+        await actor(db, rep);
+        await assert.rejects(
+          db.query(`update public.px_reps set status='active' where id=$1`, [
+            rep,
+          ]),
+          /permission denied/,
+        );
+      },
+    );
+    await t.test(
+      "a rep sees only assigned leads and cannot read another commission or call their lead",
+      async () => {
+        await actor(db, rep);
+        assert.equal(
+          (await db.query("select * from public.px_businesses")).rows.length,
+          1,
+        );
+        await assert.rejects(
+          act("call", {
+            business_id: otherLead,
+            request_id: crypto.randomUUID(),
+            outcome: "conversation",
+          }),
+          /not available/,
+        );
+        assert.equal(
+          (await db.query("select * from public.px_commissions")).rows.length,
+          0,
+        );
+      },
+    );
+    await t.test(
+      "onboarding users have no CRM and no claiming privileges",
+      async () => {
+        await actor(db, onboarding);
+        assert.equal(
+          (await db.query("select * from public.px_businesses")).rows.length,
+          0,
+        );
+        await assert.rejects(act("claim"), /active rep/);
+      },
+    );
+    await t.test(
+      "admins require MFA, finance cannot read applications or private HR, service RPC is private",
+      async () => {
+        await actor(db, owner);
+        await assert.rejects(
+          act("dnc_add", { phone: "+12125559999", reason: "Test suppression" }),
+          /MFA/,
+        );
+        await actor(db, finance, "aal2");
+        assert.equal(
+          (await db.query("select * from public.px_rep_private")).rows.length,
+          1,
+        );
+        assert.equal(
+          (await db.query("select * from public.px_applicants")).rows.length,
+          0,
+        );
+        await assert.rejects(srv("tick"), /permission denied/);
+      },
+    );
+    await t.test("anonymous access exposes only recruiting data", async () => {
+      await db.exec("reset role;set role anon");
+      const r = await db.query<{ result: any }>(
+        "select public.px_public_config() result",
+      );
+      assert.deepEqual(r.rows[0].result.packages, []);
+      assert.ok(!JSON.stringify(r.rows[0].result).includes("commission_cents"));
+      await assert.rejects(
+        db.query("select * from public.px_businesses"),
+        /permission denied/,
+      );
+    });
+    await t.test(
+      "calls are idempotent, repeated business activity earns no extra XP, sales reports create no commissions",
+      async () => {
+        await actor(db, rep);
+        const p = {
+          business_id: lead,
+          request_id: crypto.randomUUID(),
+          outcome: "sale_reported",
+        };
+        const a = await act("call", p);
+        const b = await act("call", p);
+        assert.equal(a.id, b.id);
+        assert.equal(
+          (await db.query("select * from public.px_calls")).rows.length,
+          1,
+        );
+        await act("call", {
+          ...p,
+          request_id: crypto.randomUUID(),
+          outcome: "interested",
+        });
+        assert.equal(
+          (await db.query("select * from public.px_xp where source='call'"))
+            .rows.length,
+          1,
+        );
+        assert.equal(
+          (await db.query("select * from public.px_commissions")).rows.length,
+          0,
+        );
+      },
+    );
+    await t.test(
+      "follow-ups require future times, and DNC cancels follow-ups and future calls",
+      async () => {
+        await actor(db, rep);
+        await assert.rejects(
+          act("followup", {
+            business_id: lead,
+            due_at: "2020-01-01T00:00:00Z",
+            timezone: "UTC",
+          }),
+          /future/,
+        );
+        await act("followup", {
+          business_id: lead,
+          due_at: new Date(Date.now() + 86400000).toISOString(),
+          timezone: "America/New_York",
+          note: "Test callback",
+        });
+        await act("call", {
+          business_id: lead,
+          request_id: crypto.randomUUID(),
+          outcome: "do_not_call",
+        });
+        assert.equal(
+          (
+            await db.query<{ status: string }>(
+              "select status from public.px_followups",
+            )
+          ).rows[0].status,
+          "cancelled",
+        );
+        await assert.rejects(
+          act("call", {
+            business_id: lead,
+            request_id: crypto.randomUUID(),
+            outcome: "conversation",
+          }),
+          /not available/,
+        );
+      },
+    );
+    await t.test(
+      "claiming respects capacity and prevents a second rep from claiming the same lead",
+      async () => {
+        for (let i = 0; i < 4; i++) await business(null);
+        await db.query("update public.px_reps set capacity=3 where id=$1", [
+          rep,
+        ]);
+        await actor(db, rep);
+        await act("claim", { count: 20 });
+        assert.equal(
+          (await db.query("select * from public.px_businesses where not dnc"))
+            .rows.length,
+          3,
+        );
+        await actor(db, other);
+        await act("claim", { count: 20 });
+        assert.equal(
+          (await db.query("select * from public.px_businesses")).rows.length,
+          2,
+        );
+      },
+    );
+    let firstDeal = "",
+      firstComm = "",
+      firstPayment: any;
+    const paid = async (
+      dealId: string,
+      packageId: string,
+      price: number,
+      repId = rep,
+    ) => {
+      await service(db);
+      const checkoutId = "cs_test_" + dealId;
+      await srv("checkout_attach", {
+        deal_id: dealId,
+        checkout_id: checkoutId,
+        url: "https://checkout.stripe.com/test",
+      });
+      const p = {
+        event_id: "evt_" + dealId,
+        event_type: "checkout.session.completed",
+        deal_id: dealId,
+        rep_id: repId,
+        package_id: packageId,
+        checkout_id: checkoutId,
+        payment_intent: "pi_" + dealId,
+        charge_id: "ch_" + dealId,
+        amount_cents: price,
+        currency: "usd",
+        refunded_cents: 0,
+        disputed: false,
+        settled: true,
+        available_at: new Date().toISOString(),
+      };
+      await srv("payment", p);
+      return p;
+    };
+    await t.test(
+      "each paid package creates the exact immutable commission; retries do not duplicate money or XP",
+      async () => {
+        await db.exec("reset role");
+        const pkgs = (
+          await db.query<any>(
+            "select * from public.px_packages order by price_cents",
+          )
+        ).rows;
+        for (const pkg of pkgs) {
+          lead = await business();
+          await actor(db, rep);
+          const d = await act("deal", {
+            business_id: lead,
+            package_id: pkg.id,
+            customer_email: "customer@example.test",
+            commission_cents: 999999,
+          });
+          const p = await paid(d.id, pkg.id, pkg.price_cents);
+          await srv("payment", p);
+          await srv("payment", { ...p, event_id: p.event_id + "_again" });
+          await db.exec("reset role");
+          const c = (
+            await db.query<any>(
+              "select * from public.px_commissions where deal_id=$1",
+              [d.id],
+            )
+          ).rows[0];
+          assert.equal(c.amount_cents, pkg.commission_cents);
+          assert.equal(
+            (
+              await db.query("select * from public.px_xp where source_id=$1", [
+                d.id,
+              ])
+            ).rows.length,
+            1,
+          );
+          if (pkg.code === "launch") {
+            firstDeal = d.id;
+            firstComm = c.id;
+            firstPayment = p;
+          }
+        }
+      },
+    );
+    await t.test(
+      "Advanced custom pricing retains $600 commission; unauthorized price changes fail",
+      async () => {
+        await db.exec("reset role");
+        const pkg = (
+          await db.query<any>(
+            "select * from public.px_packages where code='advanced'",
+          )
+        ).rows[0];
+        lead = await business(owner);
+        await actor(db, owner, "aal2");
+        const d = await act("deal", {
+          business_id: lead,
+          package_id: pkg.id,
+          price_cents: 350000,
+          reason: "Approved custom scope",
+          customer_email: "customer@example.test",
+        });
+        await paid(d.id, pkg.id, 350000, owner);
+        await db.exec("reset role");
+        assert.equal(
+          (
+            await db.query<any>(
+              "select amount_cents from public.px_commissions where deal_id=$1",
+              [d.id],
+            )
+          ).rows[0].amount_cents,
+          60000,
+        );
+        lead = await business();
+        await actor(db, rep);
+        await assert.rejects(
+          act("deal", {
+            business_id: lead,
+            package_id: pkg.id,
+            price_cents: 350000,
+            reason: "Unauthorized override",
+            customer_email: "customer@example.test",
+          }),
+          /MFA/,
+        );
+      },
+    );
+    await t.test(
+      "payment metadata or amount mismatch is rejected",
+      async () => {
+        await service(db);
+        await assert.rejects(
+          srv("payment", {
+            ...firstPayment,
+            event_id: "evt_bad",
+            amount_cents: 1,
+          }),
+          /immutable deal snapshot/,
+        );
+      },
+    );
+    await t.test(
+      "prospective price changes preserve old deal commission",
+      async () => {
+        await actor(db, owner, "aal2");
+        const pkg = (
+          await db.query<any>(
+            "select * from public.px_packages where code='launch' and active",
+          )
+        ).rows[0];
+        await act("package", {
+          id: pkg.id,
+          price_cents: 79900,
+          commission_cents: 13000,
+          reason: "Test prospective update",
+        });
+        assert.equal(
+          (
+            await db.query<any>(
+              "select commission_cents from public.px_deals where id=$1",
+              [firstDeal],
+            )
+          ).rows[0].commission_cents,
+          12500,
+        );
+      },
+    );
+    await t.test(
+      "hold period gates transfers; submitted transfers are idempotent and bank payouts remain separate",
+      async () => {
+        await service(db);
+        await srv("connect", {
+          rep_id: rep,
+          account_id: "acct_test",
+          transfers_enabled: true,
+          payouts_enabled: true,
+          details_submitted: true,
+        });
+        await actor(db, finance, "aal2");
+        await assert.rejects(
+          act("queue_transfer", {
+            id: firstComm,
+            reason: "Test payout authorization",
+          }),
+          /not eligible/,
+        );
+        await db.exec("reset role");
+        await db.query(
+          "update public.px_commissions set hold_until=now()-interval '1 day' where id=$1",
+          [firstComm],
+        );
+        await actor(db, finance, "aal2");
+        const q = await act("queue_transfer", {
+          id: firstComm,
+          reason: "Test payout authorization",
+        });
+        assert.equal(
+          q.id,
+          (
+            await act("queue_transfer", {
+              id: firstComm,
+              reason: "Retry same payout request",
+            })
+          ).id,
+        );
+        await service(db);
+        await srv("transfer_result", {
+          request_id: q.id,
+          transfer_id: "tr_test",
+        });
+        await srv("payment", {
+          ...firstPayment,
+          event_id: "evt_refund",
+          refunded_cents: 10000,
+        });
+        await db.exec("reset role");
+        assert.equal(
+          (
+            await db.query<any>(
+              "select status from public.px_commissions where id=$1",
+              [firstComm],
+            )
+          ).rows[0].status,
+          "recovery_review",
+        );
+        assert.equal(
+          (await db.query("select * from public.px_payouts")).rows.length,
+          0,
+        );
+      },
+    );
+    await t.test(
+      "reversal ledger is idempotent and amount bounded",
+      async () => {
+        await service(db);
+        const p = {
+          transfer_id: "tr_test",
+          reversal_id: "trr_test",
+          amount_cents: 5000,
+        };
+        await srv("reversal", p);
+        await srv("reversal", p);
+        await db.exec("reset role");
+        assert.equal(
+          (
+            await db.query<any>(
+              "select reversed_cents from public.px_commissions where id=$1",
+              [firstComm],
+            )
+          ).rows[0].reversed_cents,
+          5000,
+        );
+        await service(db);
+        await assert.rejects(
+          srv("reversal", {
+            ...p,
+            reversal_id: "trr_bad",
+            amount_cents: 99999,
+          }),
+          /Invalid reversal/,
+        );
+      },
+    );
+    await t.test(
+      "5,000-row import reports duplicates, DNC, invalid rows and safely retries commit",
+      async () => {
+        await actor(db, owner, "aal2");
+        const batch = await act("import_start", {
+          filename: "test.csv",
+          mapping: { name: "Business" },
+          total: 5003,
+          reason: "Test import workflow",
+        });
+        const rows = Array.from({ length: 5003 }, (_, i) => ({
+          row_num: i + 1,
+          data: {
+            name: "Import " + i,
+            phone: "+1312" + String(1000000 + i).padStart(7, "0"),
+            timezone: "America/Chicago",
+          },
+          error: i === 5002 ? "Invalid data" : undefined,
+        }));
+        rows[5001].data = rows[5000].data;
+        await act("dnc_add", {
+          phone: rows[0].data.phone,
+          reason: "Test do not contact",
+        });
+        for (let i = 0; i < rows.length; i += 250)
+          await act("import_stage", {
+            id: batch.id,
+            rows: rows.slice(i, i + 250),
+            reason: "Test staging chunk",
+          });
+        let result: any;
+        do {
+          result = await act("import_commit", {
+            id: batch.id,
+            reason: "Test import commit",
+          });
+        } while (result.pending);
+        assert.equal(result.accepted, 5000);
+        assert.equal(result.rejected, 3);
+        assert.equal(
+          (
+            await act("import_commit", {
+              id: batch.id,
+              reason: "Retry complete import",
+            })
+          ).accepted,
+          5000,
+        );
+      },
+    );
+    await t.test(
+      "quiz keys are inaccessible, grading is server-side, and onboarding gates activation",
+      async () => {
+        await actor(db, owner, "aal2");
+        await assert.rejects(
+          act("rep_activate", {
+            id: onboarding,
+            reason: "Premature activation",
+          }),
+          /complete|agreement|profile/,
+        );
+        await actor(db, onboarding);
+        await assert.rejects(
+          db.query("select * from px_private.quiz_keys"),
+          /permission denied/,
+        );
+        const quiz = (
+          await db.query<any>(
+            "select * from public.px_content where kind='quiz'",
+          )
+        ).rows[0];
+        const result = await act("quiz", {
+          content_id: quiz.id,
+          answers: [1, 1, 0, 1, 0],
+        });
+        assert.equal(result.score, 100);
+        assert.equal(result.passed, true);
+      },
+    );
+    await t.test(
+      "approval is idempotent and a fully onboarded verified rep can be activated",
+      async () => {
+        const newRep = crypto.randomUUID();
+        await db.exec("reset role");
+        await db.query(
+          "insert into auth.users values($1,'new@example.test',now())",
+          [newRep],
+        );
+        await service(db);
+        await srv("application", {
+          email: "new@example.test",
+          name: "New Rep",
+          details: { timezone: "America/New_York" },
+          ip_hash: "isolated-test",
+        });
+        await actor(db, owner, "aal2");
+        const application = (
+          await db.query<any>(
+            "select id from public.px_applicants where email='new@example.test'",
+          )
+        ).rows[0];
+        await act("approval_begin", {
+          id: application.id,
+          reason: "Approve test applicant",
+        });
+        await service(db);
+        const approved = await srv("approval_complete", {
+          applicant_id: application.id,
+          user_id: newRep,
+        });
+        assert.equal(approved.rep_id, newRep);
+        assert.equal(
+          (
+            await srv("approval_complete", {
+              applicant_id: application.id,
+              user_id: newRep,
+            })
+          ).rep_id,
+          newRep,
+        );
+        await srv("connect", {
+          rep_id: newRep,
+          account_id: "acct_test_onboarding",
+          transfers_enabled: true,
+          payouts_enabled: true,
+          details_submitted: true,
+        });
+        await actor(db, owner, "aal2");
+        await act("rep_classification", {
+          id: newRep,
+          classification: "contractor",
+          reason: "Verified test classification",
+        });
+        const taxDocument = await submitTaxFixture(db, newRep);
+        await actor(db, owner, "aal2");
+        await rpc(db, "px_tax", "download", { id: taxDocument.id });
+        await rpc(db, "px_tax", "verify", { id: taxDocument.id });
+        const agreement = await act("content", {
+          kind: "agreement",
+          slug: "test-only-agreement",
+          title: "Test agreement",
+          body: "For isolated tests only.",
+          required: true,
+          reason: "Publish test agreement",
+        });
+        await actor(db, newRep);
+        await act("profile", { name: "New Rep", timezone: "America/New_York" });
+        await act("agreement", {
+          content_id: agreement.id,
+          signature: "New Rep",
+          accepted: true,
+        });
+        const required = (
+          await db.query<any>(
+            "select * from public.px_content where active and required and kind in ('lesson','quiz')",
+          )
+        ).rows;
+        for (const item of required)
+          await act(item.kind, {
+            content_id: item.id,
+            ...(item.kind === "quiz" ? { answers: [1, 1, 0, 1, 0] } : {}),
+          });
+        await actor(db, owner, "aal2");
+        await act("rep_activate", {
+          id: newRep,
+          reason: "All test onboarding gates met",
+        });
+        await actor(db, newRep);
+        assert.equal(
+          (
+            await db.query<any>(
+              "select status from public.px_reps where id=auth.uid()",
+            )
+          ).rows[0].status,
+          "active",
+        );
+      },
+    );
+    await t.test(
+      "suspension removes lead access but preserves commission history; audit is append-only",
+      async () => {
+        await actor(db, owner, "aal2");
+        await act("rep_suspend", {
+          id: rep,
+          reason: "Test suspension workflow",
+        });
+        await actor(db, rep);
+        assert.equal(
+          (await db.query("select * from public.px_businesses")).rows.length,
+          0,
+        );
+        assert.ok(
+          (await db.query("select * from public.px_commissions")).rows.length >
+            0,
+        );
+        await db.exec("reset role");
+        await assert.rejects(
+          db.query("update public.px_audit set reason='changed'"),
+          /append-only/,
+        );
+      },
+    );
+  } finally {
+    await db.close();
+  }
+});
