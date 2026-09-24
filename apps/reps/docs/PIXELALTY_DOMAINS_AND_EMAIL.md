@@ -33,27 +33,29 @@ The official [Cloudflare agent setup](https://developers.cloudflare.com/agent-se
 
 The separate activation command is intentional: ordinary staging deployments continue working before the owner has provisioned the zone. Cloudflare documents that Wrangler configuration controls routes on future deployments, so keep the new deploy command after activation.
 
-## 2. Verify the Pixelalty email sender
+## 2. Verify the existing Private Email sender
 
-The application includes a Resend adapter for activation and onboarding messages. Supabase Auth uses custom SMTP for invitation, confirmation, reset and security messages. Both can use the same verified Pixelalty sending domain.
+The current setup uses **Namecheap Private Email for Supabase Auth SMTP**. Keep that provider and the working mailbox credentials. The application's activation and onboarding reminder emails use its separate Resend adapter. SMTP settings in Supabase do not configure the Worker mail queue.
 
-1. In a Resend account owned by Pixelalty, add **pixelalty.com** as a sending domain. Add only the exact verification/DKIM/SPF records Resend supplies, at their stated record names. Do not replace existing customer email MX records or invent a second apex SPF record. Wait for **Verified**.
-2. Disable click tracking and open tracking for authentication emails. This preserves the direct Pixelalty URL and avoids rewriting one-time links.
-3. Create a sending API key restricted to that verified domain. Keep it in the provider dashboards or a secure local shell, never in the repository or chat.
-4. In Supabase, select **pixelalty-sales-staging** (`bqycqmiaacoeulotjyrv`), then **Authentication → Emails → SMTP settings**. Enable custom SMTP:
+1. Open staging **Authentication → Emails → SMTP settings**. Keep custom SMTP enabled and confirm:
 
    | Setting | Value |
    | --- | --- |
    | Sender name | `Pixelalty Sales` |
-   | Sender email | `sales@pixelalty.com` |
-   | Host | `smtp.resend.com` |
-   | Port | `465` |
-   | Username | `resend` |
-   | Password | The Resend sending API key |
+   | Sender email | The actual existing Pixelalty mailbox |
+   | Host | `mail.privateemail.com` |
+   | Port | `465` (SSL) |
+   | Username | The full Private Email mailbox address |
+   | Password | The mailbox password, not the Namecheap account password |
 
-5. In **Cloudflare → pixelalty-sales-staging → Settings → Variables and Secrets**, add **RESEND_API_KEY** as a secret and **EMAIL_FROM** as `Pixelalty Sales <sales@pixelalty.com>`. Deploy the changed bindings. These enable the activation email and the 24-hour onboarding reminder. Nothing is sent to existing reps merely by installing the migration.
+2. Save and reopen to verify the sender name and address. Receiving or forwarding mail to a private inbox alone does not configure the outbound sender. Keep Namecheap's required SPF/DKIM records and the existing receiving MX records.
+3. For activation notices and the 24-hour onboarding reminder, verify a Pixelalty sending domain in Resend. Add only its exact supplied DNS records at the stated names; do not replace Namecheap's receiving MX records or add a conflicting second SPF record.
+4. Create a sending API key restricted to that verified domain. In **Cloudflare → pixelalty-sales-staging → Settings → Variables and Secrets**, add **RESEND_API_KEY** as a Secret and **EMAIL_FROM** as Text in the format `Pixelalty Sales <your-existing-mailbox@pixelalty.com>`, replacing the example with the real mailbox. Deploy those bindings.
+5. Check **Admin → System health**, then verify actual activation mail in the test inbox. Configuration presence alone does not prove delivery.
 
-The default Supabase sender cannot become a Pixelalty sender just by changing HTML. Supabase also restricts email template customization for new Free projects using default SMTP. Custom SMTP is therefore required before installing the prepared templates.
+Do not replace the working Private Email SMTP credentials with Resend credentials. The two sending paths can use the same verified Pixelalty domain. The default Supabase sender cannot become a Pixelalty sender just by changing HTML; custom SMTP is required for the intended sender identity.
+
+See [Finish Pixelalty Sales setup](SETUP_STEP_BY_STEP.md) for the complete ordered continuation checklist, including domains, Stripe, Turnstile and real hosted tests.
 
 ## 3. Install the prepared Auth configuration
 
@@ -67,6 +69,8 @@ npm run auth:configure -- --apply
 ```
 
 The first command checks readiness. The second writes and verifies the settings. The script refuses any project other than `bqycqmiaacoeulotjyrv`, requires custom SMTP, and checks that both Pixelalty domains serve this staging application. It does not print credentials or write to production.
+
+The staging Site URL and exact allowlist below were saved and verified on 24 September 2026. If they already match, leave them in place. Keep templates already installed; the script also preserves the existing SMTP host, credentials and sender address.
 
 **Dashboard alternative:** in staging **Authentication → URL Configuration**, set Site URL to `https://reps.pixelalty.com`. Replace development redirect entries with these exact addresses:
 
@@ -125,5 +129,6 @@ Onboarding emails are queued privately, leased, retried with a frozen payload an
 - [Supabase redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls)
 - [Supabase custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp)
 - [Supabase Free template change](https://supabase.com/changelog/46599-changes-to-email-template-customisation-on-free-tier)
-- [Resend SMTP with Supabase](https://resend.com/docs/send-with-supabase-smtp)
+- [Namecheap Private Email settings](https://www.namecheap.com/support/knowledgebase/article.aspx/10802/2226/how-to-transfer-emails-to-namecheap-private-email-account/)
+- [Resend sending domains](https://resend.com/docs/dashboard/domains/introduction)
 - [Resend idempotency](https://resend.com/docs/dashboard/emails/idempotency-keys)
