@@ -23,6 +23,14 @@ document.addEventListener('focusin', e => { if (!e.target.closest('.site-header'
 const header = document.querySelector('.site-header');
 window.addEventListener('scroll', () => header?.classList.toggle('scrolled', scrollY > 15), { passive: true });
 document.querySelectorAll('[data-year]').forEach(el => { el.textContent = new Date().getFullYear(); });
+const companyLinks = document.querySelector('.footer-links > div');
+if (companyLinks && !companyLinks.querySelector('[data-join-pixelalty]')) {
+  const join = document.createElement('a');
+  join.href = 'https://join.pixelalty.com';
+  join.textContent = 'Join Pixelalty';
+  join.dataset.joinPixelalty = '';
+  companyLinks.append(join);
+}
 if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
   const observer = new IntersectionObserver(entries => entries.forEach(entry => {
     if (entry.isIntersecting) { entry.target.classList.remove('is-pending'); observer.unobserve(entry.target); }
