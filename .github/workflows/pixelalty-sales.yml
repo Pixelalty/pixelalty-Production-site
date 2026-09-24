@@ -44,4 +44,6 @@ jobs:
           PIXELALTY_TEST_DATABASE_URL: postgresql://postgres:isolated-test-only@127.0.0.1:5432/pixelalty_test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      - run: npm run test:auth
+      - run: npm run test:branding
       - run: npx wrangler deploy --dry-run --env staging

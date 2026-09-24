@@ -3,14 +3,22 @@ import { ArrowRight, Check, ShieldCheck } from "lucide-react";
 import { api, Form, type Field, State } from "./lib";
 import { PACKAGES, money } from "../shared/core";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { AuthShell } from "./auth-shell";
+import { authErrorMessage } from "../shared/auth";
 export function SignIn({
   client,
   configured,
+  appUrl,
+  recruitingUrl,
 }: {
   client: SupabaseClient | null;
   configured: boolean;
+  appUrl: string;
+  recruitingUrl: string;
 }) {
-  const [reset, setReset] = useState(false),
+  const [reset, setReset] = useState(
+      new URLSearchParams(location.search).has("reset"),
+    ),
     [sent, setSent] = useState(false);
   return (
     <div className="auth-page">
@@ -63,13 +71,13 @@ export function SignIn({
             onSubmit={async (p) => {
               const r = reset
                 ? await client!.auth.resetPasswordForEmail(p.email, {
-                    redirectTo: location.origin + "/recover",
+                    redirectTo: appUrl + "/recover",
                   })
                 : await client!.auth.signInWithPassword({
                     email: p.email,
                     password: p.password,
                   });
-              if (r.error) throw r.error;
+              if (r.error) throw Error(authErrorMessage(r.error));
               if (reset) setSent(true);
             }}
           />
@@ -85,7 +93,7 @@ export function SignIn({
         </button>
         <div className="divider" />
         <p>Interested in joining Pixelalty?</p>
-        <a className="button" href="/apply">
+        <a className="button" href={recruitingUrl}>
           Explore the opportunity <ArrowRight size={16} />
         </a>
       </div>
@@ -101,33 +109,56 @@ export function MFA({
 }) {
   const [factor, setFactor] = useState(""),
     [qr, setQr] = useState(""),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    client.auth.mfa.listFactors().then(async (r) => {
-      if (r.error) {
-        setError(r.error.message);
-        return;
-      }
-      const existing = r.data?.totp.find((x) => x.status === "verified");
-      if (existing) setFactor(existing.id);
-      else {
-        for (const f of r.data?.all || [])
-          if (f.factor_type === "totp" && f.status === "unverified")
-            await client.auth.mfa.unenroll({ factorId: f.id });
-        const e = await client.auth.mfa.enroll({
-          factorType: "totp",
-          friendlyName: "Pixelalty Sales",
-        });
-        if (e.error) setError(e.error.message);
-        else {
-          setFactor(e.data.id);
-          setQr(e.data.totp.qr_code);
+    let live = true;
+    setError("");
+    client.auth.mfa
+      .listFactors()
+      .then(async (r) => {
+        if (!live) return;
+        if (r.error) {
+          setError(authErrorMessage(r.error));
+          return;
         }
-      }
-    });
-  }, []);
+        const existing = r.data?.totp.find((x) => x.status === "verified");
+        if (existing) setFactor(existing.id);
+        else {
+          for (const f of r.data?.all || [])
+            if (f.factor_type === "totp" && f.status === "unverified") {
+              const removed = await client.auth.mfa.unenroll({
+                factorId: f.id,
+              });
+              if (removed.error) throw removed.error;
+            }
+          if (!live) return;
+          const e = await client.auth.mfa.enroll({
+            factorType: "totp",
+            issuer: "Pixelalty Sales",
+            friendlyName: "Pixelalty Sales",
+          });
+          if (!live) return;
+          if (e.error) setError(authErrorMessage(e.error));
+          else {
+            setFactor(e.data.id);
+            setQr(e.data.totp.qr_code);
+          }
+        }
+      })
+      .catch(
+        () =>
+          live &&
+          setError(
+            "We couldn’t load your verification method. Check your connection and try again.",
+          ),
+      );
+    return () => {
+      live = false;
+    };
+  }, [client, attempt]);
   return (
-    <div className="center-card">
+    <AuthShell>
       <ShieldCheck size={34} />
       <h1>Protect your admin access</h1>
       <p>Use your authenticator app to verify this session.</p>
@@ -138,6 +169,9 @@ export function MFA({
         </>
       )}
       <State error={error} />
+      {error && !factor && (
+        <button onClick={() => setAttempt((v) => v + 1)}>Try again</button>
+      )}
       {!factor && !error && <State loading />}
       {factor && (
         <Form
@@ -146,6 +180,11 @@ export function MFA({
               name: "code",
               label: "Six-digit authentication code",
               required: true,
+              inputMode: "numeric",
+              autoComplete: "one-time-code",
+              pattern: "[0-9]{6}",
+              minLength: 6,
+              maxLength: 6,
             },
           ]}
           submit="Verify session"
@@ -154,7 +193,7 @@ export function MFA({
               factorId: factor,
               code: p.code,
             });
-            if (r.error) throw r.error;
+            if (r.error) throw Error(authErrorMessage(r.error));
             onSuccess();
           }}
         />
@@ -162,7 +201,7 @@ export function MFA({
       <button className="text-button" onClick={() => client.auth.signOut()}>
         Sign out
       </button>
-    </div>
+    </AuthShell>
   );
 }
 export function PasswordSetup({
@@ -175,7 +214,7 @@ export function PasswordSetup({
   invite?: boolean;
 }) {
   return (
-    <div className="center-card">
+    <AuthShell>
       <ShieldCheck size={36} />
       <h1>{invite ? "Welcome to Pixelalty" : "Choose a new password"}</h1>
       <p>
@@ -190,6 +229,7 @@ export function PasswordSetup({
             type: "password",
             required: true,
             minLength: 12,
+            autoComplete: "new-password",
           },
           {
             name: "confirmation",
@@ -197,6 +237,7 @@ export function PasswordSetup({
             type: "password",
             required: true,
             minLength: 12,
+            autoComplete: "new-password",
           },
         ]}
         submit="Save password and continue"
@@ -204,14 +245,20 @@ export function PasswordSetup({
           if (p.password !== p.confirmation)
             throw Error("The passwords do not match.");
           const r = await client.auth.updateUser({ password: p.password });
-          if (r.error) throw r.error;
+          if (r.error) throw Error(authErrorMessage(r.error));
           onComplete();
         }}
       />
-    </div>
+    </AuthShell>
   );
 }
-export function Apply({ siteKey }: { siteKey: string }) {
+export function Apply({
+  siteKey,
+  appUrl,
+}: {
+  siteKey: string;
+  appUrl: string;
+}) {
   const [done, setDone] = useState(false),
     [copy, setCopy] = useState({
       title: "Your next good conversation starts here.",
@@ -332,7 +379,7 @@ export function Apply({ siteKey }: { siteKey: string }) {
         <a className="brand" href="https://pixelalty.com">
           P<span>PIXELALTY</span>
         </a>
-        <a href="/">
+        <a href={appUrl + "/"}>
           Rep sign in <ArrowRight size={16} />
         </a>
       </nav>

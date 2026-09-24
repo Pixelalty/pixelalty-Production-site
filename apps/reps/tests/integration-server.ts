@@ -7,8 +7,12 @@ import { resolve, extname } from "node:path";
 import { database } from "./helpers";
 import worker from "../src/server/index";
 import type { Env } from "../src/server/types";
-export async function startIntegration() {
+export async function startIntegration(options: { ownerMfa?: boolean } = {}) {
   const userMetadata = new Map<string, Record<string, unknown>>();
+  const passwords = new Map<string, string>(),
+    emailLinks = new Map<string, { id: string; type: string }>(),
+    authCalls: any[] = [];
+  const factorId = crypto.randomUUID();
   const db = await database(),
     owner = crypto.randomUUID(),
     rep = crypto.randomUUID(),
@@ -106,11 +110,11 @@ export async function startIntegration() {
       return { role: token === "service_fixture" ? "service_role" : "anon" };
     }
   };
-  function session(u: any) {
+  function session(u: any, elevated = !options.ownerMfa) {
     const payload = {
       sub: u.id,
       role: "authenticated",
-      aal: u.role === "owner" ? "aal2" : "aal1",
+      aal: u.role === "owner" && elevated ? "aal2" : "aal1",
       exp: Math.floor(Date.now() / 1000) + 3600,
     };
     return {
@@ -128,6 +132,19 @@ export async function startIntegration() {
         app_metadata: {},
         user_metadata: userMetadata.get(u.id) || {},
         created_at: new Date().toISOString(),
+        factors:
+          u.role === "owner" && options.ownerMfa
+            ? [
+                {
+                  id: factorId,
+                  factor_type: "totp",
+                  status: "verified",
+                  friendly_name: "Pixelalty Sales",
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                },
+              ]
+            : [],
       },
     };
   }
@@ -219,6 +236,7 @@ export async function startIntegration() {
               "px_report",
               "px_service",
               "px_public_config",
+              "px_mail",
             ].includes(name)
           )
             throw Error("Unknown RPC");
@@ -380,6 +398,11 @@ export async function startIntegration() {
         const c = claims(req.headers.get("authorization")?.slice(7) || "");
         if (u.pathname.endsWith("/invite")) {
           const p = (await req.json()) as any;
+          authCalls.push({
+            type: "invite",
+            redirect: u.searchParams.get("redirect_to"),
+            email: p.email,
+          });
           const invited = {
             id: crypto.randomUUID(),
             email: p.email,
@@ -387,6 +410,10 @@ export async function startIntegration() {
             role: "rep",
           };
           users.push(invited);
+          emailLinks.set("invitation_test_hash_" + invited.id, {
+            id: invited.id,
+            type: "invite",
+          });
           await withDb(async () => {
             await db.exec("reset role");
             await db.query("insert into auth.users values($1,$2,null)", [
@@ -395,13 +422,73 @@ export async function startIntegration() {
             ]);
           });
           response = Response.json(session(invited).user);
+        } else if (u.pathname.endsWith("/recover")) {
+          const p = (await req.json()) as any;
+          authCalls.push({
+            type: "recovery",
+            redirect: u.searchParams.get("redirect_to"),
+            email: p.email,
+          });
+          const person = users.find((x) => x.email === p.email);
+          if (person)
+            emailLinks.set("recovery_test_hash_" + person.id, {
+              id: person.id,
+              type: "recovery",
+            });
+          response = Response.json({});
+        } else if (u.pathname.endsWith("/verify")) {
+          const p = (await req.json()) as any;
+          if (u.pathname.includes("/factors/")) {
+            const person = users.find((x) => x.id === c.sub);
+            response =
+              person && p.code === "123456"
+                ? Response.json(session(person, true))
+                : Response.json(
+                    {
+                      error_code: "mfa_verification_failed",
+                      msg: "Internal test detail must not be rendered",
+                    },
+                    { status: 422 },
+                  );
+          } else {
+            const link = emailLinks.get(p.token_hash),
+              person = users.find((x) => x.id === link?.id);
+            if (link && person && link.type === p.type) {
+              emailLinks.delete(p.token_hash);
+              await withDb(async () => {
+                await db.exec("reset role");
+                await db.query(
+                  "update auth.users set email_confirmed_at=now() where id=$1",
+                  [person.id],
+                );
+              });
+              response = Response.json(session(person));
+            } else
+              response = Response.json(
+                {
+                  error_code: "otp_expired",
+                  msg: "Email link is invalid or expired",
+                },
+                { status: 403 },
+              );
+          }
+        } else if (u.pathname.endsWith("/challenge")) {
+          response = Response.json({
+            id: crypto.randomUUID(),
+            expires_at: Math.floor(Date.now() / 1000) + 300,
+          });
         } else if (u.pathname.endsWith("/token")) {
           const p = (await req.json()) as any;
           const person = users.find(
             (x) => x.email === p.email || "fixture:" + x.id === p.refresh_token,
           );
           response =
-            person && (!p.password || p.password === "Valid-password-123")
+            person &&
+            (!p.password ||
+              p.password ===
+                (options.ownerMfa
+                  ? passwords.get(person.id) || "Valid-password-123"
+                  : "Valid-password-123"))
               ? Response.json(session(person))
               : Response.json(
                   {
@@ -415,6 +502,8 @@ export async function startIntegration() {
           const person = users.find((x) => x.id === c.sub);
           if (person && u.pathname.endsWith("/user") && req.method === "PUT") {
             const attributes = (await req.json()) as any;
+            if (attributes.password)
+              passwords.set(person.id, attributes.password);
             if (attributes.data)
               userMetadata.set(person.id, {
                 ...userMetadata.get(person.id),
@@ -451,6 +540,8 @@ export async function startIntegration() {
     session,
     users,
     userMetadata,
+    authCalls,
+    emailLinks,
     async close() {
       await new Promise<void>((r) => server.close(() => r()));
       globalThis.fetch = realFetch;

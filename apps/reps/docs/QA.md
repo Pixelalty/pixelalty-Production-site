@@ -1,5 +1,7 @@
 # V1 validation
 
+The latest auth/domain revision is tracked in [AUTH_ACCEPTANCE.md](AUTH_ACCEPTANCE.md). It adds the MFA viewport fix, branded email/callback flows, domain routing and recruiting entry, bringing the automated suite to 64 passing tests. External domain/SMTP setup and real inbox acceptance remain explicit gates; use the [owner setup guide](PIXELALTY_DOMAINS_AND_EMAIL.md).
+
 The release is a staging candidate on `codex/pixelalty-sales-v1`. Production has not been deployed or migrated. Scope follows section 172 of the master requirements; the V1.5/V2/V3 features remain separately scheduled. See [the acceptance ledger](V1_ACCEPTANCE.md).
 
 ## Verified locally

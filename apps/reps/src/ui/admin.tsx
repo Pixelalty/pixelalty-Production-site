@@ -218,6 +218,22 @@ export function Admin() {
                 Requirements
               </button>
               <button onClick={() => setRepDetail(r)}>View readiness</button>
+              {["onboarding", "active"].includes(r.status) &&
+                app.has("sales_admin") && (
+                  <button
+                    onClick={() =>
+                      show(
+                        "Send account setup email",
+                        "resend_begin",
+                        { id: r.id },
+                        [],
+                        "/invite/resend",
+                      )
+                    }
+                  >
+                    Send setup email
+                  </button>
+                )}
               <button onClick={() => show("Activate rep", "rep_activate", r)}>
                 Activate
               </button>
@@ -1243,18 +1259,36 @@ function Health() {
       <Card title="Configuration">
         <Activity />
         <State {...state}>
-          {Object.entries(state.data || {}).map(([k, v]) => (
-            <div className="health-row" key={k}>
-              <span>{label(k)}</span>
-              <strong>
-                {typeof v === "boolean"
-                  ? v
-                    ? "Configured"
-                    : "Off / not configured"
-                  : String(v)}
-              </strong>
-            </div>
-          ))}
+          {Object.entries(state.data || {})
+            .filter(([k]) => k !== "emailDelivery")
+            .map(([k, v]) => (
+              <div className="health-row" key={k}>
+                <span>{label(k)}</span>
+                <strong>
+                  {typeof v === "boolean"
+                    ? v
+                      ? "Configured"
+                      : "Off / not configured"
+                    : String(v)}
+                </strong>
+              </div>
+            ))}
+          {state.data?.emailDelivery && (
+            <>
+              <div className="health-row">
+                <span>Emails waiting</span>
+                <strong>{state.data.emailDelivery.pending}</strong>
+              </div>
+              <div className="health-row">
+                <span>Email deliveries to review</span>
+                <strong>{state.data.emailDelivery.needs_review}</strong>
+              </div>
+              <div className="health-row">
+                <span>Emails sent</span>
+                <strong>{state.data.emailDelivery.sent}</strong>
+              </div>
+            </>
+          )}
         </State>
       </Card>
       <h2>Background jobs</h2>

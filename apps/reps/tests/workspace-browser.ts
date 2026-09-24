@@ -82,7 +82,9 @@ export async function verifyWorkspace(
     .click();
   await page
     .getByRole("alert")
-    .filter({ hasText: "Preference save failed" })
+    .filter({
+      hasText: "Your appearance changes weren’t saved. Please try again.",
+    })
     .waitFor();
   assert.equal(fixture.userMetadata.get(fixture.owner), undefined);
   await page.unroute("**/auth/v1/user");

@@ -75,5 +75,6 @@ See `QA.md` for the exact scope of these checks. Hosted gates above remain open;
 | ---------------------------------------- | ------------------------ |
 | `20260923235516_sales_v1_completion.sql` | `20260924005536`         |
 | `20260924005803_sales_v1_indexes.sql`    | `20260924010027`         |
+| `20260924051744_sales_branded_auth_mail.sql` | `20260924054601` |
 
 The index migration passed a fresh application of the complete schema and all 16 focused V1 tests. The performance advisor now reports only unused indexes, which are retained for the intended workloads. Do not reapply the original files using unreconciled CLI timestamps.

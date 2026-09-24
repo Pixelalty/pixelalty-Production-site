@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { client, identity, rpc, service } from "./db";
 import { type Env, HttpError } from "./types";
+import { deploymentUrls, mutationOriginAllowed } from "./urls";
+import { drainMail, mailConfigured } from "./mail";
 import {
   checkout,
   connectAccount,
@@ -141,19 +143,22 @@ async function api(req: Request, env: Env) {
   }
   if (!["GET", "POST"].includes(req.method))
     throw new HttpError(405, "Method not allowed.");
-  if (
-    post &&
-    (!env.APP_URL || req.headers.get("origin") !== new URL(env.APP_URL).origin)
-  )
+  if (post && !mutationOriginAllowed(req, env, path))
     throw new HttpError(403, "This request must come from the application.");
-  if (path === "/api/config")
+  if (path === "/api/config") {
+    const urls = deploymentUrls(env, req.url);
     return json({
+      appUrl: urls.app,
+      recruitingUrl: urls.recruiting,
+      publicRecruitingHost:
+        u.origin === urls.recruitingOrigin && u.origin !== urls.app,
       supabaseUrl: env.SUPABASE_URL || "",
       publishableKey: env.SUPABASE_PUBLISHABLE_KEY || "",
       turnstileSiteKey: env.TURNSTILE_SITE_KEY || "",
       mode: env.STRIPE_MODE || "test",
       configured: !!(env.SUPABASE_URL && env.SUPABASE_PUBLISHABLE_KEY),
     });
+  }
   if (path === "/api/recruiting")
     return json(await rpc(client(env), "px_public_config"));
   if (path === "/api/apply" && post) {
@@ -187,7 +192,7 @@ async function api(req: Request, env: Env) {
     const result = (await captcha.json()) as Row;
     if (
       !result.success ||
-      result.hostname !== new URL(env.APP_URL).hostname ||
+      result.hostname !== u.hostname ||
       result.action !== "apply"
     )
       throw new HttpError(
@@ -397,7 +402,7 @@ async function api(req: Request, env: Env) {
       });
       if (!account?.user_id) {
         const invited = await admin.auth.admin.inviteUserByEmail(app.email, {
-          redirectTo: `${env.APP_URL}/welcome`,
+          redirectTo: `${deploymentUrls(env, req.url).app}/welcome`,
         });
         if (invited.error || !invited.data.user)
           throw new HttpError(
@@ -416,6 +421,25 @@ async function api(req: Request, env: Env) {
       await service(env, "approval_error", { id: app.id });
       throw e;
     }
+  }
+  if (path === "/api/invite/resend" && post) {
+    const recipient = await rpc(db, "px_mail", {
+      action: "resend_begin",
+      p: await body(req),
+    });
+    const result = await client(
+      env,
+      undefined,
+      true,
+    ).auth.resetPasswordForEmail(recipient.email, {
+      redirectTo: deploymentUrls(env, req.url).app + "/recover",
+    });
+    if (result.error)
+      throw new HttpError(
+        502,
+        "The setup email could not be sent. Please try again or contact Pixelalty support.",
+      );
+    return json({ sent: true });
   }
   if (path === "/api/checkout" && post) {
     const p = await body(req);
@@ -693,18 +717,47 @@ async function api(req: Request, env: Env) {
       mode: env.STRIPE_MODE,
       automaticTransfers: false,
       calling: ctx.settings.calling_enabled,
+      brandedNotifications: mailConfigured(env),
+      emailDelivery: await rpc(db, "px_mail", { action: "summary", p: {} }),
     });
   }
   throw new HttpError(404, "API route not found.");
 }
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(
+    req: Request,
+    env: Env,
+    ctx?: ExecutionContext,
+  ): Promise<Response> {
     let response: Response;
     const requestId = crypto.randomUUID();
     try {
-      response = new URL(req.url).pathname.startsWith("/api/")
-        ? await api(req, env)
-        : await env.ASSETS.fetch(req);
+      const u = new URL(req.url),
+        urls = deploymentUrls(env, req.url);
+      const recruitingHost =
+        u.origin === urls.recruitingOrigin && u.origin !== urls.app;
+      if (
+        recruitingHost &&
+        u.pathname.startsWith("/api/") &&
+        !["/api/config", "/api/recruiting", "/api/apply"].includes(u.pathname)
+      )
+        throw new HttpError(404, "This page is not available here.");
+      if (
+        recruitingHost &&
+        !["/", "/apply", "/apply/"].includes(u.pathname) &&
+        !/^\/(api|assets|fonts)\//.test(u.pathname)
+      )
+        response = Response.redirect(urls.app + u.pathname + u.search, 302);
+      else if (
+        u.origin === urls.app &&
+        ["/apply", "/apply/"].includes(u.pathname) &&
+        urls.recruitingOrigin !== urls.app
+      )
+        response = Response.redirect(urls.recruiting, 302);
+      else
+        response = u.pathname.startsWith("/api/")
+          ? await api(req, env)
+          : await env.ASSETS.fetch(req);
     } catch (e) {
       const status = e instanceof HttpError ? e.status : 500;
       if (status === 500)
@@ -726,7 +779,7 @@ export default {
     }
     const headers = new Headers(response.headers);
     headers.set("X-Content-Type-Options", "nosniff");
-    headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    headers.set("Referrer-Policy", "no-referrer");
     headers.set("X-Frame-Options", "DENY");
     if (new URL(req.url).protocol === "https:")
       headers.set(
@@ -743,14 +796,35 @@ export default {
       "Content-Security-Policy",
       "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
     );
-    if (new URL(req.url).pathname !== "/apply")
+    const currentUrl = new URL(req.url);
+    if (
+      currentUrl.pathname !== "/apply" &&
+      !(
+        env.RECRUITING_URL &&
+        URL.canParse(env.RECRUITING_URL) &&
+        currentUrl.origin === new URL(env.RECRUITING_URL).origin &&
+        currentUrl.pathname === "/"
+      )
+    )
       headers.set("X-Robots-Tag", "noindex, nofollow");
+    if (
+      ctx &&
+      req.method === "POST" &&
+      response.ok &&
+      ["/api/action", "/api/approve"].includes(currentUrl.pathname)
+    )
+      ctx.waitUntil(
+        drainMail(env).catch(() => console.error("mail_queue_unavailable")),
+      );
     return new Response(response.body, { status: response.status, headers });
   },
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
     ctx.waitUntil(
       (async () => {
         await service(env, "tick", {});
+        await drainMail(env, 10).catch(() =>
+          console.error("mail_queue_unavailable"),
+        );
         const db = client(env, undefined, true),
           payments = await db
             .from("px_payments")

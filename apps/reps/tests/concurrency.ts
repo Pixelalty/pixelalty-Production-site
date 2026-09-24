@@ -43,7 +43,7 @@ const identity = async (client: Client, id: string | null) => {
 };
 const rpc = async (
   client: Client,
-  fn: "px_action" | "px_service",
+  fn: "px_action" | "px_service" | "px_mail",
   action: string,
   p: unknown = {},
 ) =>
@@ -403,6 +403,33 @@ test("PostgreSQL contention preserves assignment and financial invariants", asyn
             ).rows[0].n,
           ),
           12000,
+        );
+      },
+    );
+    await t.test(
+      "concurrent email workers acquire one lease for one notification",
+      async () => {
+        await control.query(
+          "insert into px_notifications(rep_id,title,body,event_key) values($1,'Your workspace is ready','Isolated activation','activated')",
+          [rep],
+        );
+        await Promise.all(clients.map((c) => identity(c, null)));
+        const results = successful(
+          await contend(
+            "lock table px_private.mail_outbox in access exclusive mode",
+            [],
+            (c) => rpc(c, "px_mail", "claim"),
+          ),
+        );
+        assert.equal(results.filter(Boolean).length, 1);
+        assert.equal(
+          (
+            await control.query(
+              "select attempts from px_private.mail_outbox where rep_id=$1",
+              [rep],
+            )
+          ).rows[0].attempts,
+          1,
         );
       },
     );

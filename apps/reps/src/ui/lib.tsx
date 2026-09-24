@@ -240,6 +240,9 @@ export type Field = {
   searchQuery?: string;
   minLength?: number;
   maxLength?: number;
+  inputMode?: "text" | "numeric" | "email";
+  autoComplete?: string;
+  pattern?: string;
 };
 function SearchField({
   field,
@@ -394,9 +397,10 @@ export function Form({
               id={formId + f.name}
               name={f.name}
               type={f.type === "currency" ? "text" : f.type || "text"}
-              inputMode={f.type === "currency" ? "decimal" : undefined}
+              inputMode={f.type === "currency" ? "decimal" : f.inputMode}
+              autoComplete={f.autoComplete}
               pattern={
-                f.type === "currency" ? "[0-9]+([.][0-9]{1,2})?" : undefined
+                f.type === "currency" ? "[0-9]+([.][0-9]{1,2})?" : f.pattern
               }
               defaultValue={
                 f.type === "checkbox"
@@ -478,7 +482,11 @@ export function ActionDialog({
             endpoint === "/action" ? { action, p } : p,
           );
           app.refresh();
-          app.notify("Saved.");
+          app.notify(
+            endpoint === "/invite/resend"
+              ? "Account setup email sent."
+              : "Saved.",
+          );
           after?.(r);
           onClose();
         }}

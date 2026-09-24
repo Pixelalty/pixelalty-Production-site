@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { authErrorMessage } from "../shared/auth";
 import {
   ArrowRight,
   Phone,
@@ -631,7 +632,6 @@ export function Money() {
           ["status", "Status"],
           ["hold_until", "Hold until"],
           ["reversed_cents", "Reversed"],
-          ["transfer_id", "Connect transfer"],
         ]}
       />
       <h2>Bank payouts</h2>
@@ -976,7 +976,7 @@ export function Profile() {
               const r = await app.client.auth.updateUser({
                 password: p.password,
               });
-              if (r.error) throw r.error;
+              if (r.error) throw Error(authErrorMessage(r.error));
               app.notify("Password updated.");
             }}
           />

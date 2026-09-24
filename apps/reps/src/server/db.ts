@@ -7,7 +7,10 @@ export function client(env: Env, token?: string, admin = false) {
     !env.SUPABASE_PUBLISHABLE_KEY ||
     (admin && !env.SUPABASE_SERVICE_ROLE_KEY)
   )
-    throw new HttpError(503, "Database connection is not configured.");
+    throw new HttpError(
+      503,
+      "Pixelalty is temporarily unavailable. Please try again later.",
+    );
   return createClient(
     env.SUPABASE_URL,
     admin ? env.SUPABASE_SERVICE_ROLE_KEY : env.SUPABASE_PUBLISHABLE_KEY,
@@ -22,7 +25,18 @@ export function client(env: Env, token?: string, admin = false) {
 export async function rpc(db: SupabaseClient, name: string, args: Row = {}) {
   const { data, error } = await db.rpc(name, args);
   if (error) {
-    if (["42501", "P0001"].includes(error.code))
+    if (error.code === "42501")
+      throw new HttpError(
+        403,
+        "This action is not available for your account.",
+      );
+    if (
+      error.code === "P0001" &&
+      error.message.length < 260 &&
+      !/supabase|schema|relation|constraint|px_|SQLSTATE|service_role/i.test(
+        error.message,
+      )
+    )
       throw new HttpError(403, error.message);
     if (["23505", "23514", "22023", "22P02", "22003"].includes(error.code))
       throw new HttpError(
@@ -30,7 +44,10 @@ export async function rpc(db: SupabaseClient, name: string, args: Row = {}) {
         "The request conflicts with the current data or contains an invalid value.",
       );
     console.error("database_error", error.code);
-    throw new HttpError(500, "The database operation could not be completed.");
+    throw new HttpError(
+      500,
+      "This change could not be saved. Please try again or contact Pixelalty support.",
+    );
   }
   return data;
 }

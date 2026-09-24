@@ -51,8 +51,15 @@ import {
 } from "../shared/workspace";
 import { workspacePages, WorkspaceNavigation, PageFinder } from "./navigation";
 import { Appearance } from "./appearance";
+import { readAuthLink, authErrorMessage } from "../shared/auth";
+import { AuthShell } from "./auth-shell";
+import { ConfirmAuthLink, InvalidAuthLink } from "./auth-link";
 import "./styles.css";
 import "./workspace.css";
+import "./auth.css";
+const incoming = readAuthLink(new URL(location.href));
+if (incoming.cleanPath !== location.pathname + location.search + location.hash)
+  history.replaceState({}, "", incoming.cleanPath);
 function storedTheme() {
   try {
     return localStorage.getItem("pixelalty-theme") || "system";
@@ -64,6 +71,9 @@ function App() {
   const [config, setConfig] = useState<Row | null>(null),
     [client, setAuth] = useState<SupabaseClient | null>(null),
     [session, setSession] = useState<any>(null),
+    [authReady, setAuthReady] = useState(false),
+    [authLink, setAuthLink] = useState(incoming.link),
+    [authLinkVersion, setAuthLinkVersion] = useState(0),
     [ctx, setCtx] = useState<Row | null>(null),
     [error, setError] = useState(""),
     [version, setVersion] = useState(0),
@@ -80,6 +90,7 @@ function App() {
       useState<WorkspacePreferences | null>(null),
     [savingPreferences, setSavingPreferences] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
+  const processedLocation = useRef(location.href);
   const preferences = useMemo(
     () =>
       workspacePreferences({
@@ -105,23 +116,31 @@ function App() {
   const navigate = (s: string) => {
     setPreviewPreferences(null);
     history.pushState({}, "", s);
+    processedLocation.current = location.href;
     setPath(s);
     setMenu(false);
     window.scrollTo(0, 0);
   };
   useEffect(() => {
-    const authFlow = new URLSearchParams(location.hash.replace(/^#/, "")).get(
-      "type",
-    );
-    let handledAuthFlow = false;
     let subscription: { unsubscribe: () => void } | undefined;
     let mounted = true;
     const fn = () => {
+      if (processedLocation.current === location.href) return;
+      const current = readAuthLink(new URL(location.href));
+      if (
+        current.cleanPath !==
+        location.pathname + location.search + location.hash
+      )
+        history.replaceState({}, "", current.cleanPath);
+      processedLocation.current = location.href;
+      setAuthLink(current.link);
+      setAuthLinkVersion((value) => value + 1);
       setPath(location.pathname + location.search);
       setMenu(false);
       setPreviewPreferences(null);
     };
     window.addEventListener("popstate", fn);
+    window.addEventListener("hashchange", fn);
     api("/config")
       .then((c) => {
         setConfig(c);
@@ -130,34 +149,41 @@ function App() {
             auth: {
               storage: sessionStorage,
               persistSession: true,
-              detectSessionInUrl: true,
+              detectSessionInUrl: false,
             },
           });
           setClient(s);
           setAuth(s);
-          s.auth.getSession().then((r) => setSession(r.data.session));
+          s.auth
+            .getSession()
+            .then((r) => {
+              if (mounted) {
+                setSession(r.data.session);
+                setAuthReady(true);
+              }
+            })
+            .catch(() => {
+              if (mounted) {
+                setAuthReady(true);
+                setError(
+                  "We couldn’t restore your session. Please sign in again.",
+                );
+              }
+            });
           const { data } = s.auth.onAuthStateChange((_event, newSession) => {
             if (mounted) {
               setSession(newSession);
-              if (newSession && !handledAuthFlow) {
-                if (_event === "PASSWORD_RECOVERY" || authFlow === "recovery") {
-                  handledAuthFlow = true;
-                  navigate("/recover");
-                } else if (authFlow === "invite") {
-                  handledAuthFlow = true;
-                  navigate("/welcome");
-                }
-              }
             }
           });
           subscription = data.subscription;
-        }
+        } else setAuthReady(true);
       })
       .catch((e) => setError(e.message));
     return () => {
       mounted = false;
       subscription?.unsubscribe();
       window.removeEventListener("popstate", fn);
+      window.removeEventListener("hashchange", fn);
     };
   }, []);
   useEffect(() => {
@@ -229,7 +255,7 @@ function App() {
     if (session)
       api("/me")
         .then((value) => {
-          setCtx(value);
+          setCtx({ ...value, contextUserId: session.user.id });
           setError("");
         })
         .catch((e) => setError(e.message));
@@ -276,7 +302,13 @@ function App() {
       const result = await client.auth.updateUser({
         data: { pixelalty_workspace: next },
       });
-      if (result.error) throw result.error;
+      if (result.error)
+        throw Error(
+          authErrorMessage(
+            result.error,
+            "Your appearance changes weren’t saved. Please try again.",
+          ),
+        );
       if (!result.data.user)
         throw Error("Your preferences were not saved. Please try again.");
       setSession((current: any) =>
@@ -295,7 +327,7 @@ function App() {
     );
   if (error)
     return (
-      <div className="center-card">
+      <AuthShell>
         <h1>Workspace unavailable</h1>
         <State error={error} />
         <button onClick={() => location.reload()}>Try again</button>
@@ -310,28 +342,63 @@ function App() {
             Return to sign in
           </button>
         )}
-      </div>
+      </AuthShell>
     );
-  if (!config) return <State loading />;
-  if (path.startsWith("/apply"))
-    return <Apply siteKey={config.turnstileSiteKey} />;
+  if (!config)
+    return (
+      <AuthShell>
+        <State loading />
+      </AuthShell>
+    );
+  if (path.startsWith("/apply") || config.publicRecruitingHost)
+    return <Apply siteKey={config.turnstileSiteKey} appUrl={config.appUrl} />;
   if (path.startsWith("/payment-return"))
     return (
-      <div className="center-card">
+      <AuthShell>
         <ShieldCheck size={40} />
         <h1>{path.includes("success") ? "Thank you." : "Checkout closed."}</h1>
         <p>
           {path.includes("success")
-            ? "We’re verifying the payment with Stripe. Your Pixelalty contact can confirm the next steps once verification is complete."
+            ? "We’re verifying your payment. Your Pixelalty contact can confirm the next steps once verification is complete."
             : "No payment is confirmed by this page. Contact your Pixelalty representative if you would like to continue."}
         </p>
         <a className="button" href="https://pixelalty.com">
           Return to Pixelalty
         </a>
-      </div>
+      </AuthShell>
     );
+  if (!authReady)
+    return (
+      <AuthShell>
+        <State loading />
+      </AuthShell>
+    );
+  if (authLink && client)
+    return (
+      <ConfirmAuthLink
+        key={authLinkVersion}
+        client={client}
+        link={authLink}
+        onComplete={(next) => {
+          setAuthLink(null);
+          history.replaceState({}, "", next);
+          processedLocation.current = location.href;
+          setPath(next);
+        }}
+      />
+    );
+  if (path.startsWith("/auth/")) return <InvalidAuthLink invite={false} />;
+  if (!session && (path.startsWith("/welcome") || path.startsWith("/recover")))
+    return <InvalidAuthLink invite={path.startsWith("/welcome")} />;
   if (!session)
-    return <SignIn client={client} configured={config.configured} />;
+    return (
+      <SignIn
+        client={client}
+        configured={config.configured}
+        appUrl={config.appUrl}
+        recruitingUrl={config.recruitingUrl}
+      />
+    );
   if (
     path.startsWith("/recover") ||
     path.startsWith("/welcome") ||
@@ -347,16 +414,21 @@ function App() {
         }
       />
     );
-  if (!ctx) return <State loading />;
+  if (!ctx || ctx.contextUserId !== session.user.id)
+    return (
+      <AuthShell>
+        <State loading />
+      </AuthShell>
+    );
   if (ctx.roles.length && ctx.aal !== "aal2")
     return <MFA client={client!} onSuccess={reloadContext} />;
   if (!ctx.rep && !ctx.roles.length)
     return (
-      <div className="center-card">
+      <AuthShell>
         <h1>Your account isn’t active here yet.</h1>
         <p>A Pixelalty administrator needs to approve your access.</p>
         <button onClick={() => client?.auth.signOut()}>Sign out</button>
-      </div>
+      </AuthShell>
     );
   const has = (role: string) =>
       ctx.roles.includes("owner") || ctx.roles.includes(role),
@@ -611,7 +683,10 @@ function App() {
             </div>
             <div className="top-actions">
               {config.mode === "test" && (
-                <span className="test-label" title="Stripe sandbox environment">
+                <span
+                  className="test-label"
+                  title="Test workspace; payments use test mode"
+                >
                   Sandbox
                 </span>
               )}

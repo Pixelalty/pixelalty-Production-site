@@ -16,6 +16,12 @@
     "preview": "wrangler dev",
     "deploy:staging": "npm run build && wrangler deploy --env staging",
     "test:e2e": "node --import tsx tests/browser-v1.ts",
+    "test:auth": "node --import tsx tests/browser-auth.ts",
+    "test:branding": "node --import tsx tests/browser-branding.ts",
+    "emails:build": "node --import tsx scripts/build-auth-emails.ts",
+    "auth:configure": "node --import tsx scripts/configure-pixelalty-auth.ts",
+    "domains:prepare": "node --import tsx scripts/enable-pixelalty-domains.ts",
+    "deploy:pixelalty": "npm run domains:prepare && npm run build && wrangler deploy --env staging",
     "test:concurrency": "node --import tsx --test tests/concurrency.ts"
   },
   "dependencies": {
