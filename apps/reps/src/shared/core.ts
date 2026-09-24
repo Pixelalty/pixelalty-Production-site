@@ -21,7 +21,9 @@ export const OUTCOMES = [
   "no_answer",
   "voicemail",
   "gatekeeper",
+  "decision_maker_unavailable",
   "conversation",
+  "send_information",
   "interested",
   "follow_up",
   "meeting",
@@ -29,6 +31,7 @@ export const OUTCOMES = [
   "not_interested",
   "wrong_number",
   "disconnected",
+  "business_closed",
   "do_not_call",
   "sale_reported",
 ] as const;
@@ -144,6 +147,20 @@ export function normalizeLead(
   const email = get("email").toLowerCase();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     throw Error("Invalid email.");
+  const rating = get("rating"),
+    reviews = get("review_count");
+  if (
+    rating &&
+    (!Number.isFinite(Number(rating)) ||
+      Number(rating) < 0 ||
+      Number(rating) > 5)
+  )
+    throw Error("Rating must be between 0 and 5.");
+  if (reviews && (!Number.isInteger(Number(reviews)) || Number(reviews) < 0))
+    throw Error("Review count must be a non-negative integer.");
+  const google = get("google_url");
+  if (google && !/^https?:\/\//.test(google))
+    throw Error("Business profile URL must use http or https.");
   return {
     name,
     phone: normalizePhone(get("phone")),
@@ -155,5 +172,22 @@ export function normalizeLead(
     industry: get("industry"),
     contact: get("contact"),
     notes: get("notes").slice(0, 3000),
+    source: get("source").slice(0, 200),
+    external_id: get("external_id").slice(0, 250),
+    tags: [get("tags"), mapping._batch_tag || ""]
+      .join(",")
+      .split(/[;,]/)
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, 20),
+    metadata: {
+      address: get("address").slice(0, 500),
+      zip: get("zip").slice(0, 40),
+      country: get("country").slice(0, 100),
+      google_url: google.slice(0, 2000),
+      rating: rating ? Number(rating) : null,
+      review_count: reviews ? Number(reviews) : null,
+      website_assessment: get("website_assessment").slice(0, 3000),
+    },
   };
 }

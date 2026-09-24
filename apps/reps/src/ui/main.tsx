@@ -33,7 +33,7 @@ import {
   Modal,
   Heading,
 } from "./lib";
-import { SignIn, Apply, MFA } from "./public";
+import { SignIn, Apply, MFA, PasswordSetup } from "./public";
 import {
   Dashboard,
   Leads,
@@ -76,6 +76,12 @@ function App() {
     window.scrollTo(0, 0);
   };
   useEffect(() => {
+    const authFlow = new URLSearchParams(location.hash.replace(/^#/, "")).get(
+      "type",
+    );
+    let handledAuthFlow = false;
+    let subscription: { unsubscribe: () => void } | undefined;
+    let mounted = true;
     const fn = () => setPath(location.pathname + location.search);
     window.addEventListener("popstate", fn);
     api("/config")
@@ -92,20 +98,51 @@ function App() {
           setClient(s);
           setAuth(s);
           s.auth.getSession().then((r) => setSession(r.data.session));
-          s.auth.onAuthStateChange((_event, newSession) =>
-            setSession(newSession),
-          );
+          const { data } = s.auth.onAuthStateChange((_event, newSession) => {
+            if (mounted) {
+              setSession(newSession);
+              if (newSession && !handledAuthFlow) {
+                if (_event === "PASSWORD_RECOVERY" || authFlow === "recovery") {
+                  handledAuthFlow = true;
+                  navigate("/recover");
+                } else if (authFlow === "invite") {
+                  handledAuthFlow = true;
+                  navigate("/welcome");
+                }
+              }
+            }
+          });
+          subscription = data.subscription;
         }
       })
       .catch((e) => setError(e.message));
-    return () => window.removeEventListener("popstate", fn);
+    return () => {
+      mounted = false;
+      subscription?.unsubscribe();
+      window.removeEventListener("popstate", fn);
+    };
   }, []);
+  useEffect(() => {
+    document.documentElement.dataset.compact = String(
+      !!ctx?.rep?.preferences?.compact,
+    );
+    document.documentElement.dataset.motion = ctx?.rep?.preferences
+      ?.reduced_motion
+      ? "reduced"
+      : "auto";
+  }, [ctx]);
   const reloadContext = useCallback(() => {
     if (session)
       api("/me")
-        .then(setCtx)
+        .then((value) => {
+          setCtx(value);
+          setError("");
+        })
         .catch((e) => setError(e.message));
   }, [session]);
+  useEffect(() => {
+    if (session) reloadContext();
+  }, [version]);
   useEffect(() => {
     if (session) reloadContext();
     else setCtx(null);
@@ -138,6 +175,17 @@ function App() {
         <h1>Workspace unavailable</h1>
         <State error={error} />
         <button onClick={() => location.reload()}>Try again</button>
+        {client && (
+          <button
+            onClick={async () => {
+              await client.auth.signOut({ scope: "local" });
+              setSession(null);
+              setError("");
+            }}
+          >
+            Return to sign in
+          </button>
+        )}
       </div>
     );
   if (!config) return <State loading />;
@@ -160,6 +208,21 @@ function App() {
     );
   if (!session)
     return <SignIn client={client} configured={config.configured} />;
+  if (
+    path.startsWith("/recover") ||
+    path.startsWith("/welcome") ||
+    (path.startsWith("/profile") &&
+      new URLSearchParams(location.search).has("reset"))
+  )
+    return (
+      <PasswordSetup
+        client={client!}
+        invite={path.startsWith("/welcome")}
+        onComplete={() =>
+          navigate(path.startsWith("/welcome") ? "/onboarding" : "/")
+        }
+      />
+    );
   if (!ctx) return <State loading />;
   if (ctx.roles.length && ctx.aal !== "aal2")
     return <MFA client={client!} onSuccess={reloadContext} />;
@@ -177,20 +240,22 @@ function App() {
     root = path.split("?")[0];
   const personal = [
     ["/", "Overview", LayoutDashboard],
-    ...(active
-      ? [
-          ["/focus", "Focus mode", Target],
-          ["/leads", "My leads", Users],
-          ["/followups", "Follow-ups", Calendar],
-          ["/pipeline", "Pipeline", GitBranch],
-        ]
-      : [["/onboarding", "Onboarding", ShieldCheck]]),
-    ["/money", "My money", Wallet],
+    ...(ctx.rep
+      ? active
+        ? [
+            ["/focus", "Focus mode", Target],
+            ["/leads", "My leads", Users],
+            ["/followups", "Follow-ups", Calendar],
+            ["/pipeline", "Pipeline", GitBranch],
+          ]
+        : [["/onboarding", "Onboarding", ShieldCheck]]
+      : []),
+    ...(ctx.rep ? [["/money", "My money", Wallet]] : []),
     ["/academy", "Academy", BookOpen],
     ["/leaderboard", "Leaderboard", Trophy],
     ["/notifications", "Notifications", Bell],
     ["/profile", "My profile", UserCircle],
-    ["/support", "Help & support", HelpCircle],
+    ...(ctx.rep ? [["/support", "Help & support", HelpCircle]] : []),
   ];
   const admin = [
     ...(has("sales_admin")
@@ -200,6 +265,7 @@ function App() {
           ["/admin/reps", "Reps", UserCircle],
           ["/admin/leads", "Businesses", Users],
           ["/admin/imports", "Import leads", Upload],
+          ["/admin/pipeline", "Deals & quotes", GitBranch],
           ["/admin/fulfillment", "Fulfillment", GitBranch],
         ]
       : []),
@@ -221,6 +287,7 @@ function App() {
       : []),
   ];
   const allowed = new Set([...personal, ...admin].map((x) => x[0]));
+  if (ctx.rep) allowed.add("/onboarding");
   let screen: React.ReactNode;
   if (!allowed.has(root))
     screen = (
@@ -255,7 +322,15 @@ function App() {
   else if (root === "/notifications")
     screen = (
       <>
-        <Heading title="Notifications" />
+        <Heading title="Notifications">
+          <button
+            onClick={() =>
+              run(() => mutate("notification_read", { all: true }))
+            }
+          >
+            Mark all read
+          </button>
+        </Heading>
         <Listing
           name="notifications"
           query="&own=true"
@@ -264,40 +339,59 @@ function App() {
             ["body", "Details"],
             ["created_at", "Time"],
           ]}
-          actions={(r) =>
-            !r.read_at && (
+          actions={(r) => (
+            <>
               <button
                 onClick={() =>
-                  run(() => mutate("notification_read", { id: r.id }))
+                  run(async () => {
+                    await mutate("notification_read", { id: r.id });
+                    navigate(
+                      r.link?.startsWith("/") && !r.link.startsWith("//")
+                        ? r.link
+                        : "/",
+                    );
+                  })
                 }
               >
-                Mark read
+                Open update
               </button>
-            )
-          }
+              {!r.read_at && (
+                <button
+                  onClick={() =>
+                    run(() => mutate("notification_read", { id: r.id }))
+                  }
+                >
+                  Mark read
+                </button>
+              )}
+            </>
+          )}
         />
       </>
     );
   else
     screen = (
       {
-        "/": ctx.rep ? (
-          <Dashboard />
-        ) : (
-          <>
-            <Heading
-              title="Your workspace"
-              description="Choose an area available to your role."
-            />
-            <div className="button-row">
-              {admin.map(([to, title]) => (
-                <button key={String(to)} onClick={() => navigate(String(to))}>
-                  {String(title)}
-                </button>
-              ))}
-            </div>
-          </>
-        ),
+        "/":
+          !ctx.rep && has("sales_admin") ? (
+            <Admin />
+          ) : ctx.rep ? (
+            <Dashboard />
+          ) : (
+            <>
+              <Heading
+                title="Your workspace"
+                description="Choose an area available to your role."
+              />
+              <div className="button-row">
+                {admin.map(([to, title]) => (
+                  <button key={String(to)} onClick={() => navigate(String(to))}>
+                    {String(title)}
+                  </button>
+                ))}
+              </div>
+            </>
+          ),
         "/focus": <Focus />,
         "/leads": <Leads />,
         "/followups": <Followups />,
@@ -343,6 +437,16 @@ function App() {
       }}
     >
       <div className="app-shell">
+        <a className="skip-link" href="#workspace-content">
+          Skip to main content
+        </a>
+        {menu && (
+          <button
+            className="menu-backdrop"
+            aria-label="Close navigation"
+            onClick={() => setMenu(false)}
+          />
+        )}
         <aside className={"sidebar " + (menu ? "open" : "")}>
           <a
             className="brand"
@@ -425,7 +529,7 @@ function App() {
               <span className="avatar small">{(ctx.rep?.name || "A")[0]}</span>
             </div>
           </header>
-          <main key={root}>
+          <main key={root} id="workspace-content" tabIndex={-1}>
             <Suspense fallback={<State loading />}>{screen}</Suspense>
           </main>
           <footer className="app-footer">

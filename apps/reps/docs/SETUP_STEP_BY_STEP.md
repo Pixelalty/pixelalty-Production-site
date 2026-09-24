@@ -108,7 +108,7 @@ Copy each destination's `whsec_...` signing secret into the matching Cloudflare 
 ## 7. Configure authentication and owner access
 
 1. In the **staging** Supabase project's **Authentication → URL Configuration**, set Site URL to the staging origin.
-2. Add redirect URLs for that origin followed by `/onboarding` and `/profile?reset=1`. A hostname-scoped `https://YOUR-STAGING-HOST/**` rule is acceptable for staging; avoid wildcard hostnames.
+2. Add redirect URLs for that origin followed by `/welcome`, `/recover`, `/onboarding` and the legacy `/profile?reset=1`. A hostname-scoped `https://YOUR-STAGING-HOST/**` rule is acceptable for staging; avoid wildcard hostnames.
 3. Keep email/password sign-in, email confirmation and authenticator-app MFA available. Configure transactional SMTP under the project's email/SMTP settings before testing invitations outside your Supabase organization. Store its credentials there.
 4. Create or invite the intended owner in the staging project's Auth Users page, then verify the email. Tell the assistant that email or Auth user UUID; never share the password or MFA code.
 5. After migrations exist, the role can be bootstrapped with `scripts/bootstrap-owner.sql`, which checks that the selected user is confirmed. Administrator login still requires MFA.

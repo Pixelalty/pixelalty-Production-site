@@ -151,7 +151,8 @@ test("real Postgres workflows, authorization, and payment ledger", async (t) => 
           outcome: "interested",
         });
         assert.equal(
-          (await db.query("select * from public.px_xp")).rows.length,
+          (await db.query("select * from public.px_xp where source='call'"))
+            .rows.length,
           1,
         );
         assert.equal(
@@ -541,7 +542,7 @@ test("real Postgres workflows, authorization, and payment ledger", async (t) => 
             id: onboarding,
             reason: "Premature activation",
           }),
-          /complete|agreement/,
+          /complete|agreement|profile/,
         );
         await actor(db, onboarding);
         await assert.rejects(
@@ -625,6 +626,7 @@ test("real Postgres workflows, authorization, and payment ledger", async (t) => 
           reason: "Publish test agreement",
         });
         await actor(db, newRep);
+        await act("profile", { name: "New Rep", timezone: "America/New_York" });
         await act("agreement", {
           content_id: agreement.id,
           signature: "New Rep",

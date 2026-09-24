@@ -63,7 +63,7 @@ export function SignIn({
             onSubmit={async (p) => {
               const r = reset
                 ? await client!.auth.resetPasswordForEmail(p.email, {
-                    redirectTo: location.origin + "/profile?reset=1",
+                    redirectTo: location.origin + "/recover",
                   })
                 : await client!.auth.signInWithPassword({
                     email: p.email,
@@ -104,9 +104,16 @@ export function MFA({
     [error, setError] = useState("");
   useEffect(() => {
     client.auth.mfa.listFactors().then(async (r) => {
+      if (r.error) {
+        setError(r.error.message);
+        return;
+      }
       const existing = r.data?.totp.find((x) => x.status === "verified");
       if (existing) setFactor(existing.id);
       else {
+        for (const f of r.data?.all || [])
+          if (f.factor_type === "totp" && f.status === "unverified")
+            await client.auth.mfa.unenroll({ factorId: f.id });
         const e = await client.auth.mfa.enroll({
           factorType: "totp",
           friendlyName: "Pixelalty Sales",
@@ -131,22 +138,74 @@ export function MFA({
         </>
       )}
       <State error={error} />
+      {!factor && !error && <State loading />}
+      {factor && (
+        <Form
+          fields={[
+            {
+              name: "code",
+              label: "Six-digit authentication code",
+              required: true,
+            },
+          ]}
+          submit="Verify session"
+          onSubmit={async (p) => {
+            const r = await client.auth.mfa.challengeAndVerify({
+              factorId: factor,
+              code: p.code,
+            });
+            if (r.error) throw r.error;
+            onSuccess();
+          }}
+        />
+      )}
+      <button className="text-button" onClick={() => client.auth.signOut()}>
+        Sign out
+      </button>
+    </div>
+  );
+}
+export function PasswordSetup({
+  client,
+  onComplete,
+  invite = false,
+}: {
+  client: SupabaseClient;
+  onComplete: () => void;
+  invite?: boolean;
+}) {
+  return (
+    <div className="center-card">
+      <ShieldCheck size={36} />
+      <h1>{invite ? "Welcome to Pixelalty" : "Choose a new password"}</h1>
+      <p>
+        Use at least 12 characters. A unique password helps keep your workspace
+        secure.
+      </p>
       <Form
         fields={[
           {
-            name: "code",
-            label: "Six-digit authentication code",
+            name: "password",
+            label: "New password",
+            type: "password",
             required: true,
+            minLength: 12,
+          },
+          {
+            name: "confirmation",
+            label: "Confirm new password",
+            type: "password",
+            required: true,
+            minLength: 12,
           },
         ]}
-        submit="Verify session"
+        submit="Save password and continue"
         onSubmit={async (p) => {
-          const r = await client.auth.mfa.challengeAndVerify({
-            factorId: factor,
-            code: p.code,
-          });
+          if (p.password !== p.confirmation)
+            throw Error("The passwords do not match.");
+          const r = await client.auth.updateUser({ password: p.password });
           if (r.error) throw r.error;
-          onSuccess();
+          onComplete();
         }}
       />
     </div>
@@ -154,6 +213,11 @@ export function MFA({
 }
 export function Apply({ siteKey }: { siteKey: string }) {
   const [done, setDone] = useState(false),
+    [copy, setCopy] = useState({
+      title: "Your next good conversation starts here.",
+      body: "Help businesses take a confident next step online.",
+      requirements: "",
+    }),
     [packages, setPackages] = useState<any[]>(
       [...PACKAGES].map((p) => ({
         ...p,
@@ -169,6 +233,7 @@ export function Apply({ siteKey }: { siteKey: string }) {
       .then((r) => {
         setPackages(r.packages);
         setOpen(r.recruiting_open);
+        setCopy({ title: r.title, body: r.body, requirements: r.requirements });
       })
       .catch((e) => setError(e.message));
   }, []);
@@ -199,6 +264,7 @@ export function Apply({ siteKey }: { siteKey: string }) {
   }, [siteKey, open, done]);
   const fields: Field[] = [
     { name: "name", label: "Full name", required: true },
+    { name: "preferred_name", label: "Preferred name (optional)" },
     { name: "email", label: "Email", type: "email", required: true },
     { name: "phone", label: "Phone with country code", required: true },
     { name: "state", label: "State / province", required: true },
@@ -221,6 +287,16 @@ export function Apply({ siteKey }: { siteKey: string }) {
       min: 1,
       max: 80,
       required: true,
+    },
+    {
+      name: "cold_calling_experience",
+      label: "Cold-calling experience",
+      type: "textarea",
+    },
+    {
+      name: "customer_service_experience",
+      label: "Customer-service experience",
+      type: "textarea",
     },
     {
       name: "motivation",
@@ -262,17 +338,8 @@ export function Apply({ siteKey }: { siteKey: string }) {
       </nav>
       <section className="apply-hero">
         <div className="eyebrow">BUILD YOUR SALES CAREER</div>
-        <h1>
-          Your next good
-          <br />
-          conversation starts here.
-        </h1>
-        <p>
-          Help businesses take a confident next step online.
-          <br />
-          Join Pixelalty’s sales team with clear training, focused tools, and
-          transparent commission tracking.
-        </p>
+        <h1>{copy.title}</h1>
+        <p>{copy.body}</p>
         <a className="button primary" href="#application">
           Apply to join <ArrowRight size={18} />
         </a>
@@ -300,6 +367,7 @@ export function Apply({ siteKey }: { siteKey: string }) {
           <div className="eyebrow">A CLEAR START</div>
           <h2>Tell us about yourself.</h2>
           <p>We review each application before sending an invitation.</p>
+          <p>{copy.requirements}</p>
           {[
             "Apply and meet the team",
             "Complete onboarding and training",
@@ -336,8 +404,13 @@ export function Apply({ siteKey }: { siteKey: string }) {
               submit="Submit application"
               onSubmit={async (p) => {
                 if (!token) throw Error("Complete the verification first.");
-                await api("/apply", { ...p, token });
-                setDone(true);
+                try {
+                  await api("/apply", { ...p, token });
+                  setDone(true);
+                } finally {
+                  setToken("");
+                  (window as any).turnstile?.reset();
+                }
               }}
             >
               <div id="turnstile" />

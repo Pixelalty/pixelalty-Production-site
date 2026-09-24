@@ -1415,3 +1415,175 @@ tbody tr:last-child td {
     transition: none !important;
   }
 }
+/* Accessible workspace controls shared across V1 flows. */
+.skip-link {
+  position: fixed;
+  left: 16px;
+  top: -100px;
+  z-index: 300;
+  background: var(--surface);
+  padding: 12px 20px;
+  border: 2px solid var(--blue);
+  border-radius: 8px;
+}
+.skip-link:focus {
+  top: 12px;
+}
+.menu-backdrop {
+  display: none;
+}
+.column-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 12px 0;
+}
+.column-picker label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.kanban {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding: 8px 0 20px;
+}
+.kanban-column {
+  min-width: 260px;
+  max-width: 300px;
+  flex: 1;
+  background: var(--bg);
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.kanban-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+}
+.kanban-card .actions {
+  flex-wrap: wrap;
+}
+.onboarding-checklist {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+}
+.checklist-step {
+  justify-content: flex-start;
+  text-align: left;
+  gap: 12px;
+  min-height: 62px;
+}
+.checklist-step small {
+  display: block;
+}
+.checklist-step.done {
+  border-color: #44856b;
+  color: #267052;
+}
+.timeline {
+  border-left: 2px solid var(--line);
+  padding-left: 20px;
+  margin: 20px 0;
+}
+.activity {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.activity time {
+  font-size: 11px;
+  color: var(--muted);
+}
+.detail-grid strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.quiz-builder fieldset {
+  margin: 16px 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+}
+.quiz-builder legend {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 8px;
+}
+.goal {
+  margin-bottom: 20px;
+}
+.frame-basic {
+  border: 3px solid var(--line);
+}
+.frame-enhanced {
+  border: 3px solid #5684c9;
+}
+.frame-premium {
+  border: 4px double #7870ba;
+}
+.frame-metallic {
+  border: 4px double #ad8650;
+  box-shadow: 0 0 0 3px #ad865025;
+}
+.frame-elite {
+  border: 4px double #748eab;
+  box-shadow: 0 0 0 4px #748eab30;
+}
+.frame-prestige {
+  border: 4px double #b59858;
+  box-shadow: 0 0 0 5px #b5985830;
+}
+[data-compact="true"] td,
+[data-compact="true"] th {
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+[data-motion="reduced"] *,
+[data-motion="reduced"] *::before,
+[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+@media (max-width: 900px) {
+  .menu-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    border: 0;
+    border-radius: 0;
+    background: #07101b80;
+    z-index: 39;
+  }
+}
+@media (max-width: 600px) {
+  .onboarding-checklist {
+    grid-template-columns: 1fr;
+  }
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .toolbar {
+    flex-wrap: wrap;
+  }
+  .toolbar > * {
+    max-width: 100%;
+  }
+  .kanban-column {
+    min-width: 250px;
+  }
+}
+
+:root[data-theme="dark"] a:not(.button),
+:root[data-theme="dark"] .text-button {
+  color: #8fb8ff;
+}

@@ -9,8 +9,6 @@ import {
   Check,
   BookOpen,
   Flame,
-  Play,
-  Pause,
 } from "lucide-react";
 import {
   api,
@@ -27,14 +25,8 @@ import {
   LinkButton,
   type Field,
 } from "./lib";
-import {
-  money,
-  label,
-  OUTCOMES,
-  callingWindow,
-  localParts,
-  type Row,
-} from "../shared/core";
+import { money, label, type Row } from "../shared/core";
+import { BusinessDetails, OnboardingProgress } from "./details";
 const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 export function Dashboard() {
   const app = useApp(),
@@ -42,7 +34,8 @@ export function Dashboard() {
     board = useData("/report?kind=leaderboard");
   const d = state.data || {},
     xp = Math.max(0, d.xp || 0),
-    level = 1 + Math.floor(xp / 250);
+    step = d.level_step || 250,
+    level = 1 + Math.floor(xp / step);
   return (
     <>
       <Heading
@@ -99,21 +92,78 @@ export function Dashboard() {
           <Card title="Your progression" extra={<Trophy size={20} />}>
             <div
               className={
-                "profile-medallion level-" + Math.min(3, Math.floor(level / 10))
+                "profile-medallion frame-" +
+                (app.ctx.rep?.preferences?.frame === "basic"
+                  ? "basic"
+                  : level >= 50
+                    ? "prestige"
+                    : level >= 30
+                      ? "elite"
+                      : level >= 20
+                        ? "metallic"
+                        : level >= 10
+                          ? "premium"
+                          : level >= 5
+                            ? "enhanced"
+                            : "basic")
               }
             >
               {app.ctx.rep?.name.slice(0, 1) || "P"}
             </div>
             <h3 className="center">Level {level}</h3>
             <p className="center muted">{xp.toLocaleString()} career XP</p>
-            <progress value={xp % 250} max={250} />
-            <p className="fine-print">
-              {250 - (xp % 250)} XP to the next level
-            </p>
-            <Streak
-              activity={d.activity || []}
-              timezone={app.ctx.rep?.timezone || "UTC"}
+            <progress
+              aria-label="Career level progress"
+              value={xp % step}
+              max={step}
             />
+            <p className="fine-print">
+              {step - (xp % step)} XP to the next level
+            </p>
+            <Streak summary={d.streak || {}} />
+          </Card>
+          <Card
+            title="Your monthly goals"
+            extra={<LinkButton to="/profile">Set goals</LinkButton>}
+          >
+            {[
+              ["Income", app.ctx.rep?.income_goal, d.month_commission, true],
+              [
+                "Verified sales",
+                app.ctx.rep?.preferences?.sales_goal,
+                d.month_sales,
+                false,
+              ],
+              [
+                "Qualifying calls",
+                app.ctx.rep?.preferences?.calls_goal,
+                d.month_calls,
+                false,
+              ],
+            ].map(([name, target, current, currency]: any) => (
+              <div className="goal" key={name}>
+                <div className="card-head">
+                  <strong>{name}</strong>
+                  <small>
+                    {currency ? money(current || 0) : current || 0} /{" "}
+                    {target
+                      ? currency
+                        ? money(target)
+                        : target
+                      : "No goal set"}
+                  </small>
+                </div>
+                <progress
+                  aria-label={name + " goal"}
+                  value={Math.min(current || 0, target || 1)}
+                  max={target || 1}
+                />
+              </div>
+            ))}
+            <p className="fine-print">
+              Personal, optional goals. Recorded commission can remain on hold;
+              future earnings are not guaranteed.
+            </p>
           </Card>
           <Card title="Next steps" extra={<Calendar size={20} />}>
             <div className="next-step">
@@ -163,71 +213,100 @@ export function Dashboard() {
     </>
   );
 }
-function Streak({ activity, timezone }: { activity: Row[]; timezone: string }) {
-  const active = new Set(
-    activity.filter((a) => a.xp >= 30).map((a) => String(a.day).slice(0, 10)),
-  );
-  let streak = 0,
-    ended = false;
-  const today = localParts(new Date(), timezone);
-  const calendarDate = Date.parse(
-    `${today.year}-${today.month}-${today.day}T12:00:00Z`,
-  );
-  const days: Row[] = [];
-  for (let i = 0; i < 40; i++) {
-    const d = new Date(calendarDate - i * 86400000),
-      key = d.toISOString().slice(0, 10);
-    const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
-      d.getUTCDay()
-    ];
-    const eligible = !["Sat", "Sun"].includes(weekday);
-    if (i < 7)
-      days.unshift({ day: weekday[0], active: active.has(key), eligible });
-    if (!eligible || ended) continue;
-    if (active.has(key)) {
-      streak++;
-    } else if (i !== 0) ended = true;
-  }
+function Streak({ summary: s }: { summary: Row }) {
+  const app = useApp();
   return (
     <>
       <div className="streak-title">
         <Flame size={17} />
-        {streak} workday streak
+        {s.current || 0} workday streak
       </div>
       <div className="streak">
-        {days.map((d, i) => (
+        {s.days?.map((d: Row) => (
           <span
-            className={d.active ? "done" : !d.eligible ? "rest" : ""}
-            key={i}
+            title={`${d.day}: ${d.calls} qualifying calls${d.protected ? " · Protected day" : ""}`}
+            className={d.complete ? "done" : d.protected ? "rest" : ""}
+            key={d.day}
           >
-            {d.day}
+            {new Date(d.day + "T12:00:00Z").toLocaleDateString(undefined, {
+              weekday: "narrow",
+            })}
           </span>
         ))}
       </div>
       <small className="muted">
-        30 earned XP on a workday keeps your streak going.
+        Optional challenge: {s.today || 0} / {s.target || 30} qualifying calls
+        today. Weekends are protected. Longest: {s.longest || 0} workdays.
       </small>
+      {s.freezes_left > 0 && (
+        <button
+          className="text-button"
+          onClick={() =>
+            app.run(() =>
+              app.mutate("streak_freeze", { day: s.days?.at(-1)?.day }),
+            )
+          }
+        >
+          Protect today · {s.freezes_left} freezes available
+        </button>
+      )}
     </>
   );
 }
 export function Leads() {
-  const { mutate, navigate, run } = useApp();
+  const { mutate, run, notify, ctx } = useApp();
+  const [detail, setDetail] = useState<string | null>(
+      new URLSearchParams(location.search).get("business"),
+    ),
+    [favorites, setFavorites] = useState(false),
+    [view, setView] = useState("all");
   return (
     <>
       <Heading
         title="Your leads"
         description="The right context for your next conversation."
       >
+        <select
+          aria-label="Lead view"
+          value={view}
+          onChange={(e) => setView(e.target.value)}
+        >
+          {[
+            ["all", "All assigned leads"],
+            ["due", "Due today"],
+            ["hot", "Hot opportunities"],
+            ["no_answer", "No answer"],
+            ["recycle", "Recycle"],
+          ].map(([v, t]) => (
+            <option key={v} value={v}>
+              {t}
+            </option>
+          ))}
+        </select>
+        <button onClick={() => setFavorites(!favorites)}>
+          {favorites ? "Show all leads" : "Favorites"}
+        </button>
         <button
           className="primary"
-          onClick={() => run(() => mutate("claim", { count: 5 }))}
+          onClick={() =>
+            run(async () => {
+              const r = await mutate("claim", {
+                count: ctx.settings.claim_count || 10,
+              });
+              notify(
+                r.claimed
+                  ? `${r.claimed} leads assigned to you.`
+                  : "No leads were available within your capacity.",
+              );
+            })
+          }
         >
-          Get 5 leads
+          Get leads
         </button>
       </Heading>
       <Listing
         name="businesses"
-        query="&own=true"
+        query={"&own=true&view=" + view + (favorites ? "&favorite=true" : "")}
         columns={[
           ["name", "Business"],
           ["phone", "Phone"],
@@ -236,11 +315,14 @@ export function Leads() {
           ["expires_at", "Assigned until"],
         ]}
         actions={(r) => (
-          <button onClick={() => navigate("/focus?business=" + r.id)}>
+          <button onClick={() => setDetail(r.id)}>
             Open business <ArrowRight size={15} />
           </button>
         )}
       />
+      {detail && (
+        <BusinessDetails id={detail} onClose={() => setDetail(null)} />
+      )}
     </>
   );
 }
@@ -272,6 +354,26 @@ export function FollowupDialog({
             type: "textarea",
             required: true,
           },
+          {
+            name: "priority",
+            label: "Priority",
+            required: true,
+            options: [
+              { value: "normal", label: "Normal" },
+              { value: "high", label: "High" },
+              { value: "low", label: "Low" },
+            ],
+          },
+          {
+            name: "channel",
+            label: "Channel",
+            required: true,
+            options: [
+              { value: "phone", label: "Phone" },
+              { value: "email", label: "Email" },
+              { value: "other", label: "Other" },
+            ],
+          },
         ]}
         submit="Schedule follow-up"
         onSubmit={async (p) => {
@@ -295,309 +397,116 @@ export function DealDialog({
   onClose: () => void;
 }) {
   const app = useApp(),
-    packages = useData("/table?name=packages");
+    packages = useData("/table?name=packages&active=true"),
+    [quote, setQuote] = useState(false);
   return (
     <Modal title={"Create deal · " + lead.name} onClose={onClose}>
       <p>Pricing and commissions come from the saved package version.</p>
-      <State {...packages}>
+      <button onClick={() => setQuote(!quote)}>
+        {quote ? "Use a published package" : "Request an Advanced quote"}
+      </button>
+      {quote ? (
         <Form
-          fields={
-            [
-              {
-                name: "package_id",
-                label: "Package",
-                required: true,
-                options: packages.data?.rows
-                  .filter((x: Row) => x.active)
-                  .map((p: Row) => ({
-                    value: p.id,
-                    label: `${p.name} · ${money(p.price_cents)} · ${money(p.commission_cents)} commission`,
-                  })),
-              },
-              {
-                name: "customer_email",
-                label: "Customer email",
-                type: "email",
-                required: true,
-              },
-              ...(app.has("sales_admin")
-                ? [
-                    {
-                      name: "price_cents",
-                      label: "Approved Advanced price (cents)",
-                      type: "number",
-                      hint: "Leave blank to use standard pricing.",
-                    },
-                    {
-                      name: "reason",
-                      label: "Custom pricing approval reason",
-                      type: "textarea",
-                    },
-                  ]
-                : []),
-            ] as Field[]
-          }
+          fields={[
+            {
+              name: "customer_email",
+              label: "Customer email",
+              type: "email",
+              required: true,
+            },
+            {
+              name: "requirements",
+              label: "Requested scope",
+              type: "textarea",
+              required: true,
+              minLength: 10,
+              maxLength: 5000,
+            },
+          ]}
           initial={{ customer_email: lead.email }}
-          submit="Create deal"
+          submit="Request quote"
           onSubmit={async (p) => {
-            if (!p.price_cents) delete p.price_cents;
-            await app.mutate("deal", { ...p, business_id: lead.id });
+            await app.mutate("quote_request", { ...p, business_id: lead.id });
             onClose();
             app.navigate("/pipeline");
           }}
         />
-      </State>
+      ) : (
+        <State {...packages}>
+          <Form
+            fields={
+              [
+                {
+                  name: "package_id",
+                  label: "Package",
+                  required: true,
+                  options: packages.data?.rows
+                    .filter((x: Row) => x.active)
+                    .map((p: Row) => ({
+                      value: p.id,
+                      label: `${p.name} · ${money(p.price_cents)} · ${money(p.commission_cents)} commission`,
+                    })),
+                },
+                {
+                  name: "customer_email",
+                  label: "Customer email",
+                  type: "email",
+                  required: true,
+                },
+                ...(app.has("sales_admin")
+                  ? [
+                      {
+                        name: "price_cents",
+                        label: "Approved Advanced price ($)",
+                        type: "currency",
+                        hint: "Leave blank to use standard pricing.",
+                      },
+                      {
+                        name: "reason",
+                        label: "Custom pricing approval reason",
+                        type: "textarea",
+                      },
+                    ]
+                  : []),
+              ] as Field[]
+            }
+            initial={{ customer_email: lead.email }}
+            submit="Create deal"
+            onSubmit={async (p) => {
+              if (!p.price_cents) delete p.price_cents;
+              await app.mutate("deal", { ...p, business_id: lead.id });
+              onClose();
+              app.navigate("/pipeline");
+            }}
+          />
+        </State>
+      )}
     </Modal>
   );
 }
-export function Focus() {
-  const app = useApp(),
-    selected = new URLSearchParams(location.search).get("business"),
-    state = useData(
-      "/table?name=businesses&own=true" + (selected ? "&id=" + selected : ""),
-    ),
-    scripts = useData("/table?name=content&kind=script");
-  const [index, setIndex] = useState(0),
-    [script, setScript] = useState(""),
-    [outcome, setOutcome] = useState("no_answer"),
-    [notes, setNotes] = useState(""),
-    [dialog, setDialog] = useState(""),
-    [paused, setPaused] = useState(false),
-    [saved, setSaved] = useState(0),
-    [requestId, setRequestId] = useState(crypto.randomUUID()),
-    [busy, setBusy] = useState(false);
-  const leads =
-      state.data?.rows.filter(
-        (x: Row) => !x.dnc && !x.customer && !x.archived && x.stage !== "lost",
-      ) || [],
-    lead = leads[Math.min(index, Math.max(0, leads.length - 1))],
-    scriptRows = scripts.data?.rows.filter((x: Row) => x.active) || [],
-    selectedScript =
-      scriptRows.find((x: Row) => x.id === script) || scriptRows[0];
-  const window = lead
-    ? callingWindow(
-        lead.timezone,
-        app.ctx.settings.calling_enabled,
-        new Date(),
-        app.ctx.settings.call_start,
-        app.ctx.settings.call_end,
-      )
-    : { allowed: false, reason: "" };
-  const next = () => {
-    setIndex((i) => (i + 1) % Math.max(1, leads.length));
-    setNotes("");
-    setOutcome("no_answer");
-    setRequestId(crypto.randomUUID());
-  };
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => {
-      if (
-        ["INPUT", "TEXTAREA", "SELECT"].includes(
-          (e.target as HTMLElement).tagName,
-        ) ||
-        dialog
-      )
-        return;
-      if (e.key.toLowerCase() === "n") next();
-      if (e.key.toLowerCase() === "f") setDialog("followup");
-    };
-    document.addEventListener("keydown", key);
-    return () => document.removeEventListener("keydown", key);
-  }, [leads.length, dialog]);
-  return (
-    <>
-      <Heading
-        eyebrow="FOCUS MODE"
-        title="One conversation at a time."
-        description="Manual calling · Log accurate outcomes and clear next steps."
-      >
-        <span className="badge">{saved} logged this session</span>
-        <button onClick={() => setPaused(!paused)}>
-          {paused ? <Play size={16} /> : <Pause size={16} />}{" "}
-          {paused ? "Resume" : "Pause"}
-        </button>
-      </Heading>
-      <State {...state} empty={!lead}>
-        {lead && (
-          <div className="focus-grid">
-            <Card>
-              <div className="card-head">
-                <span className="eyebrow">{lead.code}</span>
-                <Badge value={lead.stage} />
-              </div>
-              <h2 className="business-name">{lead.name}</h2>
-              <p>
-                {[lead.industry, lead.city, lead.state]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-              <a
-                className={
-                  "call-number " + (!window.allowed || paused ? "disabled" : "")
-                }
-                href={
-                  window.allowed && !paused ? "tel:" + lead.phone : undefined
-                }
-              >
-                {lead.phone}
-              </a>
-              <div className={"notice " + (window.allowed ? "success" : "")}>
-                {window.reason}
-              </div>
-              <div className="detail-grid">
-                <div>
-                  <small>Contact</small>
-                  <strong>{lead.contact || "Not provided"}</strong>
-                </div>
-                <div>
-                  <small>Website</small>
-                  {lead.domain ? (
-                    <a
-                      href={"https://" + lead.domain}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {lead.domain}
-                    </a>
-                  ) : (
-                    <strong>Not provided</strong>
-                  )}
-                </div>
-              </div>
-              {lead.notes && <p className="prose">{lead.notes}</p>}
-              <div className="actions">
-                <button onClick={() => setDialog("followup")}>
-                  <Calendar size={16} /> Follow-up
-                </button>
-                <button onClick={() => setDialog("deal")}>Create deal</button>
-              </div>
-              <div className="divider" />
-              <h3>Log the outcome</h3>
-              <div className="outcomes">
-                {OUTCOMES.map((o) => (
-                  <button
-                    className={outcome === o ? "selected" : ""}
-                    key={o}
-                    onClick={() => setOutcome(o)}
-                  >
-                    {label(o)}
-                  </button>
-                ))}
-              </div>
-              <label className="field">
-                <span>Conversation notes</span>
-                <textarea
-                  rows={4}
-                  maxLength={5000}
-                  placeholder="What mattered? What happens next?"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </label>
-              <div className="actions">
-                <button
-                  className="primary"
-                  disabled={busy || paused}
-                  onClick={async () => {
-                    setBusy(true);
-                    try {
-                      await app.mutate("call", {
-                        business_id: lead.id,
-                        request_id: requestId,
-                        outcome,
-                        notes,
-                        script_id: selectedScript?.id,
-                      });
-                      setSaved((n) => n + 1);
-                      setRequestId(crypto.randomUUID());
-                      setNotes("");
-                      if (["follow_up", "meeting"].includes(outcome))
-                        setDialog("followup");
-                      else next();
-                    } catch (e) {
-                      app.notify((e as Error).message);
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                >
-                  Save outcome <Check size={16} />
-                </button>
-                <button onClick={next}>
-                  Next business <ArrowRight size={16} />
-                </button>
-              </div>
-              <small className="muted">
-                Shortcuts: N next business · F follow-up. “Sale reported” awaits
-                verified payment.
-              </small>
-            </Card>
-            <div>
-              <Card title="Conversation guide" extra={<BookOpen size={18} />}>
-                <div className="script-tabs">
-                  {scriptRows.map((s: Row) => (
-                    <button
-                      className={s.id === selectedScript?.id ? "selected" : ""}
-                      onClick={() => setScript(s.id)}
-                      key={s.id}
-                    >
-                      {s.title}
-                    </button>
-                  ))}
-                </div>
-                <h3>{selectedScript?.title}</h3>
-                <div className="script-copy">
-                  {selectedScript?.body
-                    ?.replaceAll("[business name]", lead.name)
-                    .replaceAll("[your name]", app.ctx.rep.name)
-                    .replaceAll("\\n", "\n")}
-                </div>
-                <div className="notice">
-                  Listen first. Use the script to guide a natural conversation.
-                </div>
-              </Card>
-              <Card title="Recent activity">
-                <Activity business={lead.id} />
-              </Card>
-            </div>
-          </div>
-        )}
-      </State>
-      {dialog === "followup" && lead && (
-        <FollowupDialog lead={lead} onClose={() => setDialog("")} />
-      )}{" "}
-      {dialog === "deal" && lead && (
-        <DealDialog lead={lead} onClose={() => setDialog("")} />
-      )}
-    </>
-  );
-}
-function Activity({ business }: { business: string }) {
-  const state = useData("/table?name=calls&business=" + business);
-  return (
-    <State {...state} empty={!state.data?.rows.length}>
-      {state.data?.rows.slice(0, 5).map((r: Row) => (
-        <div className="activity" key={r.id}>
-          <Badge value={r.outcome} />
-          <p>{r.notes || "No additional notes."}</p>
-          <small>{new Date(r.created_at).toLocaleString()}</small>
-        </div>
-      ))}
-    </State>
-  );
-}
+export { Focus } from "./focus";
 export function Followups() {
-  const app = useApp();
+  const app = useApp(),
+    [edit, setEdit] = useState<Row | null>(null),
+    [due, setDue] = useState(false);
   return (
     <>
       <Heading
         title="Follow-ups"
         description="Keep every commitment. Times below use your device timezone."
-      />
+      >
+        <button onClick={() => setDue(!due)}>
+          {due ? "All open follow-ups" : "Due & overdue"}
+        </button>
+      </Heading>
       <Listing
         name="followups"
-        query="&own=true&status=open"
+        query={
+          "&own=true&status=open&sort=due_at&direction=asc" +
+          (due ? "&due=true" : "")
+        }
         columns={[
+          ["business_name", "Business"],
           ["due_at", "Due"],
           ["timezone", "Prospect timezone"],
           ["note", "Next step"],
@@ -605,6 +514,7 @@ export function Followups() {
         ]}
         actions={(r) => (
           <>
+            <button onClick={() => setEdit(r)}>Reschedule</button>
             <button
               onClick={() => app.navigate("/focus?business=" + r.business_id)}
             >
@@ -620,71 +530,90 @@ export function Followups() {
           </>
         )}
       />
+      {edit && (
+        <Modal title="Reschedule follow-up" onClose={() => setEdit(null)}>
+          <p>Enter the new time in your device timezone: {zone()}.</p>
+          <Form
+            initial={{
+              note: edit.note,
+              priority: edit.priority,
+              channel: edit.channel,
+            }}
+            fields={[
+              {
+                name: "due_at",
+                label: "New date and time",
+                type: "datetime-local",
+                required: true,
+              },
+              {
+                name: "note",
+                label: "Next step",
+                type: "textarea",
+                required: true,
+              },
+            ]}
+            submit="Save follow-up"
+            onSubmit={async (p) => {
+              await app.mutate("followup_update", {
+                ...p,
+                id: edit.id,
+                timezone: edit.timezone,
+                due_at: new Date(p.due_at).toISOString(),
+              });
+              setEdit(null);
+            }}
+          />
+          <button
+            className="text-button"
+            onClick={() =>
+              app.run(async () => {
+                await app.mutate("followup_cancel", { id: edit.id });
+                setEdit(null);
+              })
+            }
+          >
+            Cancel this follow-up
+          </button>
+        </Modal>
+      )}
     </>
   );
 }
-export function Pipeline() {
-  const app = useApp();
-  return (
-    <>
-      <Heading
-        title="Your pipeline"
-        description="Every opportunity has a clear next step."
-      />
-      <Listing
-        name="deals"
-        query="&own=true"
-        columns={[
-          ["code", "Deal"],
-          ["package_name", "Package"],
-          ["price_cents", "Sale"],
-          ["commission_cents", "Commission snapshot"],
-          ["stage", "Stage"],
-        ]}
-        actions={(r) => (
-          <>
-            {r.stage !== "paid" && r.stage !== "cancelled" && (
-              <button
-                onClick={() =>
-                  app.run(async () => {
-                    const result = await api("/checkout", { id: r.id });
-                    app.setLink(result.url);
-                    app.refresh();
-                  })
-                }
-              >
-                Create / view checkout
-              </button>
-            )}
-            <button
-              onClick={() => app.navigate("/focus?business=" + r.business_id)}
-            >
-              Business
-            </button>
-          </>
-        )}
-      />
-    </>
-  );
-}
+export { Pipeline } from "./pipeline";
 export function Money() {
-  const totals = useData("/report?kind=dashboard");
+  const totals = useData("/report?kind=money");
   return (
     <>
       <Heading
         title="My money"
         description="Your commissions, Connect transfers, and bank payouts—each tracked separately."
       />
-      <div className="stats two">
-        <Card>
-          <div className="stat-label">Recorded commission</div>
-          <div className="stat-value">{money(totals.data?.earned)}</div>
-        </Card>
-        <Card>
-          <div className="stat-label">Net transferred to Connect</div>
-          <div className="stat-value">{money(totals.data?.transferred)}</div>
-        </Card>
-      </div>
+      <State {...totals}>
+        <div className="stats">
+          {[
+            ["hold", "Held commission"],
+            ["payable", "Payable"],
+            ["queued", "Transfer queued"],
+            ["transferred", "Net transferred to Connect"],
+            ["bank_paid", "Confirmed bank payouts"],
+            ["review", "Under review"],
+          ].map(([k, t]) => (
+            <Card key={k}>
+              <div className="stat-label">{t}</div>
+              <div className="stat-value">{money(totals.data?.[k])}</div>
+            </Card>
+          ))}
+        </div>
+      </State>
+      <Card title="Your payout account">
+        <p>
+          {totals.data?.connect?.payouts_enabled
+            ? "Bank payouts are enabled."
+            : "Complete your payment setup or review the outstanding requirements."}
+        </p>
+        <LinkButton to="/onboarding">Manage payment setup</LinkButton>
+      </Card>
       <div className="notice">
         Transfers move commission to your connected account. Your bank payout
         status appears separately below. Holds, refunds, and disputes can affect
@@ -695,6 +624,9 @@ export function Money() {
         name="commissions"
         query="&own=true"
         columns={[
+          ["deal_code", "Deal"],
+          ["package_name", "Package"],
+          ["sale_cents", "Customer payment"],
           ["amount_cents", "Amount"],
           ["status", "Status"],
           ["hold_until", "Hold until"],
@@ -717,7 +649,7 @@ export function Money() {
   );
 }
 export function Academy() {
-  const state = useData("/table?name=content"),
+  const state = useData("/table?name=content&active=true"),
     training = useData("/table?name=training&own=true"),
     app = useApp(),
     [item, setItem] = useState<Row | null>(null),
@@ -791,9 +723,9 @@ export function Academy() {
                     action: "quiz",
                     p: {
                       content_id: item.id,
-                      answers: Object.keys(p)
-                        .sort()
-                        .map((k) => Number(p[k])),
+                      answers: JSON.parse(item.body).map((_q: Row, i: number) =>
+                        Number(p["q" + i]),
+                      ),
                     },
                   });
                   setResult(r);
@@ -804,7 +736,7 @@ export function Academy() {
           ) : (
             <>
               <div className="prose">{item.body}</div>
-              {item.kind === "lesson" && (
+              {item.kind === "lesson" && app.ctx.rep && (
                 <button
                   className="primary"
                   onClick={() =>
@@ -848,6 +780,7 @@ export function Onboarding() {
         title="Welcome to Pixelalty."
         description="Complete these steps so an administrator can activate your account."
       />
+      <OnboardingProgress />
       <div className="onboarding-grid">
         <Card title="01 · Your profile">
           <p>Set your name and timezone, then choose a secure password.</p>
@@ -857,6 +790,7 @@ export function Onboarding() {
           <State
             {...agreements}
             empty={!agreements.data?.rows.some((r: Row) => r.active)}
+            emptyText="Your administrator has not published the required agreement yet."
           >
             {agreements.data?.rows
               .filter((r: Row) => r.active)
@@ -965,25 +899,75 @@ export function Profile() {
         description="Keep your workspace personal and your information current."
       />
       <div className="onboarding-grid">
-        <Card title="Profile details">
-          <Form
-            initial={rep || {}}
-            fields={[
-              { name: "name", label: "Display name", required: true },
-              { name: "timezone", label: "Timezone", required: true },
-              { name: "bio", label: "About you", type: "textarea" },
-              {
-                name: "income_goal",
-                label: "Monthly income goal (cents)",
-                type: "number",
-                min: 0,
-                hint: "A personal planning goal, not a guarantee of earnings.",
-              },
-            ]}
-            submit="Save profile"
-            onSubmit={(p) => app.mutate("profile", p)}
-          />
-        </Card>
+        {rep && (
+          <Card title="Profile details">
+            <Form
+              initial={rep || {}}
+              fields={[
+                { name: "name", label: "Display name", required: true },
+                { name: "timezone", label: "Timezone", required: true },
+                { name: "bio", label: "About you", type: "textarea" },
+                {
+                  name: "income_goal",
+                  label: "Monthly income goal ($)",
+                  type: "currency",
+                  min: 0,
+                  hint: "A personal planning goal, not a guarantee of earnings.",
+                },
+              ]}
+              submit="Save profile"
+              onSubmit={(p) => app.mutate("profile", p)}
+            />
+          </Card>
+        )}
+        {rep && (
+          <Card title="Goals & workspace preferences">
+            <Form
+              initial={{ shortcuts: true, ...rep.preferences }}
+              fields={[
+                {
+                  name: "sales_goal",
+                  label: "Monthly verified sales goal",
+                  type: "number",
+                  min: 0,
+                  max: 10000,
+                },
+                {
+                  name: "calls_goal",
+                  label: "Monthly qualifying call goal",
+                  type: "number",
+                  min: 0,
+                  max: 100000,
+                },
+                {
+                  name: "shortcuts",
+                  label: "Enable focus keyboard shortcuts",
+                  type: "checkbox",
+                },
+                {
+                  name: "compact",
+                  label: "Compact table spacing",
+                  type: "checkbox",
+                },
+                {
+                  name: "reduced_motion",
+                  label: "Reduce motion",
+                  type: "checkbox",
+                },
+                {
+                  name: "frame",
+                  label: "Profile frame",
+                  options: [
+                    { value: "auto", label: "My current career level" },
+                    { value: "basic", label: "Simple frame" },
+                  ],
+                },
+              ]}
+              submit="Save preferences"
+              onSubmit={(p) => app.mutate("preferences", { value: p })}
+            />
+          </Card>
+        )}
         <Card title="Password & appearance">
           <Form
             fields={[
@@ -991,6 +975,7 @@ export function Profile() {
                 name: "password",
                 label: "New password",
                 type: "password",
+                minLength: 12,
                 required: true,
               },
             ]}
@@ -1023,15 +1008,55 @@ export function Profile() {
   );
 }
 export function Leaderboard() {
-  const state = useData("/report?kind=leaderboard");
+  const [metric, setMetric] = useState("sales"),
+    [period, setPeriod] = useState("month"),
+    [page, setPage] = useState(0);
+  const state = useData(
+    `/report?kind=leaderboard&metric=${metric}&period=${period}&page=${page}`,
+  );
   return (
     <>
       <Heading
         title="A little healthy momentum."
         eyebrow="TEAM LEADERBOARD"
-        description="Verified sales lead the way. Career XP breaks ties. Personal earnings stay private."
+        description="Verified sales and qualifying activity. Career XP breaks ties. Personal earnings stay private."
       />
       <Card>
+        <div className="toolbar">
+          <select
+            aria-label="Leaderboard metric"
+            value={metric}
+            onChange={(e) => {
+              setMetric(e.target.value);
+              setPage(0);
+            }}
+          >
+            {["sales", "revenue", "calls", "conversations", "conversion"].map(
+              (v) => (
+                <option key={v} value={v}>
+                  {label(v)}
+                </option>
+              ),
+            )}
+          </select>
+          <select
+            aria-label="Leaderboard period"
+            value={period}
+            onChange={(e) => {
+              setPeriod(e.target.value);
+              setPage(0);
+            }}
+          >
+            <option value="month">This month</option>
+            <option value="all">All time</option>
+          </select>
+        </div>
+        {metric === "conversion" && (
+          <p className="notice">
+            Conversion appears only after 100 qualifying calls in the selected
+            period.
+          </p>
+        )}
         <State {...state}>
           <Table
             rows={state.data || []}
@@ -1040,11 +1065,26 @@ export function Leaderboard() {
               ["name", "Rep"],
               ["code", "Rep ID"],
               ["sales", "Verified sales"],
+              ["revenue_cents", "Revenue"],
               ["xp", "Career XP"],
               ["calls", "Calls"],
+              ["conversations", "Conversations"],
+              ["conversion", "Conversion %"],
             ]}
           />
         </State>
+        <div className="pagination">
+          <button disabled={!page} onClick={() => setPage(page - 1)}>
+            Previous
+          </button>
+          <span>Your nearby ranking is included.</span>
+          <button
+            disabled={!state.data?.some((r: Row) => r.rank === (page + 1) * 50)}
+            onClick={() => setPage(page + 1)}
+          >
+            Next
+          </button>
+        </div>
       </Card>
     </>
   );

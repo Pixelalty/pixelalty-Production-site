@@ -1,6 +1,6 @@
 # Pixelalty Sales
 
-CRM and rep portal intended for `reps.pixelalty.com`. This branch contains a staging candidate, not a production release. The five sales migrations are now applied to the dedicated staging project. See [staging status](docs/STAGING_STATUS.md) for the exact target, migration mapping and verified boundaries. No production database changes or live payments have been performed.
+CRM and rep portal intended for `reps.pixelalty.com`. This branch contains a staging candidate, not a production release. The original five migrations and the additive V1 completion/index migrations are applied to the dedicated staging project. See [staging status](docs/STAGING_STATUS.md) for the exact target, migration mapping and verified boundaries. No production database changes or live payments have been performed.
 
 Start with [the step-by-step account setup](docs/SETUP_STEP_BY_STEP.md). See [validation status](docs/QA.md) and [operations](docs/OPERATIONS.md) before launch.
 
@@ -42,7 +42,7 @@ npx wrangler deploy --dry-run --env staging
 
 For a full local app, copy `.env.example` to the ignored `.dev.vars`, use a dedicated test database and sandbox credentials, run `npm run build`, then `npm run preview`. Set `APP_URL` to the exact origin printed by Wrangler. Vite alone serves the frontend; it does not provide the Worker API.
 
-The browser fixture harness is `tests/browser-qa.mjs`; it expects Vite on `127.0.0.1:5173` and a working Playwright Chromium installation. It mocks responses only in the test process. Its execution is currently unverified in this environment; it is not a substitute for hosted acceptance tests.
+Run `npx playwright install chromium` once, then `npm run test:e2e` after the build. The suite starts the production Worker and frontend against a migrated, isolated PGlite database. It exercises forms, approvals, imports, real SQL persistence, settings, deals, focus sessions and training at mobile/tablet/desktop sizes. Identity, email, Turnstile and Stripe boundaries are explicitly simulated in the test process. This does not certify hosted provider configuration. `PIXELALTY_CHROMIUM_PATH` and `PIXELALTY_CHROMIUM_ARGS` optionally select an installed test browser. Screenshots and results are written to ignored `test-results/v1/`.
 
 ## Architecture
 

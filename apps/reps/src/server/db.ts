@@ -24,7 +24,7 @@ export async function rpc(db: SupabaseClient, name: string, args: Row = {}) {
   if (error) {
     if (["42501", "P0001"].includes(error.code))
       throw new HttpError(403, error.message);
-    if (["23505", "23514", "22023", "22P02"].includes(error.code))
+    if (["23505", "23514", "22023", "22P02", "22003"].includes(error.code))
       throw new HttpError(
         409,
         "The request conflicts with the current data or contains an invalid value.",

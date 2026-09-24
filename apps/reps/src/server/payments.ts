@@ -37,16 +37,18 @@ export async function checkout(
 ) {
   const deal = await one(db, "px_deals", "id", dealId),
     ctx = await rpc(db, "px_context");
+  const admin =
+    ctx.aal === "aal2" &&
+    (ctx.roles.includes("owner") || ctx.roles.includes("sales_admin"));
   if (
-    ctx.rep?.status !== "active" ||
-    deal.rep_id !== userId ||
+    (!admin && (ctx.rep?.status !== "active" || deal.rep_id !== userId)) ||
     deal.stage === "paid" ||
     deal.stage === "cancelled"
   )
     throw new HttpError(403, "This deal is not eligible for checkout.");
   const lead = await one(db, "px_businesses", "id", deal.business_id);
   if (
-    lead.owner_id !== userId ||
+    lead.owner_id !== deal.rep_id ||
     lead.dnc ||
     lead.customer ||
     lead.archived ||
@@ -63,7 +65,10 @@ export async function checkout(
       );
     return { url: session.url };
   }
-  await service(env, "checkout_begin", { deal_id: deal.id, rep_id: userId });
+  await service(env, "checkout_begin", {
+    deal_id: deal.id,
+    rep_id: deal.rep_id,
+  });
   const metadata = {
     deal_id: deal.id,
     rep_id: deal.rep_id,
@@ -140,6 +145,7 @@ export async function connectAccount(
       .eq("rep_id", userId)
       .maybeSingle();
   if (existing.error) throw new HttpError(500, "Unable to read payout setup.");
+  if (!existing.data) await service(env, "connect_begin", { rep_id: userId });
   const account = existing.data
     ? await s.accounts.retrieve(existing.data.account_id)
     : await s.accounts.create(
@@ -421,7 +427,12 @@ export async function reconcile(env: Env, db: SupabaseClient, p: Row) {
     throw new HttpError(400, "Enter an audit reason.");
   const s = stripe(env),
     admin = client(env, undefined, true);
-  if (p.kind === "checkout") {
+  if (p.kind === "connect") {
+    const account = await s.accounts.retrieve(p.object_id);
+    if (account.metadata?.rep_id !== p.id)
+      throw new HttpError(409, "Connected account does not match this rep.");
+    await syncAccount(env, account);
+  } else if (p.kind === "checkout") {
     const deal = await one(db, "px_deals", "id", p.id),
       session = await s.checkout.sessions.retrieve(p.object_id);
     if (

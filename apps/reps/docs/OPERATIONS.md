@@ -4,9 +4,9 @@
 
 Keep staging Supabase, Stripe sandbox keys/webhooks, Turnstile and the staging Worker together. Production uses its own bindings. A wrong Stripe mode or webhook signature is rejected. Do not copy live customer records into fixtures.
 
-Apply the five files in `supabase/migrations` in timestamp order to the explicitly selected staging project. The migrations create `public.px_*` objects and `px_private`; they do not modify the existing website's tables. Review conflicts before applying to a database that already contains these objects. Track them as migrations, not untracked SQL editor edits. Do not alter an applied migration later; add a new one.
+Apply unapplied files in `supabase/migrations` in timestamp order to the explicitly selected staging project. The migrations create `public.px_*` objects and `px_private`; they do not modify the existing website's tables. Review conflicts before applying to a database that already contains these objects. Track them as migrations, not untracked SQL editor edits. Do not alter an applied migration later; add a new one.
 
-These migrations have only been tested in isolated PGlite so far. Verify Supabase PostgREST schema exposure, function grants and Auth claims in staging before production. Never expose `px_private` through the Data API.
+The migrations are tested in isolated PGlite and tracked on the dedicated staging project. Recheck schema exposure, grants and real Auth claims during hosted acceptance before production. Never expose `px_private` through the Data API.
 
 ## Owner setup and launch configuration
 
@@ -29,9 +29,9 @@ Default customer price / commission pairs are $799/$125, $1,299/$250, $1,999/$40
 
 ## Interrupted provider operations
 
-Use **Finance → Reconcile provider result** when Stripe completed an operation but its response could not be saved. Select checkout, transfer or reversal; provide the corresponding local deal/request UUID, provider object ID and a reason. The server retrieves the provider object and checks attribution before recording it.
+Use **Finance → Reconcile provider result** when Stripe completed an operation but its response could not be saved. Select checkout, Connect, transfer or reversal; provide the corresponding local deal/rep/request UUID, provider object ID and a reason. The server retrieves the provider object and checks attribution before recording it.
 
-Checkout and reversal attempts older than 23 hours stop retrying automatically when unresolved. Transfer requests likewise require reconciliation after their safe retry window. Never create a fresh operation merely to get around an uncertain prior attempt. Search the sandbox or live account matching the Worker environment and inspect metadata to locate the original object.
+Checkout, Connect creation and reversal attempts older than 23 hours stop retrying automatically when unresolved. Transfer requests likewise require reconciliation after their safe retry window. Never create a fresh operation merely to get around an uncertain prior attempt. Search the sandbox or live account matching the Worker environment and inspect metadata to locate the original object.
 
 Reversal requests persist the amount and reason, reserve the remaining reversible balance and reuse the same request identifier. Refund/dispute events after a transfer create recovery review. They do not silently delete earned history or automatically debit a rep. Partial refunds remain a finance decision.
 
@@ -41,11 +41,11 @@ A result verified through this UI must already exist in Stripe. Resolving an exp
 
 CSV, TSV and XLSX imports require a name, valid phone and verified IANA timezone. Normalize, inspect errors, then commit. Formula cells are rejected as rows and CSV exports escape formula-looking values. Older XLS files must be converted to XLSX. The first worksheet is used.
 
-Committed import chunks can be retried. A network interruption while staging may leave an incomplete batch; inspect its staged row count before creating a replacement. Archiving a batch only archives untouched imported leads. Calls, deals and financial history are retained.
+Committed import chunks can be retried. A network interruption during staging can be resumed from Import history: upload the same unchanged file and select Resume upload. Its fingerprint is checked and staged row numbers are idempotent. Possible duplicates require a recorded administrator decision; DNC and strong duplicate checks remain enforced during commit. Archiving a batch only archives untouched imported leads. Calls, deals and financial history are retained.
 
 The cron runs every 15 minutes. Check System Health for the last completed tick, failed Stripe events and pending jobs. Stripe retries failed webhook deliveries; after correcting the cause, replay the original event in Stripe and verify its final status. The scheduled payment pass is bounded and does not replace monitoring.
 
-Payment processing isolates optional XP/notification failures and records `sale_progression` jobs. Automated processing of those failed jobs is not implemented yet. An operator must reconcile them with idempotent XP inserts and retain the job/audit evidence. This is a documented release follow-up, not a claim that the queue is self-healing.
+Payment processing isolates optional XP/notification failures and records `sale_progression` jobs. Each scheduled pass retries up to 50 incomplete progression jobs using unique XP and notification identifiers. Failed attempts retain an error code, attempt count and update time. Investigate recurring failures in System Health.
 
 ## Release and rollback
 

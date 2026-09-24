@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useRef,
+  useId,
   useState,
   type ReactNode,
 } from "react";
@@ -34,7 +35,9 @@ export async function api(path: string, data?: unknown): Promise<any> {
           ? data
           : JSON.stringify(data),
   });
-  const out = (await response.json()) as Row;
+  const out = (await response.json().catch(() => ({
+    error: "The service returned an unreadable response. Please try again.",
+  }))) as Row;
   if (!response.ok) throw Error(out.error || "The request failed.");
   return out;
 }
@@ -77,15 +80,17 @@ export function State({
   error,
   children,
   empty = false,
+  emptyText = "No records match this view. Try changing the filters or add your first record.",
 }: {
   loading?: boolean;
   error?: string;
   children?: ReactNode;
   empty?: boolean;
+  emptyText?: string;
 }) {
   if (loading)
     return (
-      <div className="state">
+      <div className="state" role="status" aria-live="polite">
         <LoaderCircle className="spin" /> Loading…
       </div>
     );
@@ -95,12 +100,7 @@ export function State({
         {error}
       </div>
     );
-  if (empty)
-    return (
-      <div className="state">
-        Nothing here yet. New activity will appear here.
-      </div>
-    );
+  if (empty) return <div className="state">{emptyText}</div>;
   return <>{children}</>;
 }
 export function Badge({ value }: { value: string }) {
@@ -159,12 +159,23 @@ export function Modal({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     const prev = document.activeElement as HTMLElement;
     const el = ref.current;
     el?.querySelector<HTMLElement>("input,select,textarea,button")?.focus();
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (
+        document
+          .querySelectorAll(".modal")
+          .item(document.querySelectorAll(".modal").length - 1) !== el
+      )
+        return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeRef.current();
+      }
       if (e.key === "Tab") {
         const a = Array.from(
           el?.querySelectorAll<HTMLElement>(
@@ -220,7 +231,76 @@ export type Field = {
   min?: number;
   max?: number;
   hint?: string;
+  searchTable?: string;
+  searchQuery?: string;
+  minLength?: number;
+  maxLength?: number;
 };
+function SearchField({
+  field,
+  initial,
+  id,
+}: {
+  field: Field;
+  initial?: string;
+  id: string;
+}) {
+  const [search, setSearch] = useState(""),
+    [page, setPage] = useState(0),
+    [value, setValue] = useState(initial || "");
+  const state = useData(
+    `/table?name=${field.searchTable}&page=${page}&q=${encodeURIComponent(search)}${field.searchQuery || ""}`,
+  );
+  return (
+    <div className="search-field">
+      <input
+        type="search"
+        aria-label={`Search ${field.label}`}
+        placeholder="Search name or ID…"
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setPage(0);
+        }}
+      />
+      <select
+        id={id}
+        name={field.name}
+        required={field.required}
+        aria-label={field.label}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      >
+        <option value="">Choose…</option>
+        {value && !state.data?.rows.some((r: Row) => r.id === value) && (
+          <option value={value}>Selected record</option>
+        )}
+        {state.data?.rows.map((r: Row) => (
+          <option key={r.id} value={r.id}>
+            {r.name} · {r.code}
+          </option>
+        ))}
+      </select>
+      <State loading={state.loading} error={state.error} />
+      <div className="pagination">
+        <button
+          type="button"
+          disabled={!page}
+          onClick={() => setPage(page - 1)}
+        >
+          Previous results
+        </button>
+        <button
+          type="button"
+          disabled={(page + 1) * 50 >= (state.data?.total || 0)}
+          onClick={() => setPage(page + 1)}
+        >
+          More results
+        </button>
+      </div>
+    </div>
+  );
+}
 export function Form({
   fields,
   initial = {},
@@ -235,25 +315,32 @@ export function Form({
   children?: ReactNode;
 }) {
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [success, setSuccess] = useState(false);
+  const formId = useId();
   return (
     <form
       onSubmit={async (e) => {
         e.preventDefault();
+        if (busy) return;
         const fd = new FormData(e.currentTarget),
           p: Row = { ...initial };
         for (const f of fields) {
           p[f.name] =
             f.type === "checkbox"
               ? fd.get(f.name) === "on"
-              : f.type === "number"
-                ? Number(fd.get(f.name))
-                : fd.get(f.name);
+              : f.type === "currency"
+                ? currencyInput(String(fd.get(f.name) || ""))
+                : f.type === "number"
+                  ? Number(fd.get(f.name))
+                  : fd.get(f.name);
         }
         setBusy(true);
         setError("");
+        setSuccess(false);
         try {
           await onSubmit(p);
+          setSuccess(true);
         } catch (e) {
           setError((e as Error).message);
         } finally {
@@ -262,20 +349,30 @@ export function Form({
       }}
     >
       {fields.map((f) => (
-        <label
+        <div
           className={"field " + (f.type === "checkbox" ? "check" : "")}
           key={f.name}
         >
-          <span>{f.label}</span>
-          {f.type === "textarea" ? (
+          <label htmlFor={formId + f.name}>{f.label}</label>
+          {f.searchTable ? (
+            <SearchField
+              field={f}
+              initial={initial[f.name]}
+              id={formId + f.name}
+            />
+          ) : f.type === "textarea" ? (
             <textarea
+              id={formId + f.name}
               name={f.name}
               defaultValue={initial[f.name] ?? ""}
               required={f.required}
               rows={4}
+              minLength={f.minLength}
+              maxLength={f.maxLength || 100000}
             />
           ) : f.options ? (
             <select
+              id={formId + f.name}
               name={f.name}
               defaultValue={initial[f.name] ?? ""}
               required={f.required}
@@ -289,10 +386,19 @@ export function Form({
             </select>
           ) : (
             <input
+              id={formId + f.name}
               name={f.name}
-              type={f.type || "text"}
+              type={f.type === "currency" ? "text" : f.type || "text"}
+              inputMode={f.type === "currency" ? "decimal" : undefined}
+              pattern={
+                f.type === "currency" ? "[0-9]+([.][0-9]{1,2})?" : undefined
+              }
               defaultValue={
-                f.type === "checkbox" ? undefined : (initial[f.name] ?? "")
+                f.type === "checkbox"
+                  ? undefined
+                  : f.type === "currency" && initial[f.name] != null
+                    ? (initial[f.name] / 100).toFixed(2)
+                    : (initial[f.name] ?? "")
               }
               defaultChecked={
                 f.type === "checkbox" ? !!initial[f.name] : undefined
@@ -300,10 +406,12 @@ export function Form({
               required={f.required}
               min={f.min}
               max={f.max}
+              minLength={f.minLength}
+              maxLength={f.maxLength}
             />
           )}
           {f.hint && <small>{f.hint}</small>}
-        </label>
+        </div>
       ))}
       {children}
       {error && (
@@ -311,11 +419,21 @@ export function Form({
           {error}
         </div>
       )}
+      {success && (
+        <p className="notice success" role="status">
+          Saved successfully.
+        </p>
+      )}
       <button className="primary" disabled={busy}>
         {busy ? "Saving…" : submit}
       </button>
     </form>
   );
+}
+function currencyInput(value: string) {
+  if (!value) return undefined;
+  const [dollars, cents = ""] = value.split(".");
+  return Number(dollars) * 100 + Number(cents.padEnd(2, "0"));
 }
 export function ActionDialog({
   title,
@@ -418,6 +536,77 @@ export function Table({
     </div>
   );
 }
+const tableFilters: Record<string, { key: string; values: string[] }[]> = {
+  businesses: [
+    {
+      key: "stage",
+      values: [
+        "new",
+        "working",
+        "interested",
+        "follow_up",
+        "meeting",
+        "proposal",
+        "won",
+        "lost",
+        "dnc",
+      ],
+    },
+  ],
+  applicants: [
+    {
+      key: "stage",
+      values: [
+        "new",
+        "review",
+        "interview",
+        "interview_scheduled",
+        "offer",
+        "onboarding",
+        "activated",
+        "rejected",
+        "withdrawn",
+        "inactive",
+        "approval_error",
+      ],
+    },
+  ],
+  reps: [
+    {
+      key: "status",
+      values: ["onboarding", "active", "suspended", "offboarded"],
+    },
+  ],
+  deals: [
+    { key: "stage", values: ["proposal", "checkout", "paid", "cancelled"] },
+  ],
+  content: [
+    {
+      key: "kind",
+      values: [
+        "lesson",
+        "quiz",
+        "script",
+        "knowledge",
+        "announcement",
+        "agreement",
+      ],
+    },
+  ],
+  commissions: [
+    {
+      key: "status",
+      values: [
+        "hold",
+        "payable",
+        "queued",
+        "transferred",
+        "recovery_review",
+        "reversed",
+      ],
+    },
+  ],
+};
 export function Listing({
   name,
   columns,
@@ -431,18 +620,41 @@ export function Listing({
   query?: string;
   children?: ReactNode;
 }) {
-  const [page, setPage] = useState(0),
-    [search, setSearch] = useState("");
+  const app = useApp(),
+    [page, setPage] = useState(0),
+    [search, setSearch] = useState(""),
+    [debounced, setDebounced] = useState(""),
+    [filters, setFilters] = useState<Record<string, string>>({}),
+    [board, setBoard] = useState(false),
+    [visible, setVisible] = useState(columns.map((c) => c[0])),
+    [saving, setSaving] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(search), 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+  useEffect(() => setPage(0), [query]);
+  const parameters = new URLSearchParams({
+    ...filters,
+    ...(debounced ? { q: debounced } : {}),
+  });
   const state = useData(
-    `/table?name=${name}&page=${page}${query}${search ? "&q=" + encodeURIComponent(search) : ""}`,
+    `/table?name=${name}&page=${page}${query}&${parameters}`,
   );
+  const editable = !!tableFilters[name];
   return (
     <Card>
       <div className="toolbar">
-        {["businesses", "reps", "applicants"].includes(name) && (
+        {["businesses", "reps", "applicants", "deals", "content"].includes(
+          name,
+        ) && (
           <input
-            aria-label="Search by name"
-            placeholder="Search by name…"
+            type="search"
+            aria-label={`Search ${label(name)}`}
+            placeholder={
+              name === "content"
+                ? "Search titles and content…"
+                : "Search name or ID…"
+            }
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -450,20 +662,129 @@ export function Listing({
             }}
           />
         )}
+        {(tableFilters[name] || []).map((f) => (
+          <select
+            key={f.key}
+            aria-label={`Filter ${label(f.key)}`}
+            value={filters[f.key] || ""}
+            onChange={(e) => {
+              setFilters({ ...filters, [f.key]: e.target.value });
+              setPage(0);
+            }}
+          >
+            <option value="">All {label(f.key)}</option>
+            {f.values.map((v) => (
+              <option key={v} value={v}>
+                {label(v)}
+              </option>
+            ))}
+          </select>
+        ))}
+        {editable && (
+          <select
+            aria-label="Sort order"
+            value={filters.sort || "created_at"}
+            onChange={(e) => {
+              setFilters({
+                ...filters,
+                sort: e.target.value,
+                direction: e.target.value === "created_at" ? "desc" : "asc",
+              });
+              setPage(0);
+            }}
+          >
+            <option value="created_at">Newest first</option>
+            {["businesses", "reps", "applicants"].includes(name) && (
+              <option value="name">Name A–Z</option>
+            )}
+            {name === "deals" && (
+              <option value="price_cents">Sale amount</option>
+            )}
+          </select>
+        )}
+        {["businesses", "applicants", "deals"].includes(name) && (
+          <button onClick={() => setBoard(!board)}>
+            {board ? "Table view" : "Board view"}
+          </button>
+        )}
+        <details className="column-picker">
+          <summary>Columns</summary>
+          {columns.map(([k, title]) => (
+            <label className="check" key={k}>
+              <input
+                type="checkbox"
+                checked={visible.includes(k)}
+                onChange={(e) =>
+                  setVisible(
+                    e.target.checked
+                      ? [...visible, k]
+                      : visible.filter((x) => x !== k),
+                  )
+                }
+              />
+              {title}
+            </label>
+          ))}
+        </details>
+        {editable && (
+          <SavedViews
+            kind={name}
+            onChoose={(c) => {
+              setSearch(c.search || "");
+              setFilters(c.filters || {});
+              setPage(0);
+            }}
+          />
+        )}
+        {editable && <button onClick={() => setSaving(true)}>Save view</button>}
         {children}
         <span className="muted">{state.data?.total ?? 0} records</span>
       </div>
       <State {...state}>
-        <Table
-          rows={state.data?.rows || []}
-          columns={columns}
-          actions={actions}
-        />
+        {board ? (
+          <div className="kanban">
+            {(tableFilters[name]?.[0].values || []).map((stage) => (
+              <section className="kanban-column" key={stage}>
+                <h3>
+                  {label(stage)}{" "}
+                  <span>
+                    {state.data?.rows.filter((r: Row) => r.stage === stage)
+                      .length || 0}
+                  </span>
+                </h3>
+                {state.data?.rows
+                  .filter((r: Row) => r.stage === stage)
+                  .map((r: Row) => (
+                    <article className="kanban-card" key={r.id}>
+                      <strong>{r.name || r.business_name || r.code}</strong>
+                      <small>{r.code}</small>
+                      {r.package_name && (
+                        <p>
+                          {r.package_name} · {money(r.price_cents)}
+                        </p>
+                      )}
+                      <div className="row-actions">{actions?.(r)}</div>
+                    </article>
+                  ))}
+              </section>
+            ))}
+          </div>
+        ) : (
+          <Table
+            rows={state.data?.rows || []}
+            columns={columns.filter(([k]) => visible.includes(k))}
+            actions={actions}
+          />
+        )}
         <div className="pagination">
           <button disabled={!page} onClick={() => setPage(page - 1)}>
             Previous
           </button>
-          <span>Page {page + 1}</span>
+          <span>
+            Page {page + 1} of{" "}
+            {Math.max(1, Math.ceil((state.data?.total || 0) / 50))}
+            {board ? " · Board shows this page" : ""}
+          </span>
           <button
             disabled={(page + 1) * 50 >= (state.data?.total || 0)}
             onClick={() => setPage(page + 1)}
@@ -472,7 +793,57 @@ export function Listing({
           </button>
         </div>
       </State>
+      {saving && (
+        <Modal title="Save this view" onClose={() => setSaving(false)}>
+          <Form
+            fields={[
+              {
+                name: "name",
+                label: "View name",
+                required: true,
+                maxLength: 100,
+              },
+            ]}
+            submit="Save view"
+            onSubmit={async (p) => {
+              await app.mutate("save_view", {
+                ...p,
+                kind: name,
+                config: { search, filters },
+                reason: "Save personal filter view",
+              });
+              setSaving(false);
+            }}
+          />
+        </Modal>
+      )}
     </Card>
+  );
+}
+function SavedViews({
+  kind,
+  onChoose,
+}: {
+  kind: string;
+  onChoose: (config: Row) => void;
+}) {
+  const state = useData(`/table?name=saved_views&kind=${kind}`);
+  return (
+    <select
+      aria-label="Saved views"
+      defaultValue=""
+      onChange={(e) => {
+        const row = state.data?.rows.find((r: Row) => r.id === e.target.value);
+        if (row) onChoose(row.config);
+      }}
+    >
+      <option value="">Saved views</option>
+      {state.data?.rows.map((r: Row) => (
+        <option key={r.id} value={r.id}>
+          {r.name}
+        </option>
+      ))}
+    </select>
   );
 }
 export const LinkButton = ({

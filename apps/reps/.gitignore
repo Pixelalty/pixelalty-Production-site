@@ -5,3 +5,5 @@ dist/
 !.env.example
 .wrangler/
 test-results/
+
+supabase/.temp/

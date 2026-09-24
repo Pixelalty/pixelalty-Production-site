@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Upload, ArrowRight, ShieldCheck, Activity } from "lucide-react";
+import { ShieldCheck, Activity } from "lucide-react";
 import {
-  api,
   download,
   useApp,
   useData,
@@ -12,10 +11,13 @@ import {
   Modal,
   Form,
   ActionDialog,
-  Table,
   type Field,
 } from "./lib";
-import { header, label, type Row } from "../shared/core";
+import { label, money, type Row } from "../shared/core";
+import { ContentAdmin } from "./content-admin";
+import { Pipeline } from "./pipeline";
+import { Imports } from "./imports";
+import { BusinessDetails, RepDetails } from "./details";
 const choices = (values: string[]) =>
   values.map((value) => ({ value, label: label(value) }));
 type Dialog = {
@@ -26,10 +28,11 @@ type Dialog = {
   endpoint?: string;
 };
 export function Admin() {
-  const reps = useData("/table?name=reps");
   const app = useApp(),
     [dialog, setDialog] = useState<Dialog | null>(null),
     [detail, setDetail] = useState<Row | null>(null),
+    [businessId, setBusinessId] = useState<string | null>(null),
+    [repDetail, setRepDetail] = useState<Row | null>(null),
     page = app.path.split("?")[0];
   const show = (
     title: string,
@@ -41,8 +44,15 @@ export function Admin() {
   const view = (
     <>
       {dialog && <ActionDialog {...dialog} onClose={() => setDialog(null)} />}
+      {businessId && (
+        <BusinessDetails id={businessId} onClose={() => setBusinessId(null)} />
+      )}
+      {repDetail && (
+        <RepDetails rep={repDetail} onClose={() => setRepDetail(null)} />
+      )}
     </>
   );
+  if (page === "/admin/pipeline") return <Pipeline admin />;
   if (page === "/admin/imports") return <Imports />;
   if (page === "/admin/settings") return <Settings />;
   if (page === "/admin/content") return <ContentAdmin />;
@@ -78,7 +88,10 @@ export function Admin() {
                         "new",
                         "review",
                         "interview",
+                        "interview_scheduled",
                         "offer",
+                        "withdrawn",
+                        "inactive",
                         "rejected",
                       ]),
                     },
@@ -190,12 +203,18 @@ export function Admin() {
               >
                 Requirements
               </button>
+              <button onClick={() => setRepDetail(r)}>View readiness</button>
               <button onClick={() => show("Activate rep", "rep_activate", r)}>
                 Activate
               </button>
               <button onClick={() => show("Suspend rep", "rep_suspend", r)}>
                 Suspend
               </button>
+              {r.status !== "offboarded" && (
+                <button onClick={() => show("Offboard rep", "rep_offboard", r)}>
+                  Offboard
+                </button>
+              )}
               {app.has("owner") && (
                 <button
                   onClick={() =>
@@ -230,10 +249,7 @@ export function Admin() {
                     name: "id",
                     label: "Rep account",
                     required: true,
-                    options: reps.data?.rows.map((r: Row) => ({
-                      value: r.id,
-                      label: r.name + " · " + r.code,
-                    })),
+                    searchTable: "reps",
                   },
                   {
                     name: "role",
@@ -271,7 +287,17 @@ export function Admin() {
           eyebrow="ADMINISTRATION"
           title="Business database"
           description="Review ownership, contact restrictions, and lead assignment."
-        />
+        >
+          <button
+            onClick={() =>
+              app.run(() =>
+                download("/export/businesses", "pixelalty-businesses.csv"),
+              )
+            }
+          >
+            Export businesses
+          </button>
+        </Heading>
         <Listing
           name="businesses"
           columns={[
@@ -279,28 +305,34 @@ export function Admin() {
             ["name", "Business"],
             ["phone", "Phone"],
             ["stage", "Stage"],
-            ["owner_id", "Assigned rep"],
+            ["source", "Source"],
           ]}
           actions={(r) => (
-            <button
-              onClick={() =>
-                show("Assign business", "assign", r, [
-                  {
-                    name: "rep_id",
-                    label: "Active rep",
-                    required: true,
-                    options: reps.data?.rows
-                      .filter((r: Row) => r.status === "active")
-                      .map((r: Row) => ({
-                        value: r.id,
-                        label: r.name + " · " + r.code,
-                      })),
-                  },
-                ])
-              }
-            >
-              Assign
-            </button>
+            <>
+              <button onClick={() => setBusinessId(r.id)}>Details</button>
+              <button
+                onClick={() =>
+                  show("Assign business", "assign", r, [
+                    {
+                      name: "rep_id",
+                      label: "Active rep",
+                      required: true,
+                      searchTable: "reps",
+                      searchQuery: "&status=active",
+                    },
+                  ])
+                }
+              >
+                Assign
+              </button>
+              {r.owner_id && !r.customer && (
+                <button
+                  onClick={() => show("Release business", "lead_release", r)}
+                >
+                  Release
+                </button>
+              )}
+            </>
           )}
         />
         {view}
@@ -326,7 +358,7 @@ export function Admin() {
             ["status", "Status"],
             ["hold_until", "Hold until"],
             ["reversed_cents", "Reversed"],
-            ["rep_id", "Rep"],
+            ["rep_name", "Rep"],
           ]}
           actions={(r) => (
             <>
@@ -377,6 +409,46 @@ export function Admin() {
           )}
         />
         <h2>Package versions</h2>
+        <button
+          onClick={() =>
+            show("Create package", "package_create", {}, [
+              {
+                name: "code",
+                label: "Package reference",
+                required: true,
+                hint: "Lowercase words separated by hyphens.",
+              },
+              { name: "name", label: "Package name", required: true },
+              {
+                name: "description",
+                label: "Public description",
+                type: "textarea",
+              },
+              {
+                name: "price_cents",
+                label: "Customer price ($)",
+                type: "currency",
+                required: true,
+              },
+              {
+                name: "commission_cents",
+                label: "Commission ($)",
+                type: "currency",
+                required: true,
+              },
+              {
+                name: "sale_xp",
+                label: "Verified sale XP",
+                type: "number",
+                required: true,
+                min: 0,
+                max: 10000,
+              },
+            ])
+          }
+        >
+          Create package
+        </button>
         <Listing
           name="packages"
           columns={[
@@ -387,26 +459,47 @@ export function Admin() {
           ]}
           actions={(r) =>
             r.active && (
-              <button
-                onClick={() =>
-                  show("Publish prospective pricing", "package", r, [
-                    {
-                      name: "price_cents",
-                      label: "Sale amount (cents)",
-                      type: "number",
-                      required: true,
-                    },
-                    {
-                      name: "commission_cents",
-                      label: "Commission (cents)",
-                      type: "number",
-                      required: true,
-                    },
-                  ])
-                }
-              >
-                New version
-              </button>
+              <>
+                <button
+                  onClick={() =>
+                    show("Publish prospective pricing", "package", r, [
+                      { name: "name", label: "Package name", required: true },
+                      {
+                        name: "description",
+                        label: "Public description",
+                        type: "textarea",
+                      },
+                      {
+                        name: "sale_xp",
+                        label: "Verified sale XP",
+                        type: "number",
+                        required: true,
+                        min: 0,
+                        max: 10000,
+                      },
+                      {
+                        name: "price_cents",
+                        label: "Customer price ($)",
+                        type: "currency",
+                        required: true,
+                      },
+                      {
+                        name: "commission_cents",
+                        label: "Rep commission ($)",
+                        type: "currency",
+                        required: true,
+                      },
+                    ])
+                  }
+                >
+                  New version
+                </button>
+                <button
+                  onClick={() => show("Archive package", "package_archive", r)}
+                >
+                  Archive
+                </button>
+              </>
             )
           }
         />
@@ -425,7 +518,7 @@ export function Admin() {
         <Listing
           name="payouts"
           columns={[
-            ["rep_id", "Rep"],
+            ["rep_name", "Rep"],
             ["amount_cents", "Amount"],
             ["status", "Status"],
             ["arrival_at", "Estimated arrival"],
@@ -449,17 +542,22 @@ export function Admin() {
                     name: "kind",
                     label: "Operation",
                     required: true,
-                    options: choices(["checkout", "transfer", "reversal"]),
+                    options: choices([
+                      "checkout",
+                      "connect",
+                      "transfer",
+                      "reversal",
+                    ]),
                   },
                   {
                     name: "id",
                     label:
-                      "Deal ID for checkout, or request ID for transfer/reversal",
+                      "Deal ID for checkout, rep ID for Connect, or transfer/reversal request ID",
                     required: true,
                   },
                   {
                     name: "object_id",
-                    label: "Stripe Checkout, Transfer, or Reversal ID",
+                    label: "Stripe Checkout, Account, Transfer, or Reversal ID",
                     required: true,
                   },
                 ],
@@ -470,6 +568,15 @@ export function Admin() {
             Reconcile operation
           </button>
         </Card>
+        <h2>Connect setup attempts</h2>
+        <Listing
+          name="connect_requests"
+          columns={[
+            ["rep_id", "Rep ID"],
+            ["started_at", "Started"],
+            ["account_id", "Connected account"],
+          ]}
+        />
         <h2>Transfer requests</h2>
         <Listing
           name="transfer_requests"
@@ -558,7 +665,7 @@ export function Admin() {
             ["subject", "Subject"],
             ["body", "Message"],
             ["status", "Status"],
-            ["rep_id", "Rep"],
+            ["rep_name", "Rep"],
           ]}
           actions={(r) => (
             <button
@@ -662,7 +769,9 @@ function AdminHome() {
           {Object.entries(state.data || {}).map(([k, v]) => (
             <Card key={k}>
               <div className="stat-label">{label(k)}</div>
-              <div className="stat-value">{String(v)}</div>
+              <div className="stat-value">
+                {k.endsWith("_cents") ? money(Number(v)) : String(v)}
+              </div>
             </Card>
           ))}
         </div>
@@ -676,374 +785,6 @@ function AdminHome() {
           <li>Authorize eligible transfers and track bank payouts.</li>
         </ol>
       </Card>
-    </>
-  );
-}
-function Imports() {
-  const app = useApp(),
-    [file, setFile] = useState<Row | null>(null),
-    [mapping, setMapping] = useState<Record<string, string>>({}),
-    [defaultZone, setDefaultZone] = useState(""),
-    [batch, setBatch] = useState(""),
-    [progress, setProgress] = useState<Row | null>(null),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
-  const fields = [
-    "name",
-    "phone",
-    "website",
-    "email",
-    "timezone",
-    "city",
-    "state",
-    "industry",
-    "contact",
-    "notes",
-  ];
-  const aliases: Record<string, string[]> = {
-    name: ["business", "businessname", "company", "companyname", "name"],
-    phone: ["phone", "phonenumber", "telephone"],
-    website: ["website", "url", "domain"],
-    timezone: ["timezone", "tz"],
-    contact: ["contact", "contactname"],
-  };
-  async function upload(f: File) {
-    setBusy(true);
-    setError("");
-    try {
-      const fd = new FormData();
-      fd.set("file", f);
-      const data = await api("/import/preview", fd);
-      setFile(data);
-      const initial: Record<string, string> = {};
-      for (const key of fields)
-        initial[key] =
-          data.headers.find((h: string) =>
-            (aliases[key] || [key]).includes(header(h)),
-          ) || "";
-      setMapping(initial);
-      setBatch("");
-      setProgress(null);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function commit(id: string) {
-    setBusy(true);
-    setError("");
-    try {
-      let result;
-      do {
-        result = await api("/action", {
-          action: "import_commit",
-          p: { id, reason: "Commit reviewed business import" },
-        });
-        setProgress(result);
-      } while (result.pending > 0);
-      app.refresh();
-      app.notify("Import completed.");
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <>
-      <Heading
-        eyebrow="ADMINISTRATION"
-        title="Import leads"
-        description="Upload, map, review, and import. Duplicates and suppressed numbers stay out."
-      >
-        <button
-          onClick={() =>
-            app.run(() =>
-              download("/import/template", "pixelalty-import-template.csv"),
-            )
-          }
-        >
-          Download template
-        </button>
-      </Heading>
-      <div className="import-steps">
-        <span className={file ? "done" : "active"}>1 · Upload</span>
-        <ArrowRight />
-        <span className={file && !batch ? "active" : ""}>2 · Map & review</span>
-        <ArrowRight />
-        <span className={batch ? "active" : ""}>3 · Import</span>
-      </div>
-      <Card>
-        <label className="upload-zone">
-          <Upload size={32} />
-          <strong>Choose a spreadsheet</strong>
-          <span>CSV, TSV, or XLSX · up to 8 MB / 25,000 rows</span>
-          <input
-            type="file"
-            accept=".csv,.tsv,.xlsx"
-            disabled={busy}
-            onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
-          />
-        </label>
-        {error && <State error={error} />}{" "}
-        {busy && (
-          <p role="status">Processing your file. Keep this page open…</p>
-        )}
-        {file && !batch && (
-          <>
-            <div className="card-head">
-              <h2>{file.filename}</h2>
-              <span>{file.rows.length.toLocaleString()} rows</span>
-            </div>
-            <div className="mapping-grid">
-              {fields.map((k) => (
-                <label className="field" key={k}>
-                  <span>
-                    {label(k)}
-                    {["name", "phone"].includes(k) ? " *" : ""}
-                  </span>
-                  <select
-                    value={mapping[k] || ""}
-                    onChange={(e) =>
-                      setMapping({ ...mapping, [k]: e.target.value })
-                    }
-                  >
-                    <option value="">Not mapped</option>
-                    {file.headers.map((h: string) => (
-                      <option key={h}>{h}</option>
-                    ))}
-                  </select>
-                </label>
-              ))}
-            </div>
-            <label className="field">
-              <span>Default timezone for rows without one</span>
-              <input
-                placeholder="America/New_York"
-                value={defaultZone}
-                onChange={(e) => setDefaultZone(e.target.value)}
-              />
-              <small>
-                Use a default only after verifying that these businesses share
-                that timezone. Unknown timezones are rejected.
-              </small>
-            </label>
-            <Table
-              rows={file.rows.slice(0, 5)}
-              columns={file.headers.slice(0, 6).map((h: string) => [h, h])}
-            />
-            <button
-              className="primary"
-              disabled={busy || !mapping.name || !mapping.phone}
-              onClick={async () => {
-                setBusy(true);
-                setError("");
-                try {
-                  const result = await api("/import/prepare", {
-                    ...file,
-                    mapping,
-                    defaultZone,
-                  });
-                  setBatch(result.id);
-                  app.refresh();
-                } catch (e) {
-                  setError((e as Error).message);
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              Validate & stage import <ArrowRight size={16} />
-            </button>
-          </>
-        )}
-        {batch && (
-          <div className="notice">
-            <h3>Import staged for review</h3>
-            <p>
-              Invalid rows will be rejected. Commit checks global DNC and
-              existing phone/domain records again.
-            </p>
-            <button disabled={busy} onClick={() => commit(batch)}>
-              Commit import
-            </button>
-            <button
-              onClick={() =>
-                app.run(() =>
-                  download(
-                    "/import/report?id=" + batch,
-                    "pixelalty-import-report.csv",
-                  ),
-                )
-              }
-            >
-              Validation report
-            </button>
-            {progress && (
-              <p>
-                {progress.accepted} accepted · {progress.rejected} rejected ·{" "}
-                {progress.pending} remaining
-              </p>
-            )}
-          </div>
-        )}
-      </Card>
-      <h2>Import history</h2>
-      <Listing
-        name="imports"
-        columns={[
-          ["filename", "File"],
-          ["total", "Rows"],
-          ["status", "Status"],
-          ["created_at", "Uploaded"],
-        ]}
-        actions={(r) => (
-          <>
-            <button
-              disabled={busy || r.status !== "ready"}
-              onClick={() => {
-                setBatch(r.id);
-                commit(r.id);
-              }}
-            >
-              Resume import
-            </button>
-            <button
-              onClick={() =>
-                app.run(() =>
-                  download(
-                    "/import/report?id=" + r.id,
-                    "pixelalty-import-report.csv",
-                  ),
-                )
-              }
-            >
-              Report
-            </button>
-            {r.status === "complete" && (
-              <button
-                onClick={() =>
-                  app.run(() =>
-                    app.mutate("import_archive", {
-                      id: r.id,
-                      reason: "Archive unassigned unused import rows",
-                    }),
-                  )
-                }
-              >
-                Archive unused
-              </button>
-            )}
-          </>
-        )}
-      />
-    </>
-  );
-}
-function ContentAdmin() {
-  const app = useApp(),
-    [show, setShow] = useState(false);
-  return (
-    <>
-      <Heading
-        title="Training & content"
-        description="Publish new versions without changing historic acceptances or quiz attempts."
-      >
-        <button className="primary" onClick={() => setShow(true)}>
-          Publish content
-        </button>
-      </Heading>
-      <Listing
-        name="content"
-        columns={[
-          ["kind", "Kind"],
-          ["title", "Title"],
-          ["version", "Version"],
-          ["required", "Required"],
-          ["active", "Current"],
-        ]}
-      />
-      {show && (
-        <Modal title="Publish a content version" onClose={() => setShow(false)}>
-          <Form
-            fields={[
-              {
-                name: "kind",
-                label: "Kind",
-                required: true,
-                options: choices([
-                  "lesson",
-                  "script",
-                  "knowledge",
-                  "announcement",
-                  "quiz",
-                  ...(app.has("owner") ? ["agreement"] : []),
-                ]),
-              },
-              {
-                name: "slug",
-                label: "Stable reference name",
-                required: true,
-                hint: "Reuse this name to publish a new version of the same content.",
-              },
-              { name: "title", label: "Title", required: true },
-              {
-                name: "body",
-                label: "Content",
-                type: "textarea",
-                required: true,
-                hint: "For a quiz, enter an array of question and options objects as JSON.",
-              },
-              {
-                name: "answers",
-                label: "Quiz answer indexes (quiz only)",
-                hint: "JSON array of zero-based correct option indexes; never put answers in the question text.",
-              },
-              {
-                name: "required",
-                label: "Required for onboarding",
-                type: "checkbox",
-              },
-              {
-                name: "reason",
-                label: "Publication reason",
-                type: "textarea",
-                required: true,
-              },
-            ]}
-            submit="Publish version"
-            onSubmit={async (p) => {
-              if (p.kind === "quiz") {
-                try {
-                  const questions = JSON.parse(p.body),
-                    answers = JSON.parse(p.answers);
-                  if (
-                    !Array.isArray(questions) ||
-                    questions.length !== answers.length ||
-                    questions.some(
-                      (q: Row, i: number) =>
-                        !q.question ||
-                        !Array.isArray(q.options) ||
-                        !Number.isInteger(answers[i]) ||
-                        answers[i] < 0 ||
-                        answers[i] >= q.options.length,
-                    )
-                  )
-                    throw Error();
-                  p.answers = answers;
-                } catch {
-                  throw Error(
-                    "Enter valid questions and a matching answer key.",
-                  );
-                }
-              } else delete p.answers;
-              await app.mutate("content", p);
-              setShow(false);
-            }}
-          />
-        </Modal>
-      )}
     </>
   );
 }
@@ -1106,6 +847,14 @@ function Settings() {
                 type: "checkbox",
               },
               {
+                name: "claim_count",
+                label: "Leads per claim",
+                type: "number",
+                min: 1,
+                max: 20,
+                required: true,
+              },
+              {
                 name: "recruiting_open",
                 label: "Accept applications",
                 type: "checkbox",
@@ -1125,6 +874,60 @@ function Settings() {
             }}
           />
         </Card>
+        <SettingsGroup
+          title="Recruiting page"
+          fields={[
+            {
+              name: "recruiting_title",
+              label: "Headline",
+              required: true,
+              minLength: 5,
+              maxLength: 180,
+            },
+            {
+              name: "recruiting_body",
+              label: "Opportunity description",
+              type: "textarea",
+              required: true,
+              minLength: 20,
+              maxLength: 3000,
+            },
+          ]}
+        />
+        <SettingsGroup
+          title="Progression & training"
+          fields={[
+            ...[
+              ["xp_per_level", "XP per level", 50, 10000],
+              ["xp_attempt", "Call attempt XP", 0, 50],
+              ["xp_conversation", "Conversation XP", 0, 100],
+              ["xp_interested", "Interested outcome XP", 0, 100],
+              ["xp_training", "Lesson XP", 0, 500],
+              ["xp_first_call", "First call milestone XP", 0, 100],
+              ["xp_followup", "Completed follow-up XP", 0, 50],
+              ["raw_xp_cap", "Daily call XP cap", 1, 500],
+              ["streak_target", "Optional daily streak target", 1, 500],
+              ["streak_freezes", "Monthly streak freezes", 0, 10],
+              ["quiz_pass_score", "Quiz passing percentage", 1, 100],
+            ].map(([name, label, min, max]) => ({
+              name: String(name),
+              label: String(label),
+              type: "number",
+              min: Number(min),
+              max: Number(max),
+              required: true,
+            })),
+          ]}
+        />
+        <SettingsGroup
+          title="Activation requirements"
+          fields={[
+            ["require_profile", "Completed profile"],
+            ["require_agreement", "Accepted current agreement"],
+            ["require_tax", "Verified tax status"],
+            ["require_payout", "Verified payout setup"],
+          ].map(([name, label]) => ({ name, label, type: "checkbox" }))}
+        />
         <Card title="Feature readiness">
           <ShieldCheck size={32} />
           <h3>V1 keeps contact methods explicit.</h3>
@@ -1139,6 +942,32 @@ function Settings() {
         </Card>
       </div>
     </>
+  );
+}
+function SettingsGroup({ title, fields }: { title: string; fields: Field[] }) {
+  const app = useApp();
+  return (
+    <Card title={title}>
+      <Form
+        initial={app.ctx.settings}
+        fields={[
+          ...fields,
+          {
+            name: "reason",
+            label: "Reason for this change",
+            type: "textarea",
+            required: true,
+            minLength: 5,
+          },
+        ]}
+        submit="Save settings"
+        onSubmit={async (p) => {
+          const { reason, ...value } = p;
+          await app.mutate("settings", { reason, value });
+          app.reloadContext();
+        }}
+      />
+    </Card>
   );
 }
 function Health() {

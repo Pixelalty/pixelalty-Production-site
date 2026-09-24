@@ -14,7 +14,8 @@
     "test": "node --import tsx --test --test-concurrency=1 tests/*.test.ts",
     "check": "npm run lint && npm run typecheck && npm test && npm run build",
     "preview": "wrangler dev",
-    "deploy:staging": "npm run build && wrangler deploy --env staging"
+    "deploy:staging": "npm run build && wrangler deploy --env staging",
+    "test:e2e": "node --import tsx tests/browser-v1.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.1",

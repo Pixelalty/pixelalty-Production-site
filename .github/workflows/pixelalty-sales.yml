@@ -26,4 +26,6 @@ jobs:
           cache-dependency-path: apps/reps/package-lock.json
       - run: npm ci
       - run: npm run check
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
       - run: npx wrangler deploy --dry-run --env staging

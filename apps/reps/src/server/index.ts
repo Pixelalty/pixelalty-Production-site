@@ -12,7 +12,13 @@ import {
   stripe,
 } from "./payments";
 import { parseUpload } from "./importer";
-import { csv, header, normalizeLead, type Row } from "../shared/core";
+import {
+  csv,
+  header,
+  normalizeLead,
+  normalizePhone,
+  type Row,
+} from "../shared/core";
 const json = (value: unknown, status = 200) => Response.json(value, { status });
 async function bytes(req: Request, max: number) {
   if (Number(req.headers.get("content-length")) > max)
@@ -65,6 +71,7 @@ const TABLES = [
   "training",
   "agreements",
   "connect",
+  "connect_requests",
   "commissions",
   "commission_events",
   "payments",
@@ -82,9 +89,15 @@ const TABLES = [
   "fulfillment",
   "jobs",
   "settings",
+  "notes",
+  "favorites",
+  "assignments",
+  "focus_sessions",
+  "quote_requests",
 ];
 const application = z.object({
   name: z.string().trim().min(2).max(150),
+  preferred_name: z.string().trim().max(100).optional(),
   email: z.email().max(254),
   phone: z.string().min(10).max(30),
   state: z.string().min(2).max(100),
@@ -104,6 +117,8 @@ const application = z.object({
   internet: z.boolean(),
   headset: z.boolean(),
   experience: z.string().max(3000),
+  cold_calling_experience: z.string().max(2000).optional(),
+  customer_service_experience: z.string().max(2000).optional(),
   availability: z.coerce.number().min(1).max(80),
   motivation: z.string().min(10).max(3000),
   token: z.string().min(1),
@@ -151,6 +166,11 @@ async function api(req: Request, env: Env) {
     if (!parsed.success)
       throw new HttpError(400, "Complete all required application fields.");
     const p = parsed.data;
+    try {
+      p.phone = normalizePhone(p.phone);
+    } catch {
+      throw new HttpError(400, "Enter a valid phone number with country code.");
+    }
     if (p.website) return json({ received: true });
     const captcha = await fetch(
       "https://challenges.cloudflare.com/turnstile/v0/siteverify",
@@ -197,23 +217,46 @@ async function api(req: Request, env: Env) {
     return json(
       await rpc(db, "px_report", {
         kind: u.searchParams.get("kind") || "dashboard",
-        p: { id: u.searchParams.get("id") },
+        p: Object.fromEntries(u.searchParams),
       }),
     );
   if (path === "/api/table") {
     const table = u.searchParams.get("name") || "";
     if (!TABLES.includes(table)) throw new HttpError(404, "Table not found.");
-    const page = Math.max(
-      0,
-      Math.min(10000, Number(u.searchParams.get("page")) || 0),
+    if (table === "businesses" && u.searchParams.get("own") === "true")
+      return json(
+        await rpc(db, "px_report", {
+          kind: "leads",
+          p: Object.fromEntries(u.searchParams),
+        }),
+      );
+    const page = Math.floor(
+      Math.max(0, Math.min(10000, Number(u.searchParams.get("page")) || 0)),
     );
-    let q = db.from("px_" + table).select("*", { count: "exact" });
-    const order = ["roles", "settings", "rep_private", "connect"].includes(
-      table,
-    )
+    const joins: Record<string, string> = {
+      followups: "*,business:px_businesses(name,code)",
+      calls: "*,business:px_businesses(name,code)",
+      deals: "*,business:px_businesses(name,code)",
+      quote_requests:
+        "*,business:px_businesses(name,code),rep:px_reps(name,code)",
+      commissions:
+        "*,deal:px_deals(code,package_name,price_cents,business:px_businesses(name))",
+      fulfillment:
+        "*,deal:px_deals(code,package_name,business:px_businesses(name))",
+    };
+    let q = db
+      .from("px_" + table)
+      .select(joins[table] || "*", { count: "exact" });
+    const order = [
+      "roles",
+      "settings",
+      "rep_private",
+      "connect",
+      "connect_requests",
+    ].includes(table)
       ? ["settings"].includes(table)
         ? "id"
-        : ["rep_private", "connect"].includes(table)
+        : ["rep_private", "connect", "connect_requests"].includes(table)
           ? "rep_id"
           : "user_id"
       : table === "import_rows"
@@ -221,9 +264,33 @@ async function api(req: Request, env: Env) {
         : table === "payouts"
           ? "updated_at"
           : "created_at";
+    const sort = u.searchParams.get("sort");
+    const sortable: Record<string, string[]> = {
+      businesses: ["name", "stage", "created_at", "expires_at"],
+      reps: ["name", "code", "status", "created_at"],
+      applicants: ["name", "stage", "created_at"],
+      followups: ["due_at", "created_at"],
+      deals: ["code", "price_cents", "stage", "created_at"],
+      content: ["title", "kind", "created_at"],
+    };
     q = q
-      .order(order, { ascending: table === "import_rows" })
+      .order(sort && sortable[table]?.includes(sort) ? sort : order, {
+        ascending:
+          table === "import_rows" || u.searchParams.get("direction") === "asc",
+      })
       .range(page * 50, page * 50 + 49);
+    if (
+      ![
+        "roles",
+        "settings",
+        "rep_private",
+        "connect",
+        "connect_requests",
+        "import_rows",
+        "favorites",
+      ].includes(table)
+    )
+      q = q.order("id", { ascending: true });
     for (const [param, column] of [
       ["id", "id"],
       ["rep", "rep_id"],
@@ -233,10 +300,47 @@ async function api(req: Request, env: Env) {
       ["status", "status"],
       ["kind", "kind"],
       ["stage", "stage"],
+      ["owner", "owner_id"],
+      ["import", "import_id"],
+      ["state", "state"],
+      ["industry", "industry"],
     ] as const) {
       const v = u.searchParams.get(param);
       if (v) q = q.eq(column, v);
     }
+    if (u.searchParams.has("active"))
+      q = q.eq("active", u.searchParams.get("active") === "true");
+    if (table === "businesses") {
+      if (u.searchParams.get("available") === "true")
+        q = q
+          .is("owner_id", null)
+          .eq("dnc", false)
+          .eq("customer", false)
+          .eq("archived", false)
+          .eq("bad_number", false);
+      if (u.searchParams.get("queue") === "true")
+        q = q
+          .eq("dnc", false)
+          .eq("customer", false)
+          .eq("archived", false)
+          .eq("bad_number", false)
+          .neq("stage", "lost")
+          .gt("expires_at", new Date().toISOString());
+      if (u.searchParams.get("favorite") === "true") {
+        const favorites = await db
+          .from("px_favorites")
+          .select("business_id")
+          .eq("rep_id", user.id);
+        if (favorites.error)
+          throw new HttpError(500, "Favorites could not be loaded.");
+        q = q.in(
+          "id",
+          favorites.data.map((r) => r.business_id),
+        );
+      }
+    }
+    if (table === "followups" && u.searchParams.get("due") === "true")
+      q = q.lte("due_at", new Date().toISOString());
     if (u.searchParams.get("own") === "true")
       q = q.eq(
         table === "businesses"
@@ -251,14 +355,36 @@ async function api(req: Request, env: Env) {
       ?.replace(/[^\p{L}\p{N}\s-]/gu, "")
       .slice(0, 100);
     if (search && ["businesses", "reps", "applicants"].includes(table))
-      q = q.ilike("name", `%${search}%`);
+      q = q.or(`name.ilike.%${search}%,code.ilike.%${search}%`);
+    if (search && table === "content")
+      q = q.or(`title.ilike.%${search}%,body.ilike.%${search}%`);
+    if (search && table === "deals") q = q.ilike("code", `%${search}%`);
     const result = await q;
     if (result.error) throw new HttpError(400, "Unable to load this view.");
-    return json({ rows: result.data, total: result.count, page });
+    const rows = (result.data as Row[]).map((r) => ({
+      ...r,
+      business_name: r.business?.name || r.deal?.business?.name || r.data?.name,
+      phone: r.phone || r.data?.phone,
+      rep_name: r.rep?.name,
+      deal_code: r.deal?.code,
+      package_name: r.package_name || r.deal?.package_name,
+      sale_cents: r.deal?.price_cents,
+    }));
+    return json({ rows, total: result.count, page });
   }
   if (path === "/api/action" && post) {
     const p = await body(req, 256 * 1024);
-    return json(await rpc(db, "px_action", { action: p.action, p: p.p || {} }));
+    const result = await rpc(db, "px_action", {
+      action: p.action,
+      p: p.p || {},
+    });
+    if (p.action === "agreement")
+      await service(env, "agreement_receipt", {
+        rep_id: user.id,
+        content_id: p.p.content_id,
+        ip: req.headers.get("cf-connecting-ip") || null,
+      });
+    return json(result);
   }
   if (path === "/api/approve" && post) {
     const p = await body(req);
@@ -271,7 +397,7 @@ async function api(req: Request, env: Env) {
       });
       if (!account?.user_id) {
         const invited = await admin.auth.admin.inviteUserByEmail(app.email, {
-          redirectTo: `${env.APP_URL}/onboarding`,
+          redirectTo: `${env.APP_URL}/welcome`,
         });
         if (invited.error || !invited.data.user)
           throw new HttpError(
@@ -380,6 +506,124 @@ async function api(req: Request, env: Env) {
     }
     return json(batch);
   }
+  if (path === "/api/import/start" && post) {
+    const p = await body(req);
+    const mapping = z.record(z.string(), z.string()).parse(p.mapping);
+    if (
+      !mapping.name ||
+      !mapping.phone ||
+      new Set(Object.values(mapping).filter(Boolean)).size !==
+        Object.values(mapping).filter(Boolean).length
+    )
+      throw new HttpError(
+        400,
+        "Map distinct columns for business name and phone.",
+      );
+    return json(
+      await rpc(db, "px_action", {
+        action: "import_start",
+        p: {
+          filename: p.filename,
+          total: p.total,
+          mapping: {
+            ...mapping,
+            _batch_tag:
+              typeof p.batchTag === "string" ? p.batchTag.slice(0, 100) : "",
+            _default_zone: p.defaultZone || "",
+            _fingerprint: p.fingerprint || "",
+          },
+          reason: "Start reviewed spreadsheet import",
+        },
+      }),
+    );
+  }
+  if (path === "/api/import/stage" && post) {
+    const p = await body(req, 1024 * 1024);
+    const existing = await db
+      .from("px_imports")
+      .select("*")
+      .eq("id", p.id)
+      .single();
+    if (existing.error) throw new HttpError(404, "Import not found.");
+    const batch = existing.data;
+    if (["ready", "complete"].includes(batch.status))
+      return json({ staged: batch.total });
+    if (
+      !Array.isArray(p.rows) ||
+      p.rows.length > 250 ||
+      !Number.isInteger(p.offset) ||
+      p.offset < 0 ||
+      p.offset + p.rows.length > batch.total
+    )
+      throw new HttpError(400, "Invalid import chunk.");
+    const rows = p.rows.map((r: Row, j: number) => {
+      try {
+        if (Object.values(r).some((v) => String(v) === "#FORMULA_NOT_ALLOWED"))
+          throw Error("Formulas are not imported. Paste values first.");
+        return {
+          row_num: p.offset + j + 1,
+          data: normalizeLead(
+            r,
+            batch.mapping,
+            batch.mapping._default_zone || "",
+          ),
+        };
+      } catch (e) {
+        return {
+          row_num: p.offset + j + 1,
+          data: {},
+          error: (e as Error).message,
+        };
+      }
+    });
+    await rpc(db, "px_action", {
+      action: "import_stage",
+      p: { id: p.id, rows, reason: "Stage validated import chunk" },
+    });
+    return json({ staged: p.offset + rows.length });
+  }
+  if (path === "/api/export/businesses") {
+    await rpc(db, "px_action", {
+      action: "export",
+      p: { reason: "Export authorized business records" },
+    });
+    const rows: Row[] = [];
+    for (let offset = 0; offset < 10000; offset += 1000) {
+      const r = await db
+        .from("px_businesses")
+        .select(
+          "code,name,phone,domain,email,timezone,city,state,industry,stage,source",
+        )
+        .order("id")
+        .range(offset, offset + 999);
+      if (r.error) throw new HttpError(500, "Export could not be completed.");
+      rows.push(...r.data);
+      if (r.data.length < 1000) break;
+    }
+    const columns = [
+      "code",
+      "name",
+      "phone",
+      "domain",
+      "email",
+      "timezone",
+      "city",
+      "state",
+      "industry",
+      "stage",
+      "source",
+    ];
+    return new Response(
+      csv([columns, ...rows.map((r) => columns.map((c) => r[c]))]),
+      {
+        headers: {
+          "content-type": "text/csv",
+          "content-disposition":
+            'attachment; filename="pixelalty-businesses.csv"',
+        },
+      },
+    );
+  }
   if (path === "/api/import/template")
     return new Response(
       csv([
@@ -484,6 +728,11 @@ export default {
     headers.set("X-Content-Type-Options", "nosniff");
     headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
     headers.set("X-Frame-Options", "DENY");
+    if (new URL(req.url).protocol === "https:")
+      headers.set(
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains",
+      );
     headers.set(
       "Permissions-Policy",
       "camera=(), microphone=(), geolocation=()",

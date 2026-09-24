@@ -1,0 +1,33 @@
+-- Cover relationship lookups flagged by the staging advisor. Existing data and
+-- authorization semantics stay intact; initplans evaluate auth.uid once/query.
+create index px_agreements_content_fk on public.px_agreements(content_id);
+create index px_applicant_notes_applicant_fk on public.px_applicant_notes(applicant_id,created_at desc);
+create index px_applicant_notes_author_fk on public.px_applicant_notes(author_id);
+create index px_applicants_rep_fk on public.px_applicants(rep_id);
+create index px_assignments_actor_fk on public.px_assignments(actor_id);
+create index px_assignments_business_fk on public.px_assignments(business_id,created_at desc);
+create index px_assignments_rep_fk on public.px_assignments(rep_id,created_at desc);
+create index px_audit_actor_fk on public.px_audit(actor_id,created_at desc);
+create index px_businesses_import_fk on public.px_businesses(import_id);
+create index px_calls_script_fk on public.px_calls(script_id);
+create index px_commission_events_actor_fk on public.px_commission_events(actor_id);
+create index px_commission_events_commission_fk on public.px_commission_events(commission_id,created_at desc);
+create index px_content_author_fk on public.px_content(created_by);
+create index px_deals_package_fk on public.px_deals(package_id);
+create index px_dnc_actor_fk on public.px_dnc(actor_id);
+create index px_favorites_business_fk on public.px_favorites(business_id);
+create index px_followups_business_fk on public.px_followups(business_id,due_at);
+create index px_imports_owner_fk on public.px_imports(owner_id,created_at desc);
+create index px_notes_author_fk on public.px_notes(author_id);
+create index px_payouts_rep_fk on public.px_payouts(rep_id,updated_at desc);
+create index px_quotes_business_fk on public.px_quote_requests(business_id);
+create index px_quotes_deal_fk on public.px_quote_requests(deal_id);
+create index px_reps_team_fk on public.px_reps(team_id);
+create index px_saved_views_owner_fk on public.px_saved_views(owner_id,kind);
+create index px_support_rep_fk on public.px_support(rep_id,created_at desc);
+create index px_teams_manager_fk on public.px_teams(manager_id);
+create index px_training_content_fk on public.px_training(content_id);
+alter policy settings_read on public.px_settings using((select auth.uid()) is not null);
+alter policy packages_read on public.px_packages using((select auth.uid()) is not null);
+alter policy content_read on public.px_content using(exists(select 1 from public.px_reps where id=(select auth.uid())) or px_private.has_role(array['content_admin']));
+alter policy commission_events_read on public.px_commission_events using(exists(select 1 from public.px_commissions c where c.id=commission_id and c.rep_id=(select auth.uid())) or px_private.has_role(array['finance_admin']));
