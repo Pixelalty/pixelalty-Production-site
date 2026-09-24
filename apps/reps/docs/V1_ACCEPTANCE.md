@@ -59,6 +59,8 @@ No hosted gate may be checked using a simulated provider result.
 
 `npm run check`: 49 passing tests, clean lint/type checks and a successful production build. `npm run test:e2e`: SQL-backed browser flows pass with no console/API errors at 390/768/1440 px, including visual review of light/dark and onboarding screens. The actual Worker and SQL functions are exercised; external provider boundaries are simulated. The original five migrations plus the additive V1 completion/index migrations are recorded on staging. The original migration files and production are untouched.
 
+Six additional contention scenarios pass in GitHub CI against twelve simultaneous connections to full PostgreSQL 17. A lock barrier verifies actual overlap for claims, calls, payment deduplication, transfer requests and reversal reservations.
+
 See `QA.md` for the exact scope of these checks. Hosted gates above remain open; this ledger does not certify the entire release as accepted.
 
 ### Additive staging migration mapping

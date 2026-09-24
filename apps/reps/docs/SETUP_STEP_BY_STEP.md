@@ -33,7 +33,7 @@ The existing Pixelalty project is `wplinruinysbcgtfpooi`. Do not use that produc
 5. Copy the assigned HTTPS `workers.dev` URL. Do not add `reps.pixelalty.com` yet.
 6. Keep other-branch preview builds disabled until their separate bindings are configured. This staging Worker should build only the feature branch.
 
-Review [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) when choosing a plan. The importer accepts up to 25,000 rows and stages 250 per database request; its largest imports exceed the Free plan's 50 subrequests per invocation. Workbook parsing needs CPU/memory validation on the selected plan. The local 5,000-row test verifies database behavior, not Cloudflare quotas.
+Review [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) when choosing a plan. The importer accepts up to 25,000 rows, stages 250 per browser request and commits 200 per request, with resumable progress. Workbook parsing still needs CPU/memory validation on the selected plan. The local 5,000-row test verifies database behavior, not Cloudflare quotas.
 
 ## 3. Add runtime configuration
 

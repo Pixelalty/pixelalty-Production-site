@@ -15,16 +15,21 @@ The release is a staging candidate on `codex/pixelalty-sales-v1`. Production has
 
 The integration suite uses local simulations at the Supabase Auth/PostgREST HTTP, email, Turnstile and Stripe boundaries. SQL statements, transactions, functions, RLS and application code are real. A simulated checkout request is not proof of a real payment, email delivery or hosted webhook.
 
+## Verified in GitHub CI
+
+The [PostgreSQL concurrency run](https://github.com/Pixelalty/pixelalty-Production-site/actions/runs/35942160935) passes all six scenarios against twelve separate connections with a lock barrier. This confirms real request overlap while testing same-rep capacity, competing assignments, call idempotency, duplicate payment events, transfer reservations and concurrent reversal limits. The suite runs all migrations on a fresh PostgreSQL 17 service. No remote application database is used.
+
+The preceding [complete application check](https://github.com/Pixelalty/pixelalty-Production-site/actions/runs/35941349767) also passed lint, types, all 49 tests, production build, Chromium browser acceptance and Wrangler staging dry run.
+
 ## Staging database
 
-The original five migrations and `sales_v1_completion` / `sales_v1_indexes` are recorded in the dedicated staging project. The completion migration is additive: the original applied files were not edited. Schema grants and RLS are checked separately from user authentication. No fixture users, prospects, calls or financial records are seeded remotely.
+The original five migrations and `sales_v1_completion` / `sales_v1_indexes` are recorded in the dedicated staging project. The completion migration is additive: the original applied files were not edited. Schema grants and RLS are checked separately from user authentication. No fixture users, prospects, calls or financial records are seeded remotely. Direct staging Data API checks return HTTP 200 for public recruiting configuration and HTTP 401 for an anonymous rep-table read.
 
 ## Remaining hosted acceptance
 
 - Verify the new branch revision is the deployed staging Worker, inspect its logs and runtime resource limits, and perform a hosted browser walkthrough.
 - Use intended test accounts for invitation/reset delivery, MFA, verification, session expiry and role navigation. The local identity provider does not certify Supabase Auth/SMTP configuration.
 - Exercise real Turnstile and a hosted large import, including interrupted upload recovery.
-- Confirm the separate-connection suite passes in CI. It uses twelve concurrent PostgreSQL connections and a lock barrier to check claims, call retries, payment deduplication, transfer requests and reversal reservations.
 - Complete Stripe sandbox Checkout for all packages, higher Advanced pricing, Connect onboarding, settlement, transfers, refunds/disputes, reversals and bank payout events. Verify duplicate and out-of-order webhook processing.
 - Publish the business-approved agreement and verify the business's classification, tax, payout and calling policies. The application does not invent or approve these documents.
 - Confirm cron delivery, monitoring and backup/restore procedures under the actual hosting plan.
