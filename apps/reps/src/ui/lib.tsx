@@ -41,12 +41,40 @@ export async function api(path: string, data?: unknown): Promise<any> {
   if (!response.ok) throw Error(out.error || "The request failed.");
   return out;
 }
-export async function download(path: string, filename: string) {
+export async function uploadPdf(file: File, requestId: string) {
+  const session = await auth.auth.getSession();
+  const response = await fetch("/api/tax/upload", {
+    method: "POST",
+    headers: {
+      "content-type": "application/pdf",
+      "x-upload-id": requestId,
+      Authorization: "Bearer " + session.data.session?.access_token,
+    },
+    body: file,
+  });
+  const out = (await response
+    .json()
+    .catch(() => ({
+      error: "Your upload could not be confirmed. Retry the same file.",
+    }))) as Row;
+  if (!response.ok)
+    throw Error(out.error || "Your upload could not be confirmed.");
+  return out;
+}
+export async function download(path: string, filename: string, data?: unknown) {
   const session = await auth.auth.getSession();
   const r = await fetch("/api" + path, {
-    headers: { Authorization: "Bearer " + session.data.session?.access_token },
+    method: data === undefined ? "GET" : "POST",
+    headers: {
+      Authorization: "Bearer " + session.data.session?.access_token,
+      ...(data === undefined ? {} : { "content-type": "application/json" }),
+    },
+    body: data === undefined ? undefined : JSON.stringify(data),
   });
-  if (!r.ok) throw Error("Download failed.");
+  if (!r.ok) {
+    const error = (await r.json().catch(() => ({}))) as Row;
+    throw Error(error.error || "Download failed. Please try again.");
+  }
   const url = URL.createObjectURL(await r.blob()),
     a = document.createElement("a");
   a.href = url;
@@ -56,7 +84,7 @@ export async function download(path: string, filename: string) {
 }
 export const AppContext = createContext<any>(null);
 export const useApp = () => useContext(AppContext);
-export function useData(path: string) {
+export function useData(path: string, pollMs = 0) {
   const { version } = useApp();
   const [state, set] = useState<{ data: any; error: string; loading: boolean }>(
     { data: null, error: "", loading: true },
@@ -73,6 +101,36 @@ export function useData(path: string) {
       live = false;
     };
   }, [path, version]);
+  useEffect(() => {
+    if (!pollMs) return;
+    let live = true,
+      pending = false;
+    const refresh = async () => {
+      if (pending || document.visibilityState !== "visible") return;
+      pending = true;
+      try {
+        const data = await api(path);
+        if (live)
+          set((previous) =>
+            previous.loading ||
+            JSON.stringify(previous.data) === JSON.stringify(data)
+              ? previous
+              : { data, error: "", loading: false },
+          );
+      } catch {
+        /* Keep the visible form intact; explicit refreshes show errors. */
+      } finally {
+        pending = false;
+      }
+    };
+    const timer = setInterval(() => void refresh(), pollMs);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      live = false;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [path, pollMs, version]);
   return state;
 }
 export function State({

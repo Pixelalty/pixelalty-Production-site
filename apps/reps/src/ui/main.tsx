@@ -682,12 +682,12 @@ function App() {
               <strong>{currentPage?.title || "Home"}</strong>
             </div>
             <div className="top-actions">
-              {config.mode === "test" && (
+              {config.mode === "test" && ctx.roles.length > 0 && (
                 <span
                   className="test-label"
                   title="Test workspace; payments use test mode"
                 >
-                  Sandbox
+                  Test environment
                 </span>
               )}
               <button

@@ -158,7 +158,7 @@ export function workspacePages(ctx: Row): WorkspacePage[] {
       Users,
       "Your assigned reps and businesses",
     );
-  if (has("finance_admin"))
+  if (has("finance_admin")) {
     add(
       "/admin/finance",
       "Finance",
@@ -166,6 +166,14 @@ export function workspacePages(ctx: Row): WorkspacePage[] {
       Wallet,
       "Packages, commission rules, holds, transfers and payouts",
     );
+    add(
+      "/admin/tax",
+      "Tax documents",
+      "People",
+      ShieldCheck,
+      "Review restricted tax submissions and correction requests",
+    );
+  }
   if (has("compliance_admin"))
     add(
       "/admin/compliance",

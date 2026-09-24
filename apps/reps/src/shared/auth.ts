@@ -38,6 +38,11 @@ const sensitive = [
   "redirect_to",
   "next",
 ];
+const isSensitive = (key: string) =>
+  sensitive.includes(key.toLowerCase()) ||
+  /(?:token|secret|credential|email|password)|^(?:user|rep|account|customer|session)_id$/i.test(
+    key,
+  );
 
 // Capture credentials once in memory, then remove them from the address/history.
 // Caller-controlled next/redirect_to destinations are deliberately never followed.
@@ -90,9 +95,10 @@ export function readAuthLink(url: URL): {
       link.refreshToken = get("refresh_token");
     } else link.invalid = true;
   }
-  for (const key of sensitive) params.delete(key);
+  for (const key of [...params.keys()])
+    if (isSensitive(key)) params.delete(key);
   const query = params.toString();
-  const privateFragment = sensitive.some((key) => fragment.has(key));
+  const privateFragment = [...fragment.keys()].some(isSensitive);
   return {
     link,
     cleanPath:

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { authErrorMessage } from "../shared/auth";
 import {
   ArrowRight,
@@ -20,14 +20,13 @@ import {
   Card,
   Form,
   Modal,
-  Badge,
   Listing,
   Table,
   LinkButton,
   type Field,
 } from "./lib";
 import { money, label, type Row } from "../shared/core";
-import { BusinessDetails, OnboardingProgress } from "./details";
+import { BusinessDetails } from "./details";
 const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 export function Dashboard() {
   const app = useApp(),
@@ -756,139 +755,7 @@ export function Academy() {
     </>
   );
 }
-export function Onboarding() {
-  const app = useApp(),
-    privateData = useData("/table?name=rep_private&own=true"),
-    connect = useData("/table?name=connect&own=true"),
-    agreements = useData("/table?name=content&kind=agreement"),
-    accepted = useData("/table?name=agreements&own=true"),
-    [item, setItem] = useState<Row | null>(null);
-  useEffect(() => {
-    if (new URLSearchParams(location.search).has("connect")) {
-      app.run(async () => {
-        await api("/connect", { refresh: true });
-        app.refresh();
-        history.replaceState({}, "", location.pathname);
-      });
-    }
-  }, []);
-  const p = privateData.data?.rows[0],
-    c = connect.data?.rows[0];
-  return (
-    <>
-      <Heading
-        title="Welcome to Pixelalty."
-        description="Complete these steps so an administrator can activate your account."
-      />
-      <OnboardingProgress />
-      <div className="onboarding-grid">
-        <Card title="01 · Your profile">
-          <p>Set your name and timezone, then choose a secure password.</p>
-          <LinkButton to="/profile">Complete profile</LinkButton>
-        </Card>
-        <Card title="02 · Required agreement">
-          <State
-            {...agreements}
-            empty={!agreements.data?.rows.some((r: Row) => r.active)}
-            emptyText="Your administrator has not published the required agreement yet."
-          >
-            {agreements.data?.rows
-              .filter((r: Row) => r.active)
-              .map((r: Row) => (
-                <div key={r.id}>
-                  <h3>{r.title}</h3>
-                  <p>
-                    Version {r.version} ·{" "}
-                    {accepted.data?.rows.some((a: Row) => a.content_id === r.id)
-                      ? "Accepted"
-                      : "Awaiting your acceptance"}
-                  </p>
-                  <button onClick={() => setItem(r)}>Read agreement</button>
-                </div>
-              ))}
-          </State>
-          <small className="muted">
-            Your administrator publishes the agreement that applies to your
-            work.
-          </small>
-        </Card>
-        <Card title="03 · Classification & tax">
-          <p>
-            Classification:{" "}
-            <strong>{label(p?.classification || "unconfigured")}</strong>
-          </p>
-          <p>
-            Tax verification: <Badge value={p?.tax_status || "pending"} />
-          </p>
-          <small className="muted">
-            Complete the approved external verification process with your
-            administrator. Do not send tax IDs or bank details through support.
-          </small>
-        </Card>
-        <Card title="04 · Payment setup">
-          <p>
-            {c?.payouts_enabled && c?.transfers_enabled
-              ? "Your connected account is ready."
-              : p?.classification === "employee"
-                ? "Your administrator will verify your payroll setup."
-                : "Complete hosted payment setup to receive eligible commissions."}
-          </p>
-          <button
-            disabled={p?.classification !== "contractor"}
-            onClick={() =>
-              app.run(async () => {
-                const r = await api("/connect", {});
-                location.assign(r.url);
-              })
-            }
-          >
-            Open secure payment setup
-          </button>
-        </Card>
-        <Card title="05 · Academy & quiz">
-          <p>
-            Learn the packages, calling standards, CRM workflow, and customer
-            expectations.
-          </p>
-          <LinkButton to="/academy">Open Academy</LinkButton>
-        </Card>
-        <Card title="06 · Activation">
-          <Badge value={app.ctx.rep?.status || "onboarding"} />
-          <p>
-            An administrator activates your account after all requirements are
-            complete.
-          </p>
-          <LinkButton to="/support">Ask for help</LinkButton>
-        </Card>
-      </div>
-      {item && (
-        <Modal title={item.title} onClose={() => setItem(null)}>
-          <div className="prose agreement">{item.body}</div>
-          <Form
-            fields={[
-              {
-                name: "signature",
-                label: "Your full legal name",
-                required: true,
-              },
-              {
-                name: "accepted",
-                label: "I have read and agree to this version.",
-                type: "checkbox",
-                required: true,
-              },
-            ]}
-            submit="Accept agreement"
-            onSubmit={async (p) => {
-              await app.mutate("agreement", { ...p, content_id: item.id });
-              setItem(null);
-            }}
-          />
-        </Modal>
-      )}
-    </>
-  );
-}
+export { Onboarding } from "./onboarding";
 export function Profile() {
   const app = useApp(),
     rep = app.ctx.rep;

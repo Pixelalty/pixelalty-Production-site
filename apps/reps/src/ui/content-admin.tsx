@@ -5,11 +5,16 @@ type Question = { question: string; options: string[]; answer: string };
 export function ContentAdmin() {
   const app = useApp(),
     [item, setItem] = useState<Row | null>(null),
-    [kind, setKind] = useState("lesson"),
+    [kind, setKind] = useState(
+      new URLSearchParams(location.search).get("kind") === "agreement" &&
+        app.has("owner")
+        ? "agreement"
+        : "lesson",
+    ),
     [questions, setQuestions] = useState<Question[]>([]);
   const open = (r: Row = {}) => {
     setItem(r);
-    setKind(r.kind || "lesson");
+    setKind(r.kind || kind);
     setQuestions(
       r.kind === "quiz"
         ? JSON.parse(r.body).map((q: Question) => ({ ...q, answer: "" }))
@@ -53,9 +58,18 @@ export function ContentAdmin() {
         description="Publish new versions while preserving past completions and agreement acceptances."
       >
         <button className="primary" onClick={() => open()}>
-          Publish content
+          {kind === "agreement"
+            ? "Publish required agreement"
+            : "Publish content"}
         </button>
       </Heading>
+      {kind === "agreement" && (
+        <p className="notice">
+          Publish only Pixelalty-approved agreement text. No agreement is
+          supplied by the software. Mark it required for onboarding; each rep’s
+          acceptance is saved against that exact version.
+        </p>
+      )}
       <Listing
         name="content"
         columns={[
@@ -203,7 +217,11 @@ export function ContentAdmin() {
           )}
           <Form
             key={kind + item.id}
-            initial={item}
+            initial={
+              kind === "agreement" && !item.id
+                ? { required: true, ...item }
+                : item
+            }
             fields={fields}
             submit="Publish version"
             onSubmit={async (p) => {

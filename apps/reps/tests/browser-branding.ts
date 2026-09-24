@@ -69,6 +69,20 @@ try {
     await link.waitFor();
     assert.equal(await link.getAttribute("href"), "https://join.pixelalty.com");
     assert.equal(await link.count(), 1);
+    const careers = page.getByRole("link", {
+      name: "Explore sales opportunities",
+      exact: false,
+    });
+    await careers.waitFor();
+    assert.equal(
+      await careers.getAttribute("href"),
+      "https://join.pixelalty.com",
+    );
+    await page.locator(".join-pixelalty").scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: new URL("customer-careers-" + width + ".png", out).pathname,
+      fullPage: true,
+    });
     assert.ok(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth + 1,

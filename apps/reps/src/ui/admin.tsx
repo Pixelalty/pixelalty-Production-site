@@ -31,7 +31,8 @@ import { label, money, type Row } from "../shared/core";
 import { ContentAdmin } from "./content-admin";
 import { Pipeline } from "./pipeline";
 import { Imports } from "./imports";
-import { BusinessDetails, RepDetails } from "./details";
+import { BusinessDetails } from "./details";
+import { OperationsQueue, RepOnboardingDetail, TaxReview } from "./onboarding";
 const choices = (values: string[]) =>
   values.map((value) => ({ value, label: label(value) }));
 type Dialog = {
@@ -46,7 +47,6 @@ export function Admin() {
     [dialog, setDialog] = useState<Dialog | null>(null),
     [detail, setDetail] = useState<Row | null>(null),
     [businessId, setBusinessId] = useState<string | null>(null),
-    [repDetail, setRepDetail] = useState<Row | null>(null),
     page = app.path.split("?")[0];
   const show = (
     title: string,
@@ -61,11 +61,12 @@ export function Admin() {
       {businessId && (
         <BusinessDetails id={businessId} onClose={() => setBusinessId(null)} />
       )}
-      {repDetail && (
-        <RepDetails rep={repDetail} onClose={() => setRepDetail(null)} />
-      )}
     </>
   );
+  const repCode = new URLSearchParams(app.path.split("?")[1]).get("rep_code");
+  if (page === "/admin/tax") return <TaxReview />;
+  if (page === "/admin/reps" && repCode)
+    return <RepOnboardingDetail code={repCode} />;
   if (page === "/admin/pipeline") return <Pipeline admin />;
   if (page === "/admin/imports") return <Imports />;
   if (page === "/admin/settings") return <Settings />;
@@ -114,6 +115,15 @@ export function Admin() {
               >
                 Stage
               </button>
+              {r.rep_id && (
+                <button
+                  onClick={() =>
+                    app.navigate("/admin/reps?rep_code=" + r.rep_code)
+                  }
+                >
+                  Rep created — Manage onboarding
+                </button>
+              )}
               {!r.rep_id && (
                 <button
                   onClick={() =>
@@ -175,6 +185,7 @@ export function Admin() {
           title="Rep management"
           description="Verify requirements before activation. Financial history remains available after suspension."
         />
+        <OperationsQueue />
         <Listing
           name="reps"
           columns={[
@@ -187,37 +198,10 @@ export function Admin() {
           actions={(r) => (
             <>
               <button
-                onClick={() =>
-                  show(
-                    "Verify classification",
-                    "rep_classification",
-                    { id: r.id },
-                    [
-                      {
-                        name: "classification",
-                        label: "Worker classification",
-                        required: true,
-                        options: choices(["contractor", "employee"]),
-                      },
-                      {
-                        name: "tax_status",
-                        label: "Tax verification status",
-                        required: true,
-                        options: choices(["pending", "verified"]),
-                      },
-                      {
-                        name: "external_payout_verified",
-                        label:
-                          "Approved external payroll/payment setup verified",
-                        type: "checkbox",
-                      },
-                    ],
-                  )
-                }
+                onClick={() => app.navigate("/admin/reps?rep_code=" + r.code)}
               >
-                Requirements
+                Manage onboarding & readiness
               </button>
-              <button onClick={() => setRepDetail(r)}>View readiness</button>
               {["onboarding", "active"].includes(r.status) &&
                 app.has("sales_admin") && (
                   <button
@@ -234,9 +218,13 @@ export function Admin() {
                     Send setup email
                   </button>
                 )}
-              <button onClick={() => show("Activate rep", "rep_activate", r)}>
-                Activate
-              </button>
+              {r.status === "onboarding" && (
+                <button
+                  onClick={() => app.navigate("/admin/reps?rep_code=" + r.code)}
+                >
+                  Review activation requirements
+                </button>
+              )}
               <button onClick={() => show("Suspend rep", "rep_suspend", r)}>
                 Suspend
               </button>
@@ -828,6 +816,7 @@ function AdminHome() {
           <Upload size={16} /> Import leads
         </LinkButton>
       </Heading>
+      <OperationsQueue compact />
       <State {...state}>
         <div className="stats overview-stats">
           {[

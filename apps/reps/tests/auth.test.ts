@@ -223,3 +223,63 @@ test("recruiting host exposes only public routes and sends portal traffic to rep
   assert.equal(bad.status, 503);
   assert.ok(!(await bad.text()).includes("localhost"));
 });
+
+test("internal UI redirects to owned domains while APIs, webhooks and assets remain available", async () => {
+  const root = env.INTERNAL_APP_ORIGIN!;
+  for (const [path, expected] of [
+    ["/admin/recruiting", env.APP_URL + "/admin/recruiting"],
+    [
+      "/leads?view=mine&Email=private%40example.test&client_secret=secret",
+      env.APP_URL + "/leads?view=mine",
+    ],
+    ["/apply?campaign=careers", env.RECRUITING_URL + "/?campaign=careers"],
+    ["/onboarding?step=tax", env.APP_URL + "/onboarding?step=tax"],
+  ]) {
+    const response = await worker.fetch(new Request(root + path), env);
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get("location"), expected);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+  }
+  const token = "invitation_test_hash_123456789";
+  const callback = await worker.fetch(
+    new Request(
+      root +
+        "/auth/confirm?token_hash=" +
+        token +
+        "&type=invite&email=private%40example.test",
+    ),
+    env,
+  );
+  const next = new URL(callback.headers.get("location")!);
+  assert.equal(next.origin, env.APP_URL);
+  assert.equal(next.search, "");
+  assert.ok(!next.href.includes("private"));
+  assert.deepEqual(readAuthLink(next), {
+    link: { type: "invite", tokenHash: token },
+    cleanPath: "/auth/confirm",
+  });
+  for (const path of [
+    "/api/config",
+    "/assets/app.js",
+    "/fonts/manrope.woff2",
+  ]) {
+    const response = await worker.fetch(new Request(root + path), env);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("location"), null);
+  }
+  const webhook = await worker.fetch(
+    new Request(root + "/api/webhooks/stripe", { method: "GET" }),
+    env,
+  );
+  assert.equal(webhook.status, 405);
+  assert.equal(webhook.headers.get("location"), null);
+  assert.equal(
+    readAuthLink(
+      new URL(
+        env.APP_URL +
+          "/leads?Email=private&client_secret=private&rep_id=private&view=mine#refreshToken=private",
+      ),
+    ).cleanPath,
+    "/leads?view=mine",
+  );
+});

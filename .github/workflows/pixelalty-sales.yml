@@ -45,5 +45,13 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - run: npm run test:auth
+      - run: npm run test:onboarding
       - run: npm run test:branding
       - run: npx wrangler deploy --dry-run --env staging
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: pixelalty-sales-browser-evidence
+          path: apps/reps/test-results/
+          retention-days: 7
+          if-no-files-found: ignore

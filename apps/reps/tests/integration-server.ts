@@ -8,6 +8,8 @@ import { database } from "./helpers";
 import worker from "../src/server/index";
 import type { Env } from "../src/server/types";
 export async function startIntegration(options: { ownerMfa?: boolean } = {}) {
+  const storedFiles = new Map<string, Uint8Array>();
+  let connectedReady = false;
   const userMetadata = new Map<string, Record<string, unknown>>();
   const passwords = new Map<string, string>(),
     emailLinks = new Map<string, { id: string; type: string }>(),
@@ -62,6 +64,31 @@ export async function startIntegration(options: { ownerMfa?: boolean } = {}) {
         data: Object.fromEntries(data),
         method: req.method,
       });
+      if (
+        u.pathname === "/v1/accounts" ||
+        u.pathname === "/v1/accounts/acct_isolated_onboarding"
+      )
+        return Response.json({
+          id: "acct_isolated_onboarding",
+          object: "account",
+          metadata: { rep_id: data.get("metadata[rep_id]") || "" },
+          livemode: false,
+          type: "express",
+          details_submitted: connectedReady,
+          payouts_enabled: connectedReady,
+          capabilities: { transfers: connectedReady ? "active" : "pending" },
+          requirements: {
+            currently_due: connectedReady ? [] : ["external_account"],
+          },
+        });
+      if (u.pathname === "/v1/account_links") {
+        connectedReady = true;
+        return Response.json({
+          object: "account_link",
+          url: data.get("return_url"),
+          expires_at: Math.floor(Date.now() / 1000) + 300,
+        });
+      }
       if (u.pathname === "/v1/checkout/sessions" && req.method === "POST")
         return Response.json({
           id: "cs_test_local_" + ++serial,
@@ -237,6 +264,8 @@ export async function startIntegration(options: { ownerMfa?: boolean } = {}) {
               "px_service",
               "px_public_config",
               "px_mail",
+              "px_tax",
+              "px_tax_complete",
             ].includes(name)
           )
             throw Error("Unknown RPC");
@@ -244,8 +273,10 @@ export async function startIntegration(options: { ownerMfa?: boolean } = {}) {
           const args =
             name === "px_context" || name === "px_public_config"
               ? []
-              : [p.action || p.kind, p.p || {}];
-          const sql = `select public.${name}(${args.length ? "$1,$2::jsonb" : ""}) result`;
+              : name === "px_tax_complete"
+                ? [p.p || {}]
+                : [p.action || p.kind, p.p || {}];
+          const sql = `select public.${name}(${args.length === 1 ? "$1::jsonb" : args.length ? "$1,$2::jsonb" : ""}) result`;
           return Response.json((await db.query<any>(sql, args)).rows[0].result);
         }
         const table = u.pathname.split("/").at(-1)!;
@@ -393,7 +424,47 @@ export async function startIntegration(options: { ownerMfa?: boolean } = {}) {
       });
       const u = new URL(url);
       let response: Response;
-      if (u.pathname.startsWith("/rest/v1/")) response = await rest(req, u);
+      if (u.pathname.startsWith("/storage/v1/object/")) {
+        const c = claims(req.headers.get("authorization")?.slice(7) || "");
+        const objectPath = u.pathname.replace(
+            /^\/storage\/v1\/object\/(?:authenticated\/)?/,
+            "",
+          ),
+          firstSlash = objectPath.indexOf("/");
+        const bucket = objectPath.slice(0, firstSlash),
+          name = objectPath.slice(firstSlash + 1);
+        if (c.role !== "service_role")
+          response = Response.json(
+            { message: "Private object" },
+            { status: 403 },
+          );
+        else if (req.method === "POST") {
+          if (storedFiles.has(objectPath))
+            response = Response.json(
+              { statusCode: "409", message: "Already exists" },
+              { status: 409 },
+            );
+          else {
+            const content = new Uint8Array(await req.arrayBuffer());
+            await withDb(async () => {
+              await db.exec("reset role");
+              await db.query(
+                "insert into storage.objects(bucket_id,name) values($1,$2)",
+                [bucket, name],
+              );
+            });
+            storedFiles.set(objectPath, content);
+            response = Response.json({ Key: objectPath });
+          }
+        } else if (req.method === "GET" && storedFiles.has(objectPath))
+          response = new Response(
+            storedFiles.get(objectPath) as Uint8Array<ArrayBuffer>,
+            { headers: { "Content-Type": "application/pdf" } },
+          );
+        else
+          response = Response.json({ message: "Not found" }, { status: 404 });
+      } else if (u.pathname.startsWith("/rest/v1/"))
+        response = await rest(req, u);
       else if (u.pathname.startsWith("/auth/v1/")) {
         const c = claims(req.headers.get("authorization")?.slice(7) || "");
         if (u.pathname.endsWith("/invite")) {
@@ -542,6 +613,7 @@ export async function startIntegration(options: { ownerMfa?: boolean } = {}) {
     userMetadata,
     authCalls,
     emailLinks,
+    storedFiles,
     async close() {
       await new Promise<void>((r) => server.close(() => r()));
       globalThis.fetch = realFetch;

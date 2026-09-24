@@ -1,8 +1,13 @@
 import { z } from "zod";
 import { client, identity, rpc, service } from "./db";
 import { type Env, HttpError } from "./types";
-import { deploymentUrls, mutationOriginAllowed } from "./urls";
+import {
+  canonicalLocation,
+  deploymentUrls,
+  mutationOriginAllowed,
+} from "./urls";
 import { drainMail, mailConfigured } from "./mail";
+import { downloadTax, TAX_MAX_BYTES, uploadTax } from "./tax";
 import {
   checkout,
   connectAccount,
@@ -239,6 +244,7 @@ async function api(req: Request, env: Env) {
       Math.max(0, Math.min(10000, Number(u.searchParams.get("page")) || 0)),
     );
     const joins: Record<string, string> = {
+      applicants: "*,rep:px_reps(code,status)",
       followups: "*,business:px_businesses(name,code)",
       calls: "*,business:px_businesses(name,code)",
       deals: "*,business:px_businesses(name,code)",
@@ -371,6 +377,8 @@ async function api(req: Request, env: Env) {
       business_name: r.business?.name || r.deal?.business?.name || r.data?.name,
       phone: r.phone || r.data?.phone,
       rep_name: r.rep?.name,
+      rep_code: r.rep?.code,
+      rep_status: r.rep?.status,
       deal_code: r.deal?.code,
       package_name: r.package_name || r.deal?.package_name,
       sale_cents: r.deal?.price_cents,
@@ -390,6 +398,39 @@ async function api(req: Request, env: Env) {
         ip: req.headers.get("cf-connecting-ip") || null,
       });
     return json(result);
+  }
+  if (path === "/api/tax" && !post)
+    return json(
+      await rpc(db, "px_tax", {
+        action: "summary",
+        p: { rep_id: u.searchParams.get("rep") || user.id },
+      }),
+    );
+  if (path === "/api/tax/upload" && post)
+    return json(
+      await uploadTax(
+        env,
+        db,
+        await bytes(req, TAX_MAX_BYTES),
+        req.headers.get("content-type") || "",
+        req.headers.get("x-upload-id") || "",
+      ),
+    );
+  if (path === "/api/tax/document" && post) {
+    const p = await body(req);
+    if (!z.uuid().safeParse(p.id).success)
+      throw new HttpError(400, "Select a tax document.");
+    return downloadTax(env, db, p.id);
+  }
+  if (path === "/api/tax/review" && post) {
+    const p = await body(req);
+    if (
+      !["start_review", "verify", "request_correction", "archive"].includes(
+        p.action,
+      )
+    )
+      throw new HttpError(400, "Choose a review action.");
+    return json(await rpc(db, "px_tax", { action: p.action, p }));
   }
   if (path === "/api/approve" && post) {
     const p = await body(req);
@@ -736,18 +777,34 @@ export default {
         urls = deploymentUrls(env, req.url);
       const recruitingHost =
         u.origin === urls.recruitingOrigin && u.origin !== urls.app;
+      const internalUi =
+        u.hostname.endsWith(".workers.dev") &&
+        u.origin !== urls.app &&
+        ["GET", "HEAD"].includes(req.method) &&
+        !/^\/(api|assets|fonts)(\/|$)/.test(u.pathname) &&
+        !/\.[a-z0-9]{1,8}$/i.test(u.pathname);
       if (
         recruitingHost &&
         u.pathname.startsWith("/api/") &&
         !["/api/config", "/api/recruiting", "/api/apply"].includes(u.pathname)
       )
         throw new HttpError(404, "This page is not available here.");
-      if (
+      if (internalUi) {
+        const recruiting = ["/apply", "/apply/"].includes(u.pathname);
+        response = Response.redirect(
+          canonicalLocation(
+            u,
+            recruiting ? urls.recruiting : urls.app,
+            recruiting ? new URL(urls.recruiting).pathname : u.pathname,
+          ),
+          302,
+        );
+      } else if (
         recruitingHost &&
         !["/", "/apply", "/apply/"].includes(u.pathname) &&
         !/^\/(api|assets|fonts)\//.test(u.pathname)
       )
-        response = Response.redirect(urls.app + u.pathname + u.search, 302);
+        response = Response.redirect(canonicalLocation(u, urls.app), 302);
       else if (
         u.origin === urls.app &&
         ["/apply", "/apply/"].includes(u.pathname) &&
@@ -792,10 +849,11 @@ export default {
     );
     headers.set("X-Request-ID", requestId);
     headers.set("Cache-Control", "no-store");
-    headers.set(
-      "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
-    );
+    if (!headers.has("Content-Security-Policy"))
+      headers.set(
+        "Content-Security-Policy",
+        "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+      );
     const currentUrl = new URL(req.url);
     if (
       currentUrl.pathname !== "/apply" &&

@@ -22,13 +22,15 @@
     "auth:configure": "node --import tsx scripts/configure-pixelalty-auth.ts",
     "domains:prepare": "node --import tsx scripts/enable-pixelalty-domains.ts",
     "deploy:pixelalty": "npm run domains:prepare && npm run build && wrangler deploy --env staging",
-    "test:concurrency": "node --import tsx --test tests/concurrency.ts"
+    "test:concurrency": "node --import tsx --test tests/concurrency.ts",
+    "test:onboarding": "node --import tsx tests/browser-onboarding.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.1",
     "exceljs": "4.4.0",
     "lucide-react": "1.47.0",
     "papaparse": "5.7.0",
+    "pdf-lib": "1.17.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "stripe": "22.6.2",

@@ -11,7 +11,7 @@ An unchecked hosted gate is not a claim of completion.
 | V1 requirement                                                                                 | Relevant master sections                     | Acceptance evidence required                                                              |
 | ---------------------------------------------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | Password login, invitation acceptance, recovery, email verification and admin MFA              | 6–8, 13, 146, 164                            | Auth success/failure, recovery password completion, role and MFA deny tests               |
-| Public recruiting copy, current packages and accessible application                            | 9–13, 221–223                                | Public form, duplicate/spam rejection, persistent application, confirmation               |
+| Public recruiting benefits, private commission amounts and accessible application                            | 9–13, 221–223                                | Public form, duplicate/spam rejection, persistent application, confirmation               |
 | Applicant review, stages, notes, filters, approval and immutable rep IDs                       | 11–14                                        | Recruiting workflow and safe invitation retries                                           |
 | Onboarding checklist, profile, versioned agreement, classification and payout gates            | 15–18                                        | Per-step state, failed gates, completed activation, preserved signatures                  |
 | Training lessons, quizzes, progress and controlled content versions                            | 102–105                                      | Completion, grading, retake, hidden keys, no-code quiz publication                        |
@@ -29,7 +29,7 @@ An unchecked hosted gate is not a claim of completion.
 | Optional workday streak based on qualifying calls, weekends and freezes                        | 74–75, 194                                   | Prospect deduplication, rep timezone, protected weekends and freeze accounting            |
 | Leaderboards without personal earnings or customer data                                        | 83–84, 218                                   | Verified sales, authorized metrics, pagination/nearby ranking and minimum samples         |
 | Admin command center, rep management, configuration and audit                                  | 109–112, 123, 191–195                        | Role-specific controls, reasoned mutations, onboarding readiness and meaningful totals    |
-| DNC, safety defaults and restricted data                                                       | 7–8, 50–51, 122–123, 146–147, 187–190        | RLS/grants, global suppression, no client secrets, no raw tax/bank collection             |
+| DNC, safety defaults and restricted data                                                       | 7–8, 50–51, 122–123, 146–147, 187–190        | RLS/grants, global suppression, no client secrets, private signed-PDF tax upload, no extracted TIN/SSN or bank fields             |
 | Basic notifications and operational recovery                                                   | 97, 140–141, 148–149, 167–169, 204–205       | Read state, useful links, retryable jobs, service readiness distinguished from validation |
 | Mobile/tablet/desktop, light/dark/system, loading/empty/error states and accessibility         | 4–5, 133, 159–160, 176–182, 199–200, 212–213 | Browser walkthroughs, keyboard/focus, contrast, no page overflow, console/network checks  |
 | Source control, staging deployment, operations guide and final audit                           | 0–2, 161–170, 196–207, 250–256               | Clean checks, reviewed migration, staging evidence, no production changes                 |
@@ -78,3 +78,7 @@ See `QA.md` for the exact scope of these checks. Hosted gates above remain open;
 | `20260924051744_sales_branded_auth_mail.sql` | `20260924054601` |
 
 The index migration passed a fresh application of the complete schema and all 16 focused V1 tests. The performance advisor now reports only unused indexes, which are retained for the intended workloads. Do not reapply the original files using unreconciled CLI timestamps.
+
+## September 24 corrective requirements
+
+The owner’s critical completion pass supersedes the earlier public commission section. Follow [CORRECTIVE_ACCEPTANCE.md](CORRECTIVE_ACCEPTANCE.md) for the actionable onboarding, private W-9, readiness/activation, canonical domain, recruiting privacy, customer-site section and admin-only test indicator requirements. The original acceptance ledger remains in effect for all other V1 flows.

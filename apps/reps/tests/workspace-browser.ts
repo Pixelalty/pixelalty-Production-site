@@ -196,7 +196,7 @@ export async function verifyWorkspace(
       await page.goto(fixture.base + path);
       await page.waitForLoadState("networkidle");
       assert.equal(
-        await page.getByText("Sandbox", { exact: true }).isVisible(),
+        await page.getByText("Test environment", { exact: true }).isVisible(),
         true,
       );
       assert.equal(await page.getByRole("alert").count(), 0);

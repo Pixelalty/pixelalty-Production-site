@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { database, actor, service, rpc } from "./helpers";
+import { database, actor, service, rpc, submitTaxFixture } from "./helpers";
 const ids = Array.from(
   { length: 8 },
   (_, i) => `00000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
@@ -123,7 +123,8 @@ test("real Postgres workflows, authorization, and payment ledger", async (t) => 
       const r = await db.query<{ result: any }>(
         "select public.px_public_config() result",
       );
-      assert.equal(r.rows[0].result.packages[0].commission_cents, 12500);
+      assert.equal(r.rows[0].result.packages, undefined);
+      assert.ok(!JSON.stringify(r.rows[0].result).includes("commission_cents"));
       await assert.rejects(
         db.query("select * from public.px_businesses"),
         /permission denied/,
@@ -614,9 +615,12 @@ test("real Postgres workflows, authorization, and payment ledger", async (t) => 
         await act("rep_classification", {
           id: newRep,
           classification: "contractor",
-          tax_status: "verified",
-          reason: "Verified test documentation",
+          reason: "Verified test classification",
         });
+        const taxDocument = await submitTaxFixture(db, newRep);
+        await actor(db, owner, "aal2");
+        await rpc(db, "px_tax", "download", { id: taxDocument.id });
+        await rpc(db, "px_tax", "verify", { id: taxDocument.id });
         const agreement = await act("content", {
           kind: "agreement",
           slug: "test-only-agreement",

@@ -335,7 +335,10 @@ try {
   await page.getByRole("button", { name: "Save profile" }).click();
   await page.getByText("Saved successfully.").first().waitFor();
   await page.goto(fixture.base + "/onboarding");
-  await page.getByRole("button", { name: "Read agreement" }).click();
+  await page
+    .locator("#onboarding-agreement")
+    .getByRole("button", { name: "Review & Accept Agreement" })
+    .click();
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("Your full legal name").fill("Applicant Auth");
   await dialog.getByLabel("I have read and agree to this version.").check();
@@ -368,31 +371,47 @@ try {
   await verify();
   await page.goto(fixture.base + "/admin/reps");
   await repRow
-    .getByRole("button", { name: "Requirements", exact: true })
+    .getByRole("button", { name: "Manage onboarding & readiness", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Review worker classification", exact: true })
     .click();
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("Worker classification").selectOption("employee");
-  await dialog.getByLabel("Tax verification status").selectOption("verified");
   await dialog
-    .getByLabel("Approved external payroll/payment setup verified")
+    .getByLabel("Reason for this change")
+    .fill("Isolated employee classification test");
+  await dialog
+    .getByRole("button", { name: "Review worker classification", exact: true })
+    .click();
+  await dialog.waitFor({ state: "hidden" });
+  await page
+    .getByRole("button", { name: "Review employee tax & payroll", exact: true })
+    .click();
+  dialog = page.getByRole("dialog");
+  await dialog
+    .getByLabel("Employee tax setup verified through the approved process")
     .check();
+  await dialog.getByLabel("Approved payroll setup verified").check();
   await dialog
     .getByLabel("Reason for this change")
     .fill("Isolated employee onboarding test, no real payroll");
   await dialog
-    .getByRole("button", { name: "Verify classification", exact: true })
+    .getByRole("button", { name: "Verify employee tax & payroll", exact: true })
     .click();
   await dialog.waitFor({ state: "hidden" });
-  await repRow.getByRole("button", { name: "Activate", exact: true }).click();
+  await page.getByRole("button", { name: "Activate Rep", exact: true }).click();
   dialog = page.getByRole("dialog");
   await dialog
     .getByLabel("Reason for this change")
     .fill("All isolated onboarding requirements reviewed");
   await dialog
-    .getByRole("button", { name: "Activate rep", exact: true })
+    .getByRole("button", { name: "Activate Rep", exact: true })
     .click();
   await dialog.waitFor({ state: "hidden" });
-  await repRow.getByText("Active", { exact: true }).waitFor();
+  await page
+    .getByText("This rep can use the active sales workspace.", { exact: true })
+    .waitFor();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await login("auth-flow@example.test", "Invited-password-123");
   await page.getByRole("heading", { name: "Hello, Applicant." }).waitFor();

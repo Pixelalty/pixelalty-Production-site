@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Check, ShieldCheck } from "lucide-react";
 import { api, Form, type Field, State } from "./lib";
-import { PACKAGES, money } from "../shared/core";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AuthShell } from "./auth-shell";
 import { authErrorMessage } from "../shared/auth";
@@ -265,20 +264,12 @@ export function Apply({
       body: "Help businesses take a confident next step online.",
       requirements: "",
     }),
-    [packages, setPackages] = useState<any[]>(
-      [...PACKAGES].map((p) => ({
-        ...p,
-        price_cents: p.price,
-        commission_cents: p.commission,
-      })),
-    ),
     [open, setOpen] = useState(false),
     [error, setError] = useState(""),
     [token, setToken] = useState("");
   useEffect(() => {
     api("/recruiting")
       .then((r) => {
-        setPackages(r.packages);
         setOpen(r.recruiting_open);
         setCopy({ title: r.title, body: r.body, requirements: r.requirements });
       })
@@ -391,23 +382,37 @@ export function Apply({
           Apply to join <ArrowRight size={18} />
         </a>
       </section>
-      <section className="package-grid">
-        {packages.map((p) => (
-          <article key={p.code}>
-            <span className="eyebrow">{p.name}</span>
-            <h2>{money(p.commission_cents)}</h2>
-            <p>Standard commission</p>
-            <small>
-              {money(p.price_cents)}
-              {p.code === "advanced" ? "+" : ""} customer package
-            </small>
+      <section
+        className="recruiting-benefits"
+        aria-label="Working with Pixelalty"
+      >
+        {[
+          [
+            "Remote & flexible",
+            "Build your sales experience around focused, responsible prospecting.",
+          ],
+          [
+            "Learn a clear process",
+            "Structured onboarding, training and practical guidance help you get started.",
+          ],
+          [
+            "Tools to do your best work",
+            "Work assigned leads with a focused sales workspace and clear next steps.",
+          ],
+          [
+            "See your progress",
+            "Track eligible commissions privately and progress through verified performance.",
+          ],
+        ].map(([title, body]) => (
+          <article key={title}>
+            <Check size={22} aria-hidden="true" />
+            <h2>{title}</h2>
+            <p>{body}</p>
           </article>
         ))}
       </section>
       <p className="fine-print">
-        Commissions depend on verified payment, applicable agreements, holds,
-        refunds, and eligibility. Advanced commission does not automatically
-        increase with project price.
+        Performance-based compensation. Earnings are not guaranteed.
       </p>
       <section id="application" className="application-section">
         <div>

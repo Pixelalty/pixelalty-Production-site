@@ -1,4 +1,5 @@
 import { HttpError, type Env } from "./types";
+import { readAuthLink } from "../shared/auth";
 const loopback = (u: URL) =>
   ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname);
 export function deploymentUrls(env: Env, requestUrl: string) {
@@ -49,4 +50,31 @@ export function mutationOriginAllowed(req: Request, env: Env, path: string) {
   if (!origin || origin !== requestOrigin) return false;
   if (origin === urls.app || origin === urls.internal) return true;
   return path === "/api/apply" && origin === urls.recruitingOrigin;
+}
+
+// Keep owned destinations fixed, preserve application navigation, and carry any
+// legacy query credentials only in a fragment until the callback consumes them.
+// Fragments never reach the destination server or its access logs.
+export function canonicalLocation(
+  source: URL,
+  target: string,
+  path = source.pathname,
+) {
+  const { link, cleanPath } = readAuthLink(source);
+  const clean = new URL("https://navigation.invalid" + cleanPath);
+  const destination = new URL(target);
+  destination.pathname = path;
+  destination.search = clean.search;
+  if (link) {
+    const fragment = new URLSearchParams({ type: link.type });
+    if (link.invalid) fragment.set("error", "invalid_link");
+    else if (link.tokenHash) fragment.set("token_hash", link.tokenHash);
+    else if (link.code) fragment.set("code", link.code);
+    else if (link.accessToken && link.refreshToken) {
+      fragment.set("access_token", link.accessToken);
+      fragment.set("refresh_token", link.refreshToken);
+    }
+    destination.hash = fragment.toString();
+  }
+  return destination.href;
 }

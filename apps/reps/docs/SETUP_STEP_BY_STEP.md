@@ -197,10 +197,10 @@ A green build, a configured-secret indicator or a synthetic webhook alone does n
 
 After the join domain and application work, open [PR #2](https://github.com/Pixelalty/pixelalty-Production-site/pull/2).
 
-1. Review its two customer-site files: js/main.js and apply/index.html.
+1. Review its customer-site files: the native recruiting section in index.html/styles.css, the footer entry in js/main.js, and apply/index.html.
 2. Mark the draft Ready for review, satisfy the repository's checks, then merge it into main using the permitted merge method.
 3. Wait for the existing customer-site deployment.
-4. Check the Join Pixelalty footer link at pixelalty.com and https://pixelalty.com/apply. Both must reach join.pixelalty.com.
+4. Check the Explore sales opportunities section, Join Pixelalty footer link, and https://pixelalty.com/apply. All must reach join.pixelalty.com.
 
 Do not merge the entire sales PR #1 just to publish this entry point.
 

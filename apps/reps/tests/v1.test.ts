@@ -560,7 +560,6 @@ test("V1 completion uses real SQL, authorization and persistent state", async (t
         await act("rep_classification", {
           id: rep,
           classification: "contractor",
-          tax_status: "pending",
           reason: "Set test contractor classification",
         });
         await service(db);

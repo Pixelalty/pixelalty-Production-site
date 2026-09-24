@@ -5,6 +5,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 import { Client } from "pg";
+import { storageSchema } from "./helpers";
 
 const connectionString = process.env.PIXELALTY_TEST_DATABASE_URL;
 assert.ok(
@@ -43,7 +44,7 @@ const identity = async (client: Client, id: string | null) => {
 };
 const rpc = async (
   client: Client,
-  fn: "px_action" | "px_service" | "px_mail",
+  fn: "px_action" | "px_service" | "px_mail" | "px_tax",
   action: string,
   p: unknown = {},
 ) =>
@@ -115,6 +116,7 @@ test("PostgreSQL contention preserves assignment and financial invariants", asyn
     await control.query(
       "create role anon; create role authenticated; create role service_role bypassrls; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$select (nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'sub')::uuid$$; create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$; grant usage on schema auth to anon,authenticated,service_role; grant execute on all functions in schema auth to anon,authenticated,service_role;",
     );
+    await control.query(storageSchema);
     const dir = new URL("../supabase/migrations/", import.meta.url);
     for (const name of (await readdir(dir))
       .filter((n) => n.endsWith(".sql"))
@@ -429,6 +431,98 @@ test("PostgreSQL contention preserves assignment and financial invariants", asyn
               [rep],
             )
           ).rows[0].attempts,
+          1,
+        );
+      },
+    );
+    await t.test(
+      "concurrent document completion is idempotent and replacement wins over stale review",
+      async () => {
+        await identity(clients[0], rep);
+        const first = await rpc(clients[0], "px_tax", "upload_begin", {
+          request_id: crypto.randomUUID(),
+          bytes: 200,
+          sha256: "a".repeat(64),
+        });
+        await control.query(
+          "insert into storage.objects(bucket_id,name) values('pixelalty-tax-documents',$1)",
+          [first.object_key],
+        );
+        await Promise.all(clients.map((c) => identity(c, null)));
+        const completed = successful(
+          await contend(
+            "select id from px_reps where id=$1 for update",
+            [rep],
+            (c) =>
+              c.query("select public.px_tax_complete($1::jsonb)", [
+                JSON.stringify({ id: first.id }),
+              ]),
+          ),
+        );
+        assert.equal(completed.length, clients.length);
+        assert.equal(
+          (
+            await control.query(
+              "select count(*)::int n from px_private.tax_events where document_id=$1 and event='uploaded'",
+              [first.id],
+            )
+          ).rows[0].n,
+          1,
+        );
+        await identity(clients[0], owner);
+        await rpc(clients[0], "px_tax", "download", { id: first.id });
+        await identity(clients[0], rep);
+        const secondDoc = await rpc(clients[0], "px_tax", "upload_begin", {
+          request_id: crypto.randomUUID(),
+          bytes: 250,
+          sha256: "b".repeat(64),
+        });
+        await control.query(
+          "insert into storage.objects(bucket_id,name) values('pixelalty-tax-documents',$1)",
+          [secondDoc.object_key],
+        );
+        await Promise.all(
+          clients.map((c, i) => identity(c, i % 2 ? owner : null)),
+        );
+        const raced = await contend(
+          "select id from px_reps where id=$1 for update",
+          [rep],
+          (c, i) =>
+            i % 2
+              ? rpc(c, "px_tax", "verify", { id: first.id })
+              : c.query("select public.px_tax_complete($1::jsonb)", [
+                  JSON.stringify({ id: secondDoc.id }),
+                ]),
+        );
+        for (const result of raced)
+          if (result.status === "rejected")
+            assert.match(
+              String(result.reason),
+              /replaced or archived|Review the current submitted/,
+            );
+        const current = (
+          await control.query(
+            "select id,status from px_private.tax_documents where rep_id=$1 and current",
+            [rep],
+          )
+        ).rows;
+        assert.deepEqual(current, [{ id: secondDoc.id, status: "submitted" }]);
+        assert.equal(
+          (
+            await control.query(
+              "select tax_status from px_rep_private where rep_id=$1",
+              [rep],
+            )
+          ).rows[0].tax_status,
+          "pending",
+        );
+        assert.equal(
+          (
+            await control.query(
+              "select count(*)::int n from px_private.tax_events where rep_id=$1 and event='replaced'",
+              [rep],
+            )
+          ).rows[0].n,
           1,
         );
       },

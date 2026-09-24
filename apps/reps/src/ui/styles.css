@@ -1587,3 +1587,165 @@ tbody tr:last-child td {
 :root[data-theme="dark"] .text-button {
   color: #8fb8ff;
 }
+
+/* Onboarding uses the same surfaces and theme tokens as the sales workspace. */
+.onboarding-grid,
+.recruiting-benefits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+.onboarding-grid > .card {
+  margin: 0;
+  min-width: 0;
+  height: 100%;
+}
+.onboarding-grid h2 {
+  margin-top: 0;
+}
+.onboarding-grid > section:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
+}
+.onboarding-grid > section {
+  scroll-margin-block: 100px;
+}
+.onboarding-wait {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-block: 14px;
+}
+.onboarding-wait > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--muted);
+}
+.onboarding-wait p {
+  margin: 4px 0 0;
+}
+.onboarding-wait strong {
+  font-size: 13px;
+}
+.tax-status {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--blue);
+}
+.onboarding-grid form {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+input[type="file"] {
+  padding: 12px;
+  max-width: 100%;
+}
+input[type="file"]::file-selector-button {
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  margin-right: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.onboarding-checklist .checklist-step {
+  align-items: flex-start;
+  text-align: left;
+}
+.checklist-step > span:first-child {
+  padding-top: 2px;
+}
+.checklist-step p {
+  margin: 6px 0;
+  font-size: 12px;
+}
+.checklist-step .text-button {
+  font-size: 12px;
+  padding: 6px 0;
+}
+.readiness-missing {
+  padding-left: 20px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin: 0 0 28px;
+}
+.readiness-missing li {
+  padding-left: 4px;
+}
+.readiness-missing p {
+  margin: 6px 0;
+}
+.readiness-missing small {
+  display: block;
+}
+.operations-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.onboarding-queue .card-head {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.queue-pagination {
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+.recruiting-benefits {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.recruiting-benefits article {
+  padding: 26px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 12px;
+  height: 100%;
+}
+.recruiting-benefits svg {
+  color: var(--blue);
+}
+.recruiting-benefits h2 {
+  font-size: 19px;
+  letter-spacing: -0.4px;
+  margin: 18px 0 8px;
+}
+.recruiting-benefits p {
+  font-size: 13px;
+  margin: 0;
+}
+.fine-print {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 20px 0 0;
+}
+@media (max-width: 1000px) {
+  .recruiting-benefits {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 650px) {
+  .onboarding-grid,
+  .readiness-missing,
+  .recruiting-benefits {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .readiness-missing {
+    gap: 20px;
+  }
+  .onboarding-grid .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .recruiting-benefits article {
+    padding: 22px;
+  }
+}

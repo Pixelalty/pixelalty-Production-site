@@ -93,3 +93,11 @@ tr>*:nth-child(3){background:transparent}
 @media(max-width:980px){.site-header nav{background:var(--nav-bg);border-color:var(--nav-border)}}
 @media(max-width:720px){.section{padding-block:var(--mobile-space)}.section-tight{padding-bottom:calc(var(--mobile-space)*.68)}.price-strip a{border-color:var(--border)}th:first-child{background:var(--surface-alt)}}
 @media(prefers-reduced-motion:reduce){.reveal.is-pending{opacity:1;transform:none}.browser-frame{animation:none!important;transform:none!important}}
+
+/* Secondary careers entry; the customer navigation and service sections stay intact. */
+.join-pixelalty{display:flex;align-items:center;justify-content:space-between;gap:48px;padding-block:52px 66px;border-top:1px solid var(--border)}
+.join-pixelalty .eyebrow{margin-bottom:16px}
+.join-pixelalty h2{font-size:clamp(26px,2.6vw,36px);margin-bottom:18px;line-height:1.2}
+.join-pixelalty p:last-child{max-width:560px;margin:0;font-size:15px}
+.join-pixelalty>.button{flex-shrink:0}
+@media(max-width:760px){.join-pixelalty{align-items:flex-start;flex-direction:column;gap:26px;padding-block:36px 48px}.join-pixelalty>.button{max-width:100%;gap:16px}}

@@ -331,7 +331,10 @@ export function RepDetails({
 }
 
 export function OnboardingProgress({ id }: { id?: string }) {
-  const state = useData(`/report?kind=onboarding${id ? `&id=${id}` : ""}`),
+  const state = useData(
+      `/report?kind=onboarding${id ? `&id=${id}` : ""}`,
+      30000,
+    ),
     app = useApp();
   const steps = state.data?.steps || [],
     done = steps.filter((s: Row) => s.complete || !s.required).length;
@@ -351,23 +354,33 @@ export function OnboardingProgress({ id }: { id?: string }) {
         />
         <div className="onboarding-checklist">
           {steps.map((s: Row) => (
-            <button
+            <div
               className={s.complete ? "checklist-step done" : "checklist-step"}
               key={s.key}
-              onClick={() => app.navigate(s.link)}
             >
               <span aria-hidden="true">{s.complete ? "✓" : "○"}</span>
               <span>
-                {s.title}
+                <strong>{s.title}</strong>
                 <small>
                   {s.complete
                     ? "Complete"
                     : s.required
-                      ? "Required"
-                      : "Optional"}
+                      ? s.actor === "rep"
+                        ? "Action required by rep"
+                        : "Waiting for Pixelalty"
+                      : "Not required"}
                 </small>
+                {!s.complete && s.required && <p>{s.message}</p>}
+                {!s.complete && s.required && s.actor === "rep" && (
+                  <button
+                    className="text-button"
+                    onClick={() => app.navigate(s.link)}
+                  >
+                    {s.action}
+                  </button>
+                )}
               </span>
-            </button>
+            </div>
           ))}
         </div>
       </State>

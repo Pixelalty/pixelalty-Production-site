@@ -103,7 +103,7 @@ Old emails are unchanged and may contain the broken destination. From **Admin â†
 
 ## 4. Publish the small customer-site change
 
-The prepared change adds a **Join Pixelalty** link to the existing footer through `js/main.js` and adds `apply/index.html` as the clean redirect. No customer page is redesigned. Publish these two files through the existing customer-site deployment only after the join domain works. Do not merge the entire sales application branch into the customer website solely to publish this link.
+The prepared change adds a native, secondary **Join Pixelalty** homepage section in `index.html`/`styles.css`, a footer link through `js/main.js`, and `apply/index.html` as the clean redirect. The customer navigation and service pages are preserved. Publish this focused customer-site change only after the join domain works. Do not merge the entire sales application branch into the customer website solely to publish this link.
 
 ## 5. Hosted acceptance â€” still required
 
