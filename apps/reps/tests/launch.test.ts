@@ -42,11 +42,18 @@ test("retry diagnostics keep only a bounded replay flag and HTTP status", () => 
     );
     const expected =
       value === "true" || value === "false" ? value : "not reported";
-    assert.ok(error.diagnosticDetail?.includes(`[HTTP 400; replay ${expected}]`));
+    assert.ok(
+      error.diagnosticDetail?.includes(`[HTTP 400; replay ${expected}]`),
+    );
     assert.ok(!error.diagnosticDetail?.includes("sk_test_"));
     assert.ok(!error.diagnosticDetail?.includes("private_attempt_key"));
     assert.ok(!error.message.includes("Accounts v1"));
     assert.ok(!error.message.includes("replay"));
+    assert.equal(error.providerStatus, 400);
+    assert.equal(
+      error.providerReplayed,
+      value === "true" ? true : value === "false" ? false : undefined,
+    );
   }
 });
 
@@ -242,6 +249,109 @@ test("authorized sandbox recovery reconciles an expired attempt and prepares one
     await f.close();
   }
 });
+
+test("authorized recovery replaces a cached rejected setup only after reconciliation", async () => {
+  const f = await startIntegration({
+    connectCachedFailure: { status: 400, replayed: true },
+  });
+  try {
+    await f.db.query(
+      "insert into px_connect_requests(rep_id,started_at) values($1,now()-interval '30 minutes')",
+      [f.newRep],
+    );
+    assert.equal((await post(f, f.newRep, "/connect", {})).status, 502);
+    const recovered = await post(f, f.owner, "/connect/recover", {
+      id: f.newRep,
+      reason: "Platform configuration corrected after a rejected setup",
+    });
+    assert.equal(recovered.status, 200, await recovered.clone().text());
+    const creates = f.providerCalls.filter(
+      (x) => x.path === "/v1/accounts" && x.method === "POST",
+    );
+    assert.equal(creates.length, 3);
+    assert.equal(creates[0].idempotencyKey, creates[1].idempotencyKey);
+    assert.notEqual(creates[1].idempotencyKey, creates[2].idempotencyKey);
+    assert.equal(
+      f.providerCalls.filter((x) => x.path === "/v1/account_links").length,
+      0,
+    );
+    assert.equal(
+      (
+        await post(f, f.owner, "/connect/recover", {
+          id: f.newRep,
+          reason: "Verify repeated recovery reuses the existing account",
+        })
+      ).status,
+      200,
+    );
+    assert.equal((await post(f, f.newRep, "/connect", {})).status, 200);
+    assert.equal(
+      f.providerCalls.filter(
+        (x) => x.path === "/v1/accounts" && x.method === "POST",
+      ).length,
+      3,
+    );
+    assert.equal(
+      (await f.db.query<any>("select count(*) n from px_connect")).rows[0].n,
+      1,
+    );
+    assert.equal(
+      (
+        await f.db.query<any>(
+          "select count(*) n from px_audit where action='connect_reset'",
+        )
+      ).rows[0].n,
+      1,
+    );
+  } finally {
+    await f.close();
+  }
+});
+
+for (const scenario of [
+  { name: "fresh rejection", status: 400, replayed: false, age: "30 minutes" },
+  {
+    name: "uncertain provider failure",
+    status: 500,
+    replayed: true,
+    age: "30 minutes",
+  },
+  { name: "recent attempt", status: 400, replayed: true, age: "1 minute" },
+])
+  test(`recovery preserves the setup identity for a ${scenario.name}`, async () => {
+    const f = await startIntegration({ connectCachedFailure: scenario });
+    try {
+      await f.db.query(
+        "insert into px_connect_requests(rep_id,started_at) values($1,now()-$2::interval)",
+        [f.newRep, scenario.age],
+      );
+      const response = await post(f, f.owner, "/connect/recover", {
+        id: f.newRep,
+        reason: "Verify unsafe retries keep their existing identity",
+      });
+      assert.ok(response.status >= 400);
+      const attempt = (
+        await f.db.query<any>(
+          "select generation,account_id from px_connect_requests where rep_id=$1",
+          [f.newRep],
+        )
+      ).rows[0];
+      assert.equal(attempt.generation, null);
+      assert.equal(attempt.account_id, null);
+      assert.equal(
+        (await f.db.query<any>("select count(*) n from px_connect")).rows[0].n,
+        0,
+      );
+      assert.equal(
+        f.providerCalls.filter(
+          (x) => x.path === "/v1/accounts" && x.method === "POST",
+        ).length,
+        1,
+      );
+    } finally {
+      await f.close();
+    }
+  });
 
 test("Owner delete removes Auth and disposable dependencies; normal admin is denied", async () => {
   const f = await startIntegration();

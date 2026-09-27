@@ -8,7 +8,11 @@ import { database } from "./helpers";
 import worker from "../src/server/index";
 import type { Env } from "../src/server/types";
 export async function startIntegration(
-  options: { ownerMfa?: boolean; connectError?: boolean } = {},
+  options: {
+    ownerMfa?: boolean;
+    connectError?: boolean;
+    connectCachedFailure?: { status: number; replayed: boolean };
+  } = {},
 ) {
   const storedFiles = new Map<string, Uint8Array>();
   let connectedReady = false;
@@ -49,6 +53,7 @@ export async function startIntegration(
     [rep],
   );
   let serial = 0;
+  let failedConnectKey: string | null = null;
   const providerCalls: any[] = [],
     realFetch = globalThis.fetch;
   globalThis.fetch = async (input: any, init?: RequestInit) => {
@@ -66,6 +71,7 @@ export async function startIntegration(
         path: u.pathname,
         data: Object.fromEntries(data),
         method: req.method,
+        idempotencyKey: req.headers.get("idempotency-key"),
       });
       if (u.pathname === "/v1/account")
         return Response.json({ id: "acct_platform", object: "account" });
@@ -106,6 +112,36 @@ export async function startIntegration(
           },
           { status: 400, headers: { "request-id": "req_fixtureProfile" } },
         );
+      if (
+        u.pathname === "/v1/accounts" &&
+        req.method === "POST" &&
+        options.connectCachedFailure
+      ) {
+        const key = req.headers.get("idempotency-key");
+        failedConnectKey ??= key;
+        if (key === failedConnectKey)
+          return Response.json(
+            {
+              error: {
+                type:
+                  options.connectCachedFailure.status === 400
+                    ? "invalid_request_error"
+                    : "api_error",
+                message: "Accounts v1 support is required.",
+              },
+            },
+            {
+              status: options.connectCachedFailure.status,
+              headers: {
+                "request-id": "req_cachedConnect",
+                "idempotent-replayed": String(
+                  options.connectCachedFailure.replayed,
+                ),
+                "stripe-should-retry": "false",
+              },
+            },
+          );
+      }
       if (u.pathname === "/v1/accounts" && req.method === "POST")
         createdAccountRep = data.get("metadata[rep_id]") || "";
       if (

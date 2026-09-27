@@ -90,6 +90,12 @@ export function paymentError(error: unknown, operation: string): HttpError {
       category,
       reference,
       `[HTTP ${providerStatus}; replay ${replay}] ${operation}: ${redactPaymentDetail(error.message)}`,
+      typeof providerStatus === "number" ? providerStatus : undefined,
+      replayHeader === "true"
+        ? true
+        : replayHeader === "false"
+          ? false
+          : undefined,
     );
   }
   return new HttpError(

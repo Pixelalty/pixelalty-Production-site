@@ -22,6 +22,8 @@ export class HttpError extends Error {
     public category = "REQUEST_REJECTED",
     public providerRequestId?: string,
     public diagnosticDetail?: string,
+    public providerStatus?: number,
+    public providerReplayed?: boolean,
   ) {
     super(message);
   }

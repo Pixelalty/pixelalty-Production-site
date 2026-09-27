@@ -301,7 +301,29 @@ export async function recoverConnect(
     });
   // Complete the authorized recovery through the same account-creation path.
   // The rep still creates their own fresh Account Link; none is stored or shared.
-  await connectAccount(env, db, rep.id, "prepare");
+  try {
+    await connectAccount(env, db, rep.id, "prepare");
+  } catch (error) {
+    // Stripe also caches rejected account creation. After a platform setting is
+    // corrected, replaying that same 400 can never test the new configuration.
+    // This TEST-only Finance path already searched every connected account.
+    // Keep uncertain/network/5xx failures on their original key. The database
+    // serializes reset, protects financial history, and rejects recent attempts.
+    if (
+      !retrySameAttempt ||
+      !(error instanceof HttpError) ||
+      error.category !== "PAYMENT_REQUEST_CONFIGURATION" ||
+      error.providerStatus !== 400 ||
+      error.providerReplayed !== true
+    )
+      throw error;
+    await service(env, "connect_reset", {
+      rep_id: rep.id,
+      actor_id: actorId,
+      reason: p.reason,
+    });
+    await connectAccount(env, db, rep.id, "prepare");
+  }
   await rpc(db, "px_action", {
     action: "finance_reconcile",
     p: { id: rep.id, reason: p.reason },
