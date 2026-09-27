@@ -111,6 +111,7 @@ try {
     [crypto.randomUUID(), fixture.owner],
   );
   await go("/admin/health");
+  await page.getByText("acct_platform", { exact: true }).waitFor();
   const diagnostic = page.getByRole("row").filter({
     hasText: "req_browserDiagnostic",
   });

@@ -670,6 +670,7 @@ export function StripeHealth() {
           <>
             {[
               ["Platform API", d.platform_api],
+              ["Connected Stripe account", d.platform_account],
               ["Mode", d.mode],
               ["Platform endpoint", d.platform_destination],
               ["Connect endpoint", d.connect_destination],

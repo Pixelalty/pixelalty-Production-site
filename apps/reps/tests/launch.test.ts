@@ -5,7 +5,7 @@ import Stripe from "stripe";
 import { startIntegration } from "./integration-server";
 import { actor, database, rpc, service } from "./helpers";
 import { validateTaxPdf, INTERACTIVE_PDF_MESSAGE } from "../src/shared/tax-pdf";
-import { redactPaymentDetail } from "../src/server/diagnostics";
+import { paymentError, redactPaymentDetail } from "../src/server/diagnostics";
 
 const auth = (f: Awaited<ReturnType<typeof startIntegration>>, id: string) => ({
   authorization:
@@ -25,6 +25,51 @@ test("staging payment diagnostics remove contact information, credentials, objec
     "123456789",
   ])
     assert.ok(!detail.includes(value));
+});
+test("retry diagnostics keep only a bounded replay flag and HTTP status", () => {
+  for (const value of ["true", "false", "sk_test_do_not_expose", undefined]) {
+    const error = paymentError(
+      new Stripe.errors.StripeInvalidRequestError({
+        message: "Accounts v1 support is required.",
+        statusCode: 400,
+        headers: {
+          ...(value ? { "idempotent-replayed": value } : {}),
+          authorization: "sk_test_do_not_expose",
+          "idempotency-key": "private_attempt_key",
+        },
+      }),
+      "connect_account",
+    );
+    const expected =
+      value === "true" || value === "false" ? value : "not reported";
+    assert.ok(error.diagnosticDetail?.includes(`[HTTP 400; replay ${expected}]`));
+    assert.ok(!error.diagnosticDetail?.includes("sk_test_"));
+    assert.ok(!error.diagnosticDetail?.includes("private_attempt_key"));
+    assert.ok(!error.message.includes("Accounts v1"));
+    assert.ok(!error.message.includes("replay"));
+  }
+});
+
+test("Stripe account identity is visible only to authorized health reviewers", async () => {
+  const f = await startIntegration();
+  try {
+    const denied = await fetch(f.base + "/api/stripe/health", {
+      headers: auth(f, f.newRep),
+    });
+    assert.equal(denied.status, 403);
+    assert.equal(f.providerCalls.length, 0);
+    const allowed = await fetch(f.base + "/api/stripe/health", {
+      headers: auth(f, f.owner),
+    });
+    assert.equal(allowed.status, 200);
+    const data = (await allowed.json()) as any;
+    assert.equal(data.platform_account, "acct_platform");
+    assert.equal(data.mode, "TEST");
+    assert.equal(data.platform_destination, "Configured in this sandbox");
+    assert.equal(data.connect_destination, "Configured in this sandbox");
+  } finally {
+    await f.close();
+  }
 });
 async function post(
   f: Awaited<ReturnType<typeof startIntegration>>,

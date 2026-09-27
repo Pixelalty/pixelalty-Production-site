@@ -10,6 +10,7 @@ export async function stripeHealth(env: Env, db: SupabaseClient) {
     ...data,
     mode: env.STRIPE_MODE.toUpperCase(),
     platform_api: "Error",
+    platform_account: "Not verified",
     category: "",
     platform_destination: "Not verified",
     connect_destination: "Not verified",
@@ -20,8 +21,9 @@ export async function stripeHealth(env: Env, db: SupabaseClient) {
   };
   try {
     const s = stripe(env);
-    await s.accounts.retrieveCurrent();
+    const account = await s.accounts.retrieveCurrent();
     result.platform_api = "Connected";
+    result.platform_account = account.id;
     const endpoints = await s.webhookEndpoints.list({ limit: 100 });
     const origin = deploymentUrls(env, env.APP_URL).app;
     result.platform_destination = endpoints.data.some(

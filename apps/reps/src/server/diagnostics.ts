@@ -73,12 +73,23 @@ export function paymentError(error: unknown, operation: string): HttpError {
       safe =
         "Pixelalty’s payment setup needs attention before you can continue. Please contact support.";
     }
+    const replayHeader = error.headers?.["idempotent-replayed"];
+    const replay =
+      replayHeader === "true" || replayHeader === "false"
+        ? replayHeader
+        : "not reported";
+    const providerStatus =
+      Number.isInteger(error.statusCode) &&
+      error.statusCode! >= 100 &&
+      error.statusCode! <= 599
+        ? error.statusCode
+        : "unknown";
     return new HttpError(
       502,
       safe,
       category,
       reference,
-      `${operation}: ${redactPaymentDetail(error.message)}`,
+      `[HTTP ${providerStatus}; replay ${replay}] ${operation}: ${redactPaymentDetail(error.message)}`,
     );
   }
   return new HttpError(
