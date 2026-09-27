@@ -220,6 +220,7 @@ export function Appearance() {
                 <label className="field" key={key}>
                   {title}
                   <select
+                    aria-label={title}
                     disabled={busy}
                     value={draft[key]}
                     onChange={(e) =>
