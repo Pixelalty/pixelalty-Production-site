@@ -23,6 +23,11 @@ import {
 } from "./payments";
 import { parseUpload } from "./importer";
 import {
+  cleanupProfileMedia,
+  readProfileMedia,
+  uploadProfileMedia,
+} from "./profile";
+import {
   csv,
   header,
   normalizeLead,
@@ -229,7 +234,52 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
   }
   const { db, user } = await identity(req, env);
   trace.userId = user.id;
-  if (path === "/api/me") return json(await rpc(db, "px_context"));
+  if (path === "/api/profile" && !post)
+    return json(
+      await rpc(db, "px_profile", {
+        action: "summary",
+        p: { rep_id: u.searchParams.get("rep") || user.id },
+      }),
+    );
+  if (path === "/api/profile" && post)
+    return json(
+      await rpc(db, "px_profile", { action: "save", p: await body(req) }),
+    );
+  if (path.startsWith("/api/profile/media/") && !post)
+    return readProfileMedia(
+      env,
+      db,
+      path.slice("/api/profile/media/".length),
+      u.searchParams.get("still") === "true",
+    );
+  if (path === "/api/profile/upload" && post) {
+    const data = await bytes(req, 10 * 1024 * 1024 + 65536);
+    let form: FormData;
+    try {
+      form = await new Response(data as Uint8Array<ArrayBuffer>, {
+        headers: { "Content-Type": req.headers.get("content-type") || "" },
+      }).formData();
+    } catch {
+      throw new HttpError(400, "Choose an image using the upload form.");
+    }
+    return json(await uploadProfileMedia(env, db, user.id, form));
+  }
+  if (path === "/api/profile/remove" && post) {
+    await rpc(db, "px_profile", { action: "remove", p: await body(req) });
+    await cleanupProfileMedia(env, user.id);
+    return json({ removed: true });
+  }
+  if (path === "/api/profile/moderate" && post) {
+    const p = await body(req);
+    await rpc(db, "px_profile", { action: "moderate", p });
+    await cleanupProfileMedia(env, p.rep_id);
+    return json({ removed: true });
+  }
+  if (path === "/api/me")
+    return json({
+      ...(await rpc(db, "px_context")),
+      mfa_enrolled: user.factors?.some((f) => f.status === "verified") || false,
+    });
   if (path === "/api/report")
     return json(
       await rpc(db, "px_report", {
@@ -251,7 +301,7 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
       Math.max(0, Math.min(10000, Number(u.searchParams.get("page")) || 0)),
     );
     const joins: Record<string, string> = {
-      applicants: "*,rep:px_reps(code,status)",
+      applicants: "*,rep:px_reps(id,name,code,status)",
       followups: "*,business:px_businesses(name,code)",
       calls: "*,business:px_businesses(name,code)",
       deals: "*,business:px_businesses(name,code)",
@@ -891,7 +941,7 @@ export default {
     if (!headers.has("Content-Security-Policy"))
       headers.set(
         "Content-Security-Policy",
-        "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+        "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
       );
     const currentUrl = new URL(req.url);
     if (

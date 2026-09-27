@@ -10,6 +10,7 @@ import {
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { X, LoaderCircle } from "lucide-react";
 import { label, money, type Row } from "../shared/core";
+import { SharedIdentity } from "./profile-identity";
 let auth: SupabaseClient;
 export function setClient(value: SupabaseClient) {
   auth = value;
@@ -80,6 +81,19 @@ export async function uploadPdf(file: File, requestId: string) {
       out.category,
     );
   return out;
+}
+export async function profileImageBlob(id: string, still: boolean) {
+  const session = await auth.auth.getSession();
+  const response = await fetch(
+    `/api/profile/media/${encodeURIComponent(id)}?still=${still}`,
+    {
+      headers: {
+        Authorization: "Bearer " + session.data.session?.access_token,
+      },
+    },
+  );
+  if (!response.ok) throw Error("Profile image unavailable.");
+  return response.blob();
 }
 export async function download(path: string, filename: string, data?: unknown) {
   const session = await auth.auth.getSession();
@@ -605,7 +619,13 @@ export function Table({
             <tr key={r.id || i}>
               {columns.map(([k]) => (
                 <td key={k}>
-                  {k.includes("cents") ? (
+                  {k === "name" &&
+                  (r.code?.startsWith("PXL-") ||
+                    r.rep?.code?.startsWith("PXL-")) ? (
+                    <SharedIdentity
+                      rep={r.rep?.code ? { id: r.rep_id, ...r.rep } : r}
+                    />
+                  ) : k.includes("cents") ? (
                     money(r[k])
                   ) : ["status", "stage", "classification"].includes(k) &&
                     (typeof r[k] === "string" || r[k] == null) ? (

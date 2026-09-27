@@ -1,0 +1,980 @@
+/* Shared identity and the bounded appearance studio. */
+.profile-accent-blue {
+  --profile-color: #326be3;
+  --profile-alt: #36c9cd;
+}
+.profile-accent-emerald {
+  --profile-color: #168069;
+  --profile-alt: #a9d15c;
+}
+.profile-accent-violet {
+  --profile-color: #7951cd;
+  --profile-alt: #de9ee7;
+}
+.profile-accent-rose {
+  --profile-color: #be426c;
+  --profile-alt: #edb266;
+}
+.profile-accent-amber {
+  --profile-color: #9a651b;
+  --profile-alt: #e6c470;
+}
+.profile-accent-slate {
+  --profile-color: #566781;
+  --profile-alt: #b0c5d9;
+}
+.profile-avatar-v2 {
+  --avatar-size: 38px;
+  position: relative;
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  isolation: isolate;
+  color: var(--profile-color);
+}
+.profile-avatar-v2.size-large {
+  --avatar-size: 88px;
+}
+.profile-avatar-v2.size-preview {
+  --avatar-size: 68px;
+}
+.avatar-face {
+  position: absolute;
+  inset: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--profile-color) 15%, var(--surface));
+  color: var(--profile-color);
+  font-weight: 800;
+  font-size: calc(var(--avatar-size) * 0.34);
+}
+.avatar-face img,
+.profile-banner-v2 > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.profile-avatar-v2:before,
+.profile-avatar-v2:after,
+.cosmetic-orbit {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+}
+.cosmetic-orbit {
+  opacity: 0;
+}
+.cosmetic-avatar-monogram .avatar-face {
+  font-size: calc(var(--avatar-size) * 0.26);
+  letter-spacing: -0.06em;
+}
+.cosmetic-avatar-outline .avatar-face {
+  background: var(--surface);
+  border: 1px solid var(--profile-color);
+}
+.cosmetic-avatar-solid .avatar-face {
+  background: var(--profile-color);
+  color: white;
+}
+.cosmetic-avatar-gradient .avatar-face {
+  background: linear-gradient(135deg, var(--profile-color), var(--profile-alt));
+  color: #fff;
+}
+.cosmetic-avatar-pixel {
+  border-radius: 18%;
+}
+.cosmetic-avatar-pixel .avatar-face {
+  background: conic-gradient(
+      from 90deg,
+      color-mix(in srgb, var(--profile-color) 15%, var(--surface)) 25%,
+      var(--surface) 0 50%,
+      color-mix(in srgb, var(--profile-color) 15%, var(--surface)) 0 75%,
+      var(--surface) 0
+    )
+    0 0/16px 16px;
+}
+.cosmetic-avatar-minimal_badge {
+  border-radius: 28% 28% 40% 40%;
+}
+.cosmetic-avatar-minimal_badge .avatar-face {
+  box-shadow: inset 0 -5px 0 var(--profile-color);
+  background: var(--surface);
+}
+.cosmetic-avatar-dual_tone .avatar-face {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--profile-color) 20%, var(--surface)) 50%,
+    color-mix(in srgb, var(--profile-alt) 22%, var(--surface)) 50%
+  );
+}
+.cosmetic-avatar-halo:before {
+  inset: 1px;
+  box-shadow:
+    0 0 0 1px var(--profile-color),
+    0 0 0 4px color-mix(in srgb, var(--profile-color) 12%, transparent);
+}
+.cosmetic-avatar-glass .avatar-face {
+  background: linear-gradient(
+    130deg,
+    var(--surface),
+    color-mix(in srgb, var(--profile-alt) 23%, var(--surface))
+  );
+  box-shadow:
+    inset 0 0 0 1px #ffffff90,
+    inset 3px 3px 9px #ffffff50;
+}
+.cosmetic-avatar-carbon .avatar-face {
+  color: white;
+  background: repeating-linear-gradient(45deg, #222d3c 0 3px, #344154 3px 6px);
+}
+.cosmetic-avatar-prism .avatar-face {
+  color: #fff;
+  background: conic-gradient(
+    from 45deg,
+    var(--profile-color),
+    var(--profile-alt),
+    #4c467e,
+    var(--profile-color)
+  );
+}
+.cosmetic-avatar-animated_halo:before {
+  box-shadow: 0 0 0 2px var(--profile-color);
+  animation: profile-breathe 4s ease-in-out infinite;
+}
+.cosmetic-avatar-orbit .cosmetic-orbit,
+.cosmetic-avatar-constellation .cosmetic-orbit {
+  opacity: 1;
+  border: 1px solid color-mix(in srgb, var(--profile-color) 40%, transparent);
+  animation: profile-spin 15s linear infinite;
+}
+.cosmetic-avatar-orbit .cosmetic-orbit:after,
+.cosmetic-avatar-constellation .cosmetic-orbit:after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--profile-alt);
+}
+.cosmetic-avatar-constellation .cosmetic-orbit.secondary {
+  inset: 2px -3px;
+  animation-direction: reverse;
+  transform: rotate(50deg);
+}
+.cosmetic-avatar-pulse:before {
+  background: color-mix(in srgb, var(--profile-color) 22%, transparent);
+  animation: profile-breathe 3.5s ease-in-out infinite;
+}
+.cosmetic-avatar-moving_gradient:before,
+.cosmetic-avatar-energy_ring:before,
+.cosmetic-avatar-holographic:before {
+  background: conic-gradient(
+    var(--profile-color),
+    var(--profile-alt),
+    transparent,
+    var(--profile-color)
+  );
+  animation: profile-spin 12s linear infinite;
+}
+.cosmetic-avatar-moving_gradient .avatar-face {
+  background: color-mix(in srgb, var(--profile-color) 20%, var(--surface));
+}
+.cosmetic-avatar-energy_ring:before {
+  inset: -2px;
+  background: conic-gradient(
+    transparent 20%,
+    var(--profile-color) 40%,
+    transparent 60%,
+    var(--profile-alt)
+  );
+}
+.cosmetic-avatar-aurora .avatar-face {
+  background: linear-gradient(
+    40deg,
+    #222444,
+    var(--profile-color),
+    var(--profile-alt)
+  );
+  color: #fff;
+}
+.cosmetic-avatar-aurora:before {
+  background: var(--profile-alt);
+  filter: blur(5px);
+  animation: profile-breathe 6s ease-in-out infinite;
+}
+.cosmetic-avatar-geometry {
+  border-radius: 28%;
+}
+.cosmetic-avatar-geometry .cosmetic-orbit {
+  opacity: 1;
+  border: 1px solid var(--profile-color);
+  border-radius: 28%;
+  animation: profile-spin 20s linear infinite;
+}
+.cosmetic-avatar-holographic .avatar-face {
+  background: linear-gradient(
+    130deg,
+    var(--surface) 10%,
+    color-mix(in srgb, var(--profile-alt) 40%, var(--surface)) 45%,
+    var(--surface) 65%
+  );
+}
+.cosmetic-frame-line:after {
+  border: 1px solid var(--profile-color);
+}
+.cosmetic-frame-double:after {
+  border: 3px double var(--profile-color);
+}
+.cosmetic-frame-soft:after {
+  box-shadow: 0 0 0 4px
+    color-mix(in srgb, var(--profile-color) 12%, transparent);
+}
+.cosmetic-frame-squared {
+  border-radius: 22%;
+}
+.cosmetic-frame-squared:after {
+  border: 1px solid var(--profile-color);
+}
+.cosmetic-frame-minimal_ring:after {
+  inset: 1px;
+  border: 1px solid var(--line);
+}
+.cosmetic-frame-accent_ring:after {
+  border: 3px solid var(--profile-color);
+}
+.cosmetic-frame-split_ring:after {
+  border: 3px solid var(--profile-color);
+  border-left-color: var(--profile-alt);
+  border-right-color: var(--profile-alt);
+}
+.cosmetic-frame-corners:after {
+  border: 2px solid var(--profile-color);
+  border-radius: 18%;
+  clip-path: polygon(
+    0 0,
+    30% 0,
+    30% 10%,
+    70% 10%,
+    70% 0,
+    100% 0,
+    100% 30%,
+    90% 30%,
+    90% 70%,
+    100% 70%,
+    100% 100%,
+    70% 100%,
+    70% 90%,
+    30% 90%,
+    30% 100%,
+    0 100%,
+    0 70%,
+    10% 70%,
+    10% 30%,
+    0 30%
+  );
+}
+.cosmetic-frame-technical:after {
+  border: 2px dashed var(--profile-color);
+}
+.cosmetic-frame-pixel_edge {
+  border-radius: 15%;
+}
+.cosmetic-frame-pixel_edge:after {
+  border: 3px dotted var(--profile-color);
+}
+.cosmetic-frame-layered:after {
+  border: 1px solid var(--profile-color);
+  box-shadow:
+    3px 2px 0 var(--profile-alt),
+    -2px -1px 0 color-mix(in srgb, var(--profile-color) 30%, transparent);
+}
+.cosmetic-frame-pulse:after {
+  border: 2px solid var(--profile-color);
+  animation: profile-breathe 4s ease-in-out infinite;
+}
+.cosmetic-frame-orbit:after {
+  border: 2px solid transparent;
+  border-top-color: var(--profile-color);
+  border-bottom-color: var(--profile-alt);
+  animation: profile-spin 8s linear infinite;
+}
+.cosmetic-frame-neon:after {
+  border: 1px solid var(--profile-alt);
+  box-shadow: 0 0 6px var(--profile-color);
+  animation: profile-glow 4s ease-in-out infinite;
+}
+.cosmetic-frame-moving_dashes:after {
+  border: 2px dashed var(--profile-color);
+  animation: profile-spin 35s linear infinite;
+}
+.cosmetic-frame-energy:after {
+  border: 3px solid var(--profile-color);
+  border-right-color: transparent;
+  animation: profile-spin 9s linear infinite reverse;
+}
+.cosmetic-frame-holographic:after,
+.cosmetic-frame-aurora:after {
+  background: conic-gradient(
+    var(--profile-color),
+    var(--profile-alt),
+    #d6cfff,
+    var(--profile-color)
+  );
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
+  animation: profile-spin 20s linear infinite;
+}
+.cosmetic-frame-aurora:after {
+  inset: -2px;
+  opacity: 0.8;
+  animation-direction: reverse;
+}
+.cosmetic-frame-comet:after {
+  border: 2px solid transparent;
+  border-top-color: var(--profile-color);
+  box-shadow: 2px -2px 0 var(--profile-alt);
+  animation: profile-spin 12s linear infinite;
+}
+.cosmetic-frame-geometry:after {
+  border: 1px solid var(--profile-color);
+  border-radius: 25%;
+  animation: profile-spin 30s linear infinite;
+}
+.cosmetic-frame-dynamic_wave:after {
+  border: 2px solid var(--profile-color);
+  border-radius: 38% 60% 42% 55%;
+  animation: profile-spin 18s linear infinite reverse;
+}
+.profile-banner-v2 {
+  position: relative;
+  height: 160px;
+  width: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  background: color-mix(in srgb, var(--profile-color) 8%, var(--surface));
+}
+.profile-banner-v2 > i {
+  display: none;
+  position: absolute;
+  pointer-events: none;
+}
+.cosmetic-banner-plain {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.cosmetic-banner-wash {
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--profile-color) 20%, var(--surface)),
+    var(--surface)
+  );
+}
+.cosmetic-banner-grid,
+.cosmetic-banner-moving_grid {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--profile-color) 15%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--profile-color) 15%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 24px 24px;
+}
+.cosmetic-banner-gradient,
+.cosmetic-banner-animated_gradient {
+  background: linear-gradient(115deg, var(--profile-color), var(--profile-alt));
+}
+.cosmetic-banner-dots {
+  background-image: radial-gradient(
+    var(--profile-color) 0.8px,
+    transparent 0.8px
+  );
+  background-size: 13px 13px;
+}
+.cosmetic-banner-lines {
+  background: repeating-linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--profile-color) 10%, var(--surface)) 0 1px,
+    var(--surface) 1px 14px
+  );
+}
+.cosmetic-banner-soft_mesh,
+.cosmetic-banner-flowing_mesh {
+  background:
+    radial-gradient(
+      at 25% 10%,
+      color-mix(in srgb, var(--profile-color) 35%, var(--surface)),
+      transparent 70%
+    ),
+    radial-gradient(
+      at 75% 90%,
+      color-mix(in srgb, var(--profile-alt) 40%, var(--surface)),
+      var(--surface)
+    );
+}
+.cosmetic-banner-blueprint {
+  background-color: var(--profile-color);
+  background-image:
+    linear-gradient(#ffffff25 1px, transparent 1px),
+    linear-gradient(90deg, #ffffff25 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+.cosmetic-banner-pixel_field {
+  background:
+    conic-gradient(
+        from 90deg,
+        color-mix(in srgb, var(--profile-color) 18%, var(--surface)) 25%,
+        transparent 0 50%,
+        color-mix(in srgb, var(--profile-alt) 25%, var(--surface)) 0 75%,
+        transparent 0
+      )
+      0 0/32px 32px,
+    var(--surface);
+}
+.cosmetic-banner-contours {
+  background:
+    repeating-radial-gradient(
+      ellipse at 10% 140%,
+      transparent 0 12px,
+      color-mix(in srgb, var(--profile-color) 25%, transparent) 13px 14px,
+      transparent 15px 23px
+    ),
+    var(--surface);
+}
+.cosmetic-banner-waves {
+  background: repeating-radial-gradient(
+    ellipse at 80% -20%,
+    var(--surface) 0 18px,
+    color-mix(in srgb, var(--profile-alt) 23%, var(--surface)) 19px 37px
+  );
+}
+.cosmetic-banner-geometric {
+  background: conic-gradient(
+    from 45deg at 25% 60%,
+    var(--surface),
+    var(--profile-alt),
+    var(--profile-color),
+    var(--surface)
+  );
+}
+.cosmetic-banner-horizon {
+  background: linear-gradient(
+    0deg,
+    color-mix(in srgb, var(--profile-color) 65%, var(--surface)) 0 24%,
+    var(--profile-alt) 25%,
+    var(--surface) 28% 100%
+  );
+}
+.cosmetic-banner-animated_gradient > i:first-child,
+.cosmetic-banner-flowing_mesh > i:first-child {
+  display: block;
+  inset: -70%;
+  background: radial-gradient(ellipse, #ffffff50, transparent 60%);
+  animation: profile-drift 14s ease-in-out infinite alternate;
+}
+.cosmetic-banner-moving_grid > i:first-child,
+.cosmetic-banner-scanning_line > i:first-child {
+  display: block;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 30%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--profile-color) 20%, transparent),
+    transparent
+  );
+  animation: profile-scan 14s ease-in-out infinite alternate;
+}
+.cosmetic-banner-scanning_line {
+  background: repeating-linear-gradient(
+    0deg,
+    var(--surface) 0 4px,
+    color-mix(in srgb, var(--profile-color) 9%, var(--surface)) 4px 5px
+  );
+}
+.cosmetic-banner-orbiting_shapes {
+  background: var(--surface);
+}
+.cosmetic-banner-orbiting_shapes > i {
+  display: block;
+  width: 130px;
+  height: 130px;
+  border: 1px solid var(--profile-color);
+  top: 15px;
+  left: 25%;
+  border-radius: 30%;
+  animation: profile-spin 45s linear infinite;
+}
+.cosmetic-banner-orbiting_shapes > i:nth-child(2) {
+  left: 55%;
+  border-color: var(--profile-alt);
+  animation-direction: reverse;
+}
+.cosmetic-banner-aurora {
+  background: linear-gradient(140deg, #132536, var(--profile-color), #325155);
+}
+.cosmetic-banner-aurora > i:first-child {
+  display: block;
+  inset: -50%;
+  background: conic-gradient(
+    from 35deg,
+    transparent,
+    var(--profile-alt),
+    transparent
+  );
+  opacity: 0.6;
+  animation: profile-drift 20s ease-in-out infinite alternate;
+}
+.cosmetic-banner-holographic {
+  background: linear-gradient(
+    140deg,
+    var(--profile-alt),
+    var(--surface),
+    var(--profile-color),
+    var(--surface)
+  );
+}
+.cosmetic-banner-holographic > i:first-child {
+  display: block;
+  inset: -90%;
+  background: repeating-linear-gradient(
+    60deg,
+    transparent 0 60px,
+    #ffffff40 62px 65px
+  );
+  animation: profile-drift 15s ease-in-out infinite alternate;
+}
+.cosmetic-banner-constellation {
+  background-color: #162337;
+  background-image:
+    radial-gradient(#ffffffaa 1px, transparent 2px),
+    radial-gradient(var(--profile-alt) 1px, transparent 2px);
+  background-position:
+    0 0,
+    27px 16px;
+  background-size:
+    71px 47px,
+    97px 83px;
+}
+.cosmetic-banner-constellation > i:first-child {
+  display: block;
+  inset: 0;
+  background: linear-gradient(115deg, transparent, #ffffff13, transparent);
+  animation: profile-glow 5s ease-in-out infinite;
+}
+.cosmetic-banner-comet_trails {
+  background: linear-gradient(125deg, #192334, var(--profile-color));
+}
+.cosmetic-banner-comet_trails > i {
+  display: block;
+  height: 1px;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, var(--profile-alt));
+  top: 40%;
+  animation: profile-scan 14s ease-in-out infinite;
+  transform: rotate(-20deg);
+}
+.cosmetic-banner-comet_trails > i:nth-child(2) {
+  top: 70%;
+  animation-delay: -7s;
+}
+.cosmetic-banner-pixelalty_motif {
+  background: #152238;
+}
+.cosmetic-banner-pixelalty_motif > i {
+  display: block;
+  width: 90px;
+  height: 90px;
+  border: 14px solid var(--profile-color);
+  transform: rotate(45deg);
+  top: 35px;
+  left: 25%;
+  animation: profile-drift 18s ease-in-out infinite alternate;
+}
+.cosmetic-banner-pixelalty_motif > i:nth-child(2) {
+  left: 60%;
+  border-width: 1px;
+  border-color: var(--profile-alt);
+  animation-delay: -9s;
+}
+.profile-surface {
+  padding: 0 !important;
+  overflow: hidden;
+}
+.profile-surface-details {
+  padding: 0 28px 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+}
+.profile-surface-details > .profile-avatar-v2 {
+  margin-top: -32px;
+  background: var(--surface);
+  outline: 5px solid var(--surface);
+}
+.profile-surface-details > div {
+  min-width: 0;
+  padding-top: 16px;
+}
+.profile-surface-details h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.profile-surface-details p {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+.shared-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.shared-identity > span:last-child {
+  display: grid;
+  min-width: 0;
+  text-align: left;
+}
+.shared-identity strong {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.shared-identity small {
+  color: var(--muted);
+}
+.leader-row .shared-identity {
+  flex: 1;
+}
+.progress-profile {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+}
+.appearance-tabs,
+.segmented,
+.cosmetic-tiers {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 24px;
+}
+.appearance-tabs {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+}
+.appearance-tabs [aria-selected="true"],
+.segmented [aria-pressed="true"],
+.cosmetic-tiers [aria-pressed="true"] {
+  color: var(--link);
+  background: var(--soft);
+  border-color: var(--link);
+}
+.studio-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  gap: 24px;
+}
+.studio-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.studio-summary span {
+  display: grid;
+  gap: 8px;
+}
+.studio-summary small {
+  line-height: 1.6;
+  color: var(--muted);
+}
+.studio-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 24px 0;
+}
+.studio-controls .segmented {
+  margin: 0;
+}
+.studio-controls .field {
+  margin: 0;
+  min-width: 160px;
+}
+.cosmetic-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+  margin: 0 0 28px;
+}
+.cosmetic-tile {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  padding: 16px 10px;
+  gap: 9px;
+  min-width: 0;
+  transition:
+    transform 0.18s,
+    box-shadow 0.18s;
+}
+.cosmetic-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px #12243f12;
+}
+.cosmetic-tile.selected {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 1px var(--blue);
+}
+.cosmetic-swatch {
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.cosmetic-swatch .profile-banner-v2 {
+  height: 90px;
+  border-radius: 7px;
+}
+.cosmetic-status {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+.cosmetic-tile progress {
+  width: 90%;
+  height: 4px;
+  margin: 0;
+}
+.cosmetic-tile small {
+  font-size: 10px;
+}
+.media-library {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 14px;
+  margin: 20px 0;
+}
+.media-item {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.media-item > button:first-child {
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+}
+.media-item [aria-pressed="true"] {
+  border-color: var(--blue);
+}
+.media-item .profile-banner-v2 {
+  height: 75px;
+}
+.media-position {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.media-position p {
+  grid-column: 1/-1;
+}
+.upload-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  margin: 0 auto;
+}
+.upload-preview-avatar {
+  width: 240px;
+  height: 240px;
+}
+.account-facts {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 14px;
+}
+.account-facts dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.account-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.account-facts .badge {
+  margin-left: 7px;
+}
+.readiness-list {
+  padding: 0;
+  list-style: none;
+}
+.readiness-list li {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
+}
+.motion-preview {
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  background: var(--soft);
+  border-radius: 12px;
+}
+.motion-orbit {
+  position: absolute;
+  width: 130px;
+  height: 130px;
+  border: 1px solid var(--line);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: profile-spin 12s linear infinite;
+}
+.motion-preview strong {
+  z-index: 1;
+  background: var(--soft);
+  padding: 6px;
+}
+@keyframes profile-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes profile-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.07);
+    opacity: 1;
+  }
+}
+@keyframes profile-glow {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes profile-drift {
+  from {
+    transform: translate(-7%, -3%) rotate(-12deg);
+  }
+  to {
+    transform: translate(7%, 3%) rotate(12deg);
+  }
+}
+@keyframes profile-scan {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(420%);
+  }
+}
+@media (max-width: 900px) {
+  .studio-preview {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .studio-summary {
+    margin-bottom: 16px;
+  }
+}
+@media (max-width: 520px) {
+  .studio-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .studio-controls .field {
+    width: 100%;
+  }
+  .profile-surface-details {
+    gap: 14px;
+    padding: 0 18px 20px;
+  }
+  .profile-surface-details .size-large {
+    --avatar-size: 66px;
+  }
+  .cosmetic-gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .account-facts {
+    grid-template-columns: 95px minmax(0, 1fr);
+  }
+  .media-position {
+    grid-template-columns: 1fr;
+  }
+}
+/* A static equivalent retains shape/color. GIF/WebP originals are swapped for
+   authenticated still images by the shared component, not merely paused CSS. */
+:root[data-motion="off"]
+  :is(.profile-avatar-v2, .profile-banner-v2, .motion-preview)
+  *,
+:root[data-motion="reduced"]
+  :is(.profile-avatar-v2, .profile-banner-v2, .motion-preview)
+  *,
+:root[data-motion="off"] .profile-avatar-v2:before,
+:root[data-motion="off"] .profile-avatar-v2:after,
+:root[data-motion="reduced"] .profile-avatar-v2:before,
+:root[data-motion="reduced"] .profile-avatar-v2:after {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-avatar-v2 *,
+  .profile-banner-v2 *,
+  .motion-preview *,
+  .profile-avatar-v2:before,
+  .profile-avatar-v2:after {
+    animation: none !important;
+  }
+  .cosmetic-tile:hover {
+    transform: none;
+  }
+}
+.profile-media-unavailable {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  font-size: 11px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+  text-align: center;
+  border: 1px solid var(--line);
+}

@@ -45,10 +45,14 @@ export async function verifyWorkspace(
   await page.getByLabel("Spacing", { exact: true }).selectOption("compact");
   await page.getByLabel("Text size", { exact: true }).selectOption("large");
   await page
-    .getByLabel("Sidebar style", { exact: true })
+    .getByLabel("Sidebar surface", { exact: true })
     .selectOption("matching");
+  await page
+    .getByLabel("Card corners", { exact: true })
+    .selectOption("rounded");
+  await page.getByRole("tab", { name: "Motion", exact: true }).click();
   await page.getByLabel("Motion", { exact: true }).selectOption("reduced");
-  await page.getByLabel("Card style", { exact: true }).selectOption("rounded");
+  await page.getByRole("tab", { name: "Navigation", exact: true }).click();
   await page
     .getByLabel("Sidebar width", { exact: true })
     .selectOption("compact");
@@ -67,7 +71,7 @@ export async function verifyWorkspace(
     .getByRole("checkbox", { name: "Import leads", exact: true })
     .check();
   await page
-    .getByRole("button", { name: "Move Import leads up", exact: true })
+    .getByRole("button", { name: "Move pinned page 2 up", exact: true })
     .click();
 
   // A failed real-client request must remain an error, not a locally saved success.
@@ -107,6 +111,7 @@ export async function verifyWorkspace(
   await page
     .getByRole("heading", { name: "Appearance", exact: true })
     .waitFor();
+  await page.getByRole("tab", { name: "Workspace", exact: true }).click();
   assert.equal(
     await page.getByLabel("Text size", { exact: true }).inputValue(),
     "large",

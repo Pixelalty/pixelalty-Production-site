@@ -20,6 +20,9 @@ export async function database() {
   await db.exec(
     "create table auth.sessions(id uuid primary key,user_id uuid references auth.users(id) on delete cascade,created_at timestamptz not null default now());",
   );
+  await db.exec(
+    "create table auth.mfa_factors(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id) on delete cascade,status text);",
+  );
   await db.exec(storageSchema);
   const dir = new URL("../supabase/migrations/", import.meta.url);
   for (const f of (await readdir(dir)).filter((x) => x.endsWith(".sql")).sort())

@@ -14,6 +14,9 @@ import {
   type Field,
 } from "./lib";
 import { label, type Row } from "../shared/core";
+import { careerProgress } from "../shared/progression";
+import { SharedIdentity } from "./profile-identity";
+import { timezoneOptions } from "../shared/timezones";
 
 type AccountDialog = {
   title: string;
@@ -150,6 +153,12 @@ export function XpHistory({
   const [page, setPage] = useState(0),
     state = useData(
       `/report?kind=xp_history&page=${page}${repId ? `&id=${repId}` : ""}`,
+      15000,
+    ),
+    app = useApp(),
+    progress = careerProgress(
+      state.data?.total || 0,
+      app.ctx.settings?.xp_per_level,
     );
   return (
     <Card title="Career XP history">
@@ -159,6 +168,20 @@ export function XpHistory({
             {Number(state.data?.total || 0).toLocaleString()} career XP
           </strong>{" "}
           · Every award and correction is recorded.
+        </p>
+        <p aria-live="polite">
+          Level {progress.level.toLocaleString()} ·{" "}
+          {progress.within.toLocaleString()} / {progress.step.toLocaleString()}{" "}
+          XP within this level
+        </p>
+        <progress
+          aria-label="Career level progress"
+          value={progress.within}
+          max={progress.step}
+        />
+        <p className="fine-print">
+          The bar starts again at each level.{" "}
+          {progress.remaining.toLocaleString()} XP to the next level.
         </p>
         {!compact && (
           <>
@@ -193,6 +216,15 @@ export function XpHistory({
           </>
         )}
         {compact && <LinkButton to="/xp">View XP history</LinkButton>}
+        {!compact && (
+          <p className="notice">
+            Manual call outcomes are self-reported. A phone-button click earns
+            no XP and cannot prove a conversation. The server checks lead
+            ownership, unique submissions, a 30-second qualification cooldown,
+            one qualification per lead in 24 hours, and your local-day XP cap.
+            Paid-sale awards require verified payment events.
+          </p>
+        )}
       </State>
     </Card>
   );
@@ -242,6 +274,7 @@ export function ManageAccount({ code }: { code: string }) {
                 </p>
               </Card>
             )}
+            {!r.deleted_at && <SharedIdentity rep={r} surface />}
             {!r.deleted_at && (
               <div className="onboarding-grid">
                 <Card title="Profile & responsibilities">
@@ -265,7 +298,12 @@ export function ManageAccount({ code }: { code: string }) {
                         label: "Legal / admin name",
                         maxLength: 150,
                       },
-                      { name: "timezone", label: "Timezone", required: true },
+                      {
+                        name: "timezone",
+                        label: "Timezone",
+                        required: true,
+                        options: timezoneOptions(r.timezone),
+                      },
                       {
                         name: "bio",
                         label: "Visible profile information",
@@ -333,6 +371,34 @@ export function ManageAccount({ code }: { code: string }) {
                   />
                 </Card>
                 <div>
+                  {(app.has("sales_admin") || app.has("support")) && (
+                    <Card title="Profile moderation">
+                      <p>
+                        Remove inappropriate profile images and restore the
+                        standard presets. This does not change earned unlocks.
+                      </p>
+                      <Form
+                        fields={[
+                          {
+                            name: "reason",
+                            label: "Reason for removal",
+                            type: "textarea",
+                            required: true,
+                            minLength: 5,
+                          },
+                        ]}
+                        submit="Remove profile images & reset style"
+                        onSubmit={async (p) => {
+                          await api("/profile/moderate", {
+                            rep_id: r.id,
+                            reason: p.reason,
+                          });
+                          app.refresh();
+                          app.notify("Profile reset and images removed.");
+                        }}
+                      />
+                    </Card>
+                  )}
                   <Card title="Onboarding & readiness">
                     <p>
                       Classification, agreements, tax review and payout

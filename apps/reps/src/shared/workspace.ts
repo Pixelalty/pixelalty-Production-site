@@ -14,14 +14,25 @@ export const accentOptions = [
 export type WorkspacePreferences = {
   theme: "system" | "light" | "dark";
   accent: (typeof accentOptions)[number]["value"];
-  density: "comfortable" | "compact";
+  density: "comfortable" | "compact" | "spacious";
   text_size: "standard" | "large";
   sidebar: "contrast" | "matching";
   reduced_motion: boolean;
   pinned: string[];
-  sidebar_mode: "expanded" | "compact" | "collapsed";
+  sidebar_mode: "expanded" | "compact" | "collapsed" | "wide";
   cards: "minimal" | "standard" | "rounded";
-  motion: "normal" | "reduced" | "off";
+  motion: "normal" | "reduced" | "off" | "premium";
+  navigation_mode: "multiple" | "single";
+  navigation_open: string[] | null;
+  content_width: "balanced" | "wide" | "focused";
+  font: "sans" | "humanist" | "system";
+  heading_scale: "standard" | "compact" | "expressive";
+  card_surface: "solid" | "flat" | "glass";
+  border_strength: "subtle" | "defined";
+  shadow: "none" | "soft" | "lifted";
+  background: "solid" | "wash" | "dots" | "grid";
+  buttons: "standard" | "soft" | "pill";
+  icon_size: "standard" | "large";
   avatar: "initial" | "monogram" | "outline";
   frame: "simple" | "line" | "double";
   banner: "plain" | "wash" | "grid";
@@ -41,6 +52,17 @@ export const defaultWorkspacePreferences: WorkspacePreferences = {
   sidebar_mode: "expanded",
   cards: "standard",
   motion: "normal",
+  navigation_mode: "multiple",
+  navigation_open: null,
+  content_width: "balanced",
+  font: "sans",
+  heading_scale: "standard",
+  card_surface: "solid",
+  border_strength: "subtle",
+  shadow: "soft",
+  background: "solid",
+  buttons: "standard",
+  icon_size: "standard",
   avatar: "initial",
   frame: "simple",
   banner: "plain",
@@ -60,12 +82,17 @@ export function workspacePreferences(value: unknown): WorkspacePreferences {
     accent: accentOptions.some((a) => a.value === p.accent)
       ? (p.accent as WorkspacePreferences["accent"])
       : "blue",
-    density: p.density === "compact" ? "compact" : "comfortable",
+    density:
+      p.density === "compact" || p.density === "spacious"
+        ? p.density
+        : "comfortable",
     text_size: p.text_size === "large" ? "large" : "standard",
     sidebar: p.sidebar === "matching" ? "matching" : "contrast",
     reduced_motion: p.reduced_motion === true,
     sidebar_mode:
-      p.sidebar_mode === "compact" || p.sidebar_mode === "collapsed"
+      p.sidebar_mode === "compact" ||
+      p.sidebar_mode === "collapsed" ||
+      p.sidebar_mode === "wide"
         ? p.sidebar_mode
         : "expanded",
     cards:
@@ -75,7 +102,53 @@ export function workspacePreferences(value: unknown): WorkspacePreferences {
         ? "off"
         : p.motion === "reduced" || p.reduced_motion === true
           ? "reduced"
-          : "normal",
+          : p.motion === "premium"
+            ? "premium"
+            : "normal",
+    navigation_mode: p.navigation_mode === "single" ? "single" : "multiple",
+    navigation_open: Array.isArray(p.navigation_open)
+      ? [
+          ...new Set(
+            p.navigation_open.filter(
+              (v): v is string =>
+                typeof v === "string" &&
+                [
+                  "My progress",
+                  "My sales",
+                  "Resources",
+                  "Settings & account",
+                  "Sales",
+                  "People",
+                  "Operations",
+                ].includes(v),
+            ),
+          ),
+        ]
+      : null,
+    content_width:
+      p.content_width === "wide" || p.content_width === "focused"
+        ? p.content_width
+        : "balanced",
+    font: p.font === "humanist" || p.font === "system" ? p.font : "sans",
+    heading_scale:
+      p.heading_scale === "compact" || p.heading_scale === "expressive"
+        ? p.heading_scale
+        : "standard",
+    card_surface:
+      p.card_surface === "flat" || p.card_surface === "glass"
+        ? p.card_surface
+        : "solid",
+    border_strength: p.border_strength === "defined" ? "defined" : "subtle",
+    shadow: p.shadow === "none" || p.shadow === "lifted" ? p.shadow : "soft",
+    background:
+      p.background === "wash" ||
+      p.background === "dots" ||
+      p.background === "grid"
+        ? p.background
+        : "solid",
+    buttons:
+      p.buttons === "soft" || p.buttons === "pill" ? p.buttons : "standard",
+    icon_size: p.icon_size === "large" ? "large" : "standard",
     avatar:
       p.avatar === "monogram" || p.avatar === "outline" ? p.avatar : "initial",
     frame: p.frame === "line" || p.frame === "double" ? p.frame : "simple",

@@ -76,6 +76,18 @@ export async function identity(req: Request, env: Env) {
       "Your session has ended. Sign in again.",
       "SESSION_REVOKED",
     );
+  if (
+    data.user.factors?.some((f) => f.status === "verified") &&
+    new URL(req.url).pathname !== "/api/me"
+  ) {
+    const context = await rpc(db, "px_context");
+    if (context.aal !== "aal2")
+      throw new HttpError(
+        403,
+        "Verify your authenticator before continuing.",
+        "MFA_REQUIRED",
+      );
+  }
   return { db, user: data.user, token };
 }
 export function service(env: Env, action: string, p: Row) {

@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { ArrowRight, Check, ShieldCheck } from "lucide-react";
 import { api, Form, type Field, State } from "./lib";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AuthShell } from "./auth-shell";
 import { authErrorMessage } from "../shared/auth";
+import { timezoneOptions } from "../shared/timezones";
 export function SignIn({
   client,
   configured,
@@ -109,9 +110,15 @@ export function SignIn({
 export function MFA({
   client,
   onSuccess,
+  embedded = false,
+  enrollNew = false,
+  adminRequired = true,
 }: {
   client: SupabaseClient;
   onSuccess: () => void;
+  embedded?: boolean;
+  enrollNew?: boolean;
+  adminRequired?: boolean;
 }) {
   const [factor, setFactor] = useState(""),
     [qr, setQr] = useState(""),
@@ -129,7 +136,7 @@ export function MFA({
           return;
         }
         const existing = r.data?.totp.find((x) => x.status === "verified");
-        if (existing) setFactor(existing.id);
+        if (existing && !enrollNew) setFactor(existing.id);
         else {
           for (const f of r.data?.all || [])
             if (f.factor_type === "totp" && f.status === "unverified") {
@@ -142,7 +149,7 @@ export function MFA({
           const e = await client.auth.mfa.enroll({
             factorType: "totp",
             issuer: "Pixelalty Sales",
-            friendlyName: "Pixelalty Sales",
+            friendlyName: "Pixelalty Sales " + new Date().toLocaleString(),
           });
           if (!live) return;
           if (e.error) setError(authErrorMessage(e.error));
@@ -162,11 +169,16 @@ export function MFA({
     return () => {
       live = false;
     };
-  }, [client, attempt]);
+  }, [client, attempt, enrollNew]);
+  const Shell = embedded ? Fragment : AuthShell;
   return (
-    <AuthShell>
+    <Shell>
       <ShieldCheck size={34} />
-      <h1>Protect your admin access</h1>
+      <h1>
+        {embedded || !adminRequired
+          ? "Protect your account"
+          : "Protect your admin access"}
+      </h1>
       <p>Use your authenticator app to verify this session.</p>
       {qr && (
         <>
@@ -204,10 +216,12 @@ export function MFA({
           }}
         />
       )}
-      <button className="text-button" onClick={() => client.auth.signOut()}>
-        Sign out
-      </button>
-    </AuthShell>
+      {!embedded && (
+        <button className="text-button" onClick={() => client.auth.signOut()}>
+          Sign out
+        </button>
+      )}
+    </Shell>
   );
 }
 export function PasswordSetup({
@@ -318,7 +332,8 @@ export function Apply({
       name: "timezone",
       label: "Timezone",
       required: true,
-      hint: "For example, America/New_York.",
+      options: timezoneOptions(),
+      hint: "Your scheduling preference. Eligibility is reviewed separately.",
     },
     {
       name: "experience",
@@ -458,7 +473,13 @@ export function Apply({
             <Form
               fields={fields}
               initial={{
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                timezone: timezoneOptions().some(
+                  (o) =>
+                    o.value ===
+                    Intl.DateTimeFormat().resolvedOptions().timeZone,
+                )
+                  ? Intl.DateTimeFormat().resolvedOptions().timeZone
+                  : "America/New_York",
               }}
               submit="Submit application"
               onSubmit={async (p) => {

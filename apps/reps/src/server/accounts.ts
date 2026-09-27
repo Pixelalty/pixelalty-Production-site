@@ -4,6 +4,7 @@ import { client, rpc } from "./db";
 import { HttpError, type Env } from "./types";
 import { TAX_BUCKET } from "./tax";
 import { deploymentUrls } from "./urls";
+import { cleanupProfileMedia } from "./profile";
 
 export async function deleteAccount(env: Env, db: SupabaseClient, p: Row) {
   const prepared = await rpc(db, "px_action", {
@@ -13,6 +14,7 @@ export async function deleteAccount(env: Env, db: SupabaseClient, p: Row) {
   if (prepared.status === "complete")
     return { deleted: true, mode: prepared.mode };
   const admin = client(env, undefined, true);
+  await cleanupProfileMedia(env, p.id);
   const keys = await rpc(admin, "px_account_cleanup_files", {
     p: { id: p.id },
   });

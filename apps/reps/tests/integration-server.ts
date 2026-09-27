@@ -17,11 +17,14 @@ export async function startIntegration(
   const storedFiles = new Map<string, Uint8Array>();
   let connectedReady = false;
   let createdAccountRep = "";
+  const pendingEmails = new Map<string, string>();
   const userMetadata = new Map<string, Record<string, unknown>>();
   const passwords = new Map<string, string>(),
     emailLinks = new Map<string, { id: string; type: string }>(),
     authCalls: any[] = [];
   const factorId = crypto.randomUUID();
+  const factors = new Map<string, any[]>(),
+    verifiedSessions = new Set<string>();
   const db = await database(),
     owner = crypto.randomUUID(),
     rep = crypto.randomUUID(),
@@ -48,6 +51,22 @@ export async function startIntegration(
     }
   }
   await db.query("insert into public.px_roles values($1,'owner')", [owner]);
+  if (options.ownerMfa) {
+    factors.set(owner, [
+      {
+        id: factorId,
+        factor_type: "totp",
+        status: "verified",
+        friendly_name: "Pixelalty Sales",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ]);
+    await db.query(
+      "insert into auth.mfa_factors(id,user_id,status) values($1,$2,'verified')",
+      [factorId, owner],
+    );
+  }
   await db.query(
     "insert into public.px_businesses(name,phone,email,timezone,owner_id,expires_at) values ('Beacon Services','+12125550101','buyer@example.test','UTC',$1,now()+interval '14 days'),('Cedar Services','+12125550102','','UTC',$1,now()+interval '14 days'),('Elm Services','+12125550103','','UTC',null,null)",
     [rep],
@@ -217,11 +236,11 @@ export async function startIntegration(
       return { role: token === "service_fixture" ? "service_role" : "anon" };
     }
   };
-  function session(u: any, elevated = !options.ownerMfa) {
+  function session(u: any, elevated = !options.ownerMfa && u.role === "owner") {
     const payload = {
       sub: u.id,
       role: "authenticated",
-      aal: u.role === "owner" && elevated ? "aal2" : "aal1",
+      aal: elevated ? "aal2" : "aal1",
       exp: Math.floor(Date.now() / 1000) + 3600,
     };
     return {
@@ -239,19 +258,10 @@ export async function startIntegration(
         app_metadata: {},
         user_metadata: userMetadata.get(u.id) || {},
         created_at: new Date().toISOString(),
-        factors:
-          u.role === "owner" && options.ownerMfa
-            ? [
-                {
-                  id: factorId,
-                  factor_type: "totp",
-                  status: "verified",
-                  friendly_name: "Pixelalty Sales",
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                },
-              ]
-            : [],
+        email_confirmed_at: new Date().toISOString(),
+        last_sign_in_at: new Date().toISOString(),
+        new_email: pendingEmails.get(u.id),
+        factors: factors.get(u.id) || [],
       },
     };
   }
@@ -347,6 +357,8 @@ export async function startIntegration(
               "px_tax",
               "px_tax_complete",
               "px_session_check",
+              "px_profile",
+              "px_profile_service",
               "px_account_complete",
               "px_account_cleanup_files",
             ].includes(name)
@@ -611,12 +623,84 @@ export async function startIntegration(
               type: "recovery",
             });
           response = Response.json({});
+        } else if (u.pathname.endsWith("/factors") && req.method === "POST") {
+          const person = users.find((x) => x.id === c.sub),
+            p = (await req.json()) as any;
+          if (!person)
+            response = Response.json(
+              { message: "Sign in required" },
+              { status: 401 },
+            );
+          else {
+            const factor = {
+              id: crypto.randomUUID(),
+              factor_type: "totp",
+              status: "unverified",
+              friendly_name: p.friendly_name,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+            factors.set(person.id, [...(factors.get(person.id) || []), factor]);
+            await withDb(async () => {
+              await db.exec("reset role");
+              await db.query(
+                "insert into auth.mfa_factors(id,user_id,status) values($1,$2,'unverified')",
+                [factor.id, person.id],
+              );
+            });
+            response = Response.json({
+              ...factor,
+              type: "totp",
+              totp: {
+                qr_code:
+                  '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50">TEST ONLY</text></svg>',
+                secret: "ISOLATEDTESTONLY",
+                uri: "otpauth://totp/isolated",
+              },
+            });
+          }
+        } else if (
+          u.pathname.includes("/factors/") &&
+          req.method === "DELETE"
+        ) {
+          const id = u.pathname.split("/").at(-1),
+            factor = (factors.get(c.sub) || []).find((x) => x.id === id);
+          if (!factor || (factor.status === "verified" && c.aal !== "aal2"))
+            response = Response.json(
+              { message: "Verified authentication required" },
+              { status: 403 },
+            );
+          else {
+            factors.set(
+              c.sub,
+              (factors.get(c.sub) || []).filter((x) => x.id !== id),
+            );
+            await withDb(async () => {
+              await db.exec("reset role");
+              await db.query("delete from auth.mfa_factors where id=$1", [id]);
+            });
+            response = Response.json({ id });
+          }
         } else if (u.pathname.endsWith("/verify")) {
           const p = (await req.json()) as any;
           if (u.pathname.includes("/factors/")) {
             const person = users.find((x) => x.id === c.sub);
+            const factor = (factors.get(c.sub) || []).find(
+              (x) => x.id === u.pathname.split("/").at(-2),
+            );
+            if (person && factor && p.code === "123456") {
+              factor.status = "verified";
+              verifiedSessions.add(person.id);
+              await withDb(async () => {
+                await db.exec("reset role");
+                await db.query(
+                  "update auth.mfa_factors set status='verified' where id=$1",
+                  [factor.id],
+                );
+              });
+            }
             response =
-              person && p.code === "123456"
+              person && factor && p.code === "123456"
                 ? Response.json(session(person, true))
                 : Response.json(
                     {
@@ -630,11 +714,15 @@ export async function startIntegration(
               person = users.find((x) => x.id === link?.id);
             if (link && person && link.type === p.type) {
               emailLinks.delete(p.token_hash);
+              if (p.type === "email_change" && pendingEmails.has(person.id)) {
+                person.email = pendingEmails.get(person.id)!;
+                pendingEmails.delete(person.id);
+              }
               await withDb(async () => {
                 await db.exec("reset role");
                 await db.query(
-                  "update auth.users set email_confirmed_at=now() where id=$1",
-                  [person.id],
+                  "update auth.users set email_confirmed_at=now(),email=$2 where id=$1",
+                  [person.id, person.email],
                 );
               });
               response = Response.json(session(person));
@@ -660,11 +748,19 @@ export async function startIntegration(
           response =
             person &&
             (!p.password ||
-              p.password ===
-                (options.ownerMfa
-                  ? passwords.get(person.id) || "Valid-password-123"
-                  : "Valid-password-123"))
-              ? Response.json(session(person))
+              p.password === (passwords.get(person.id) || "Valid-password-123"))
+              ? Response.json(
+                  session(
+                    person,
+                    p.refresh_token
+                      ? (verifiedSessions.has(person.id) &&
+                          (factors.get(person.id) || []).some(
+                            (x) => x.status === "verified",
+                          )) ||
+                          (!options.ownerMfa && person.role === "owner")
+                      : !options.ownerMfa && person.role === "owner",
+                  ),
+                )
               : Response.json(
                   {
                     error_code: "invalid_credentials",
@@ -691,6 +787,19 @@ export async function startIntegration(
           const person = users.find((x) => x.id === c.sub);
           if (person && u.pathname.endsWith("/user") && req.method === "PUT") {
             const attributes = (await req.json()) as any;
+            if (attributes.email) {
+              pendingEmails.set(person.id, attributes.email);
+              emailLinks.set("email_change_test_hash_" + person.id, {
+                id: person.id,
+                type: "email_change",
+              });
+              authCalls.push({
+                type: "email_change",
+                id: person.id,
+                email: attributes.email,
+                redirect: u.searchParams.get("redirect_to"),
+              });
+            }
             if (attributes.password)
               passwords.set(person.id, attributes.password);
             if (attributes.data)

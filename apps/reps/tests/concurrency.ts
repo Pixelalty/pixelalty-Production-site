@@ -120,6 +120,9 @@ test("PostgreSQL contention preserves assignment and financial invariants", asyn
       "create table auth.sessions(id uuid primary key,user_id uuid references auth.users(id) on delete cascade,created_at timestamptz not null default now());",
     );
     await control.query(storageSchema);
+    await control.query(
+      "create table auth.mfa_factors(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id) on delete cascade,status text);",
+    );
     const dir = new URL("../supabase/migrations/", import.meta.url);
     for (const name of (await readdir(dir))
       .filter((n) => n.endsWith(".sql"))
@@ -154,6 +157,40 @@ test("PostgreSQL contention preserves assignment and financial invariants", asyn
     );
     for (let i = 0; i < 12; i++)
       clients.push(await connect("pixelalty-concurrency"));
+    await t.test(
+      "simultaneous independent XP awards preserve the full peak unlock balance",
+      async () => {
+        const xpRep = crypto.randomUUID();
+        await control.query(
+          "insert into auth.users values($1,'xp-contention@example.test',now())",
+          [xpRep],
+        );
+        await control.query(
+          "insert into px_reps(id,name,status) values($1,'XP contention','active')",
+          [xpRep],
+        );
+        await Promise.all(clients.map((c) => c.query("reset role")));
+        successful(
+          await contend(
+            "select id from px_reps where id=$1 for update",
+            [xpRep],
+            (c) =>
+              c.query(
+                "insert into px_xp(rep_id,source,source_id,amount) values($1,'isolated_concurrency',gen_random_uuid(),100)",
+                [xpRep],
+              ),
+          ),
+        );
+        const peak = (
+          await control.query(
+            "select earned_xp,(select sum(amount) from px_xp where rep_id=$1) total from px_profile_styles where rep_id=$1",
+            [xpRep],
+          )
+        ).rows[0];
+        assert.equal(Number(peak.earned_xp), 1200);
+        assert.equal(Number(peak.total), 1200);
+      },
+    );
     await t.test(
       "twelve simultaneous claims cannot exceed one rep's capacity",
       async () => {

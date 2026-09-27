@@ -301,6 +301,35 @@ export function WorkspaceNavigation({
 }) {
   const app = useApp();
   const navigationRef = useRef<HTMLElement>(null);
+  const [open, setOpen] = useState<string[]>(
+    () =>
+      app.preferences.navigation_open ??
+      pages
+        .filter(
+          (p) =>
+            p.to === current ||
+            (current === "/" &&
+              ["My sales", "Sales", "People"].includes(p.group)),
+        )
+        .map((p) => p.group),
+  );
+  const mode = app.preferences.navigation_mode;
+  useEffect(() => {
+    if (mode === "single" && open.length > 1) {
+      const next = [open.at(-1)!];
+      setOpen(next);
+      void app.run(() => app.savePreferences({ navigation_open: next }));
+    }
+  }, [mode]);
+  const toggle = (group: string) => {
+    const next = open.includes(group)
+      ? open.filter((g) => g !== group)
+      : mode === "single"
+        ? [group]
+        : [...open, group];
+    setOpen(next);
+    void app.run(() => app.savePreferences({ navigation_open: next }));
+  };
   useEffect(() => {
     navigationRef.current
       ?.querySelector<HTMLElement>('[aria-current="page"]')
@@ -345,13 +374,15 @@ export function WorkspaceNavigation({
             <details
               className="nav-group"
               key={group}
-              open={
-                items.some((p) => p.to === current) ||
-                (current === "/" &&
-                  ["My sales", "Sales", "People"].includes(group))
-              }
+              open={open.includes(group)}
             >
-              <summary className="nav-label">
+              <summary
+                className="nav-label"
+                onClick={(event) => {
+                  event.preventDefault();
+                  toggle(group);
+                }}
+              >
                 {group}
                 <ChevronDown size={14} aria-hidden="true" />
               </summary>

@@ -200,7 +200,7 @@ test("private tax documents, role separation, replacement and activation use rea
             id: ids.rep,
             reason: "Activation must remain blocked",
           }),
-          /Can't activate yet.*Tax setup/,
+          /Can't activate yet.*Tax documentation/,
         );
       },
     );

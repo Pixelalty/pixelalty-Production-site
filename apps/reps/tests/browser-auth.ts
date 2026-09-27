@@ -117,7 +117,7 @@ try {
   await page
     .getByRole("heading", { name: "Protect your admin access" })
     .waitFor();
-  assert.equal((await signedApi("/table?name=applicants")).body.rows.length, 0);
+  assert.equal((await signedApi("/table?name=applicants")).status, 403);
   assert.equal(
     (
       await signedApi("/invite/resend", {
@@ -389,7 +389,7 @@ try {
     .getByRole("heading", { name: "Welcome to Pixelalty.", exact: true })
     .waitFor();
   assert.equal(new URL(page.url()).pathname, "/onboarding");
-  assert.equal((await signedApi("/table?name=applicants")).body.rows.length, 0);
+  assert.equal((await signedApi("/table?name=applicants")).status, 403);
   assert.equal(
     (
       await signedApi("/invite/resend", {

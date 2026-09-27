@@ -1092,3 +1092,126 @@ th {
     padding-right: 0;
   }
 }
+
+/* Bounded workspace controls; every option retains the shared contrast tokens. */
+:root[data-font="humanist"] {
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+}
+:root[data-font="system"] {
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+}
+:root[data-heading-scale="compact"] .heading h1 {
+  font-size: 27px;
+}
+:root[data-heading-scale="expressive"] .heading h1 {
+  font-size: clamp(30px, 3vw, 42px);
+  letter-spacing: -0.045em;
+}
+:root[data-density="spacious"] .card {
+  padding: 32px;
+}
+:root[data-density="spacious"] .sidebar nav a {
+  padding-block: 14px;
+}
+:root[data-content-width="focused"] main {
+  max-width: 1180px;
+}
+:root[data-content-width="wide"] main {
+  max-width: 1800px;
+}
+:root[data-card-surface="flat"] .card {
+  background: color-mix(in srgb, var(--surface) 60%, var(--bg));
+}
+:root[data-card-surface="glass"] .card {
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+}
+:root[data-border-strength="defined"] {
+  --line: color-mix(in srgb, var(--ink) 26%, var(--surface));
+}
+:root[data-shadow="none"] .card {
+  box-shadow: none;
+}
+:root[data-shadow="lifted"] .card {
+  box-shadow: 0 8px 28px #071a3510;
+}
+:root[data-background="wash"] .main-shell {
+  background:
+    radial-gradient(
+      ellipse at top right,
+      color-mix(in srgb, var(--blue) 8%, transparent),
+      transparent 65%
+    ),
+    var(--bg);
+}
+:root[data-background="dots"] .main-shell {
+  background:
+    radial-gradient(
+        color-mix(in srgb, var(--muted) 25%, transparent) 0.7px,
+        transparent 0.7px
+      )
+      0 0/18px 18px,
+    var(--bg);
+}
+:root[data-background="grid"] .main-shell {
+  background:
+    linear-gradient(
+        color-mix(in srgb, var(--muted) 9%, transparent) 1px,
+        transparent 1px
+      )
+      0 0/28px 28px,
+    linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--muted) 9%, transparent) 1px,
+        transparent 1px
+      )
+      0 0/28px 28px,
+    var(--bg);
+}
+:root[data-buttons="soft"] :is(button, .button) {
+  border-radius: 13px;
+}
+:root[data-buttons="pill"] :is(button, .button) {
+  border-radius: 24px;
+}
+:root[data-icon-size="large"] .sidebar nav a svg {
+  width: 21px;
+  height: 21px;
+}
+:root[data-motion="premium"] .card {
+  transition: box-shadow 0.24s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+:root[data-motion="premium"] .card:hover {
+  box-shadow: 0 6px 20px #12244212;
+}
+:root[data-motion="premium"] button {
+  transition:
+    transform 0.18s,
+    background 0.18s;
+}
+:root[data-motion="premium"] button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+@media (min-width: 901px) {
+  :root[data-sidebar-mode="wide"] .sidebar {
+    width: 300px;
+  }
+  :root[data-sidebar-mode="wide"] .main-shell {
+    margin-left: 300px;
+    width: calc(100% - 300px);
+  }
+}
+@media (max-width: 520px) {
+  :root[data-density="spacious"] .card {
+    padding: 22px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-motion="premium"] button:active {
+    transform: none;
+  }
+}

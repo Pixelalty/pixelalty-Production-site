@@ -1,6 +1,7 @@
+import { ProfileAvatar, SharedIdentity } from "./profile-identity";
 import { useState } from "react";
-import { XpHistory } from "./accounts";
-import { authErrorMessage } from "../shared/auth";
+import { careerProgress } from "../shared/progression";
+import { timezoneOptions, scheduledInstant } from "../shared/timezones";
 import {
   ArrowRight,
   Phone,
@@ -31,7 +32,7 @@ import { BusinessDetails } from "./details";
 const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 export function Dashboard() {
   const app = useApp(),
-    state = useData("/report?kind=dashboard"),
+    state = useData("/report?kind=dashboard", 15000),
     board = useData(
       app.ctx.access_options?.leaderboard === false && !app.has("sales_admin")
         ? null
@@ -46,9 +47,11 @@ export function Dashboard() {
         : undefined,
   });
   const d = state.data || {},
-    xp = Math.max(0, d.xp || 0),
-    step = d.level_step || 250,
-    level = 1 + Math.floor(xp / step);
+    progress = careerProgress(
+      app.ctx.career_xp ?? d.xp ?? 0,
+      app.ctx.settings?.xp_per_level ?? d.level_step,
+    ),
+    { xp, step, level } = progress;
   return (
     <>
       <Heading
@@ -107,36 +110,32 @@ export function Dashboard() {
             style={{ order: 1 }}
             extra={<Trophy size={20} />}
           >
-            <div
-              className={
-                "profile-medallion frame-" +
-                (app.ctx.rep?.preferences?.frame === "basic"
-                  ? "basic"
-                  : level >= 50
-                    ? "prestige"
-                    : level >= 30
-                      ? "elite"
-                      : level >= 20
-                        ? "metallic"
-                        : level >= 10
-                          ? "premium"
-                          : level >= 5
-                            ? "enhanced"
-                            : "basic")
-              }
-            >
-              {app.ctx.rep?.name.slice(0, 1) || "P"}
+            <div className="progress-profile">
+              <ProfileAvatar
+                name={app.ctx.rep?.name || "Pixelalty"}
+                style={app.ctx.profile?.style}
+                size="large"
+              />
             </div>
-            <h3 className="center">Level {level}</h3>
+            <h3 className="center" aria-live="polite">
+              Level {level.toLocaleString()}
+            </h3>
             <p className="center muted">{xp.toLocaleString()} career XP</p>
             <LinkButton to="/xp">View XP history</LinkButton>
             <progress
               aria-label="Career level progress"
-              value={xp % step}
+              value={progress.within}
               max={step}
+              aria-valuetext={`${progress.within} of ${step} XP within level ${level}`}
             />
             <p className="fine-print">
-              {step - (xp % step)} XP to the next level
+              {progress.within.toLocaleString()} / {step.toLocaleString()} XP
+              within this level · {progress.remaining.toLocaleString()} XP to
+              level {(level + 1).toLocaleString()}
+            </p>
+            <p className="fine-print">
+              The bar starts again at each new level. Lifetime XP keeps every
+              award and correction.
             </p>
             <Streak summary={d.streak || {}} />
           </Card>
@@ -219,11 +218,7 @@ export function Dashboard() {
               {board.data?.slice(0, 4).map((r: Row) => (
                 <div className="leader-row" key={r.id}>
                   <span className="rank">{r.rank}</span>
-                  <span className="avatar">{r.name[0]}</span>
-                  <div>
-                    <strong>{r.name}</strong>
-                    <small>{r.code}</small>
-                  </div>
+                  <SharedIdentity rep={r} />
                   <strong>
                     {r.sales}
                     <small> sales</small>
@@ -361,16 +356,35 @@ export function FollowupDialog({
   return (
     <Modal title={"Schedule follow-up · " + lead.name} onClose={onClose}>
       <p>
-        Enter the time in your device timezone, <strong>{zone()}</strong>. The
-        prospect is in <strong>{lead.timezone}</strong>.
+        Choose the local time and timezone for this follow-up. The prospect is
+        in <strong>{lead.timezone}</strong>.
       </p>
       <Form
+        initial={{
+          timezone: app.ctx.rep?.timezone || zone(),
+          occurrence: "earlier",
+        }}
         fields={[
           {
             name: "due_at",
             label: "Date and time",
             type: "datetime-local",
             required: true,
+          },
+          {
+            name: "timezone",
+            label: "Scheduling timezone",
+            required: true,
+            options: timezoneOptions(app.ctx.rep?.timezone || zone()),
+          },
+          {
+            name: "occurrence",
+            label: "If the clocks repeat this time",
+            options: [
+              { value: "earlier", label: "First occurrence" },
+              { value: "later", label: "Second occurrence" },
+            ],
+            hint: "Only used during the autumn daylight-saving change.",
           },
           {
             name: "note",
@@ -403,8 +417,7 @@ export function FollowupDialog({
         onSubmit={async (p) => {
           await app.mutate("followup", {
             ...p,
-            due_at: new Date(p.due_at).toISOString(),
-            timezone: lead.timezone,
+            due_at: scheduledInstant(p.due_at, p.timezone, p.occurrence),
             business_id: lead.id,
           });
           onClose();
@@ -556,12 +569,14 @@ export function Followups() {
       />
       {edit && (
         <Modal title="Reschedule follow-up" onClose={() => setEdit(null)}>
-          <p>Enter the new time in your device timezone: {zone()}.</p>
+          <p>Enter the new local time in the selected scheduling timezone.</p>
           <Form
             initial={{
               note: edit.note,
               priority: edit.priority,
               channel: edit.channel,
+              timezone: edit.timezone,
+              occurrence: "earlier",
             }}
             fields={[
               {
@@ -569,6 +584,20 @@ export function Followups() {
                 label: "New date and time",
                 type: "datetime-local",
                 required: true,
+              },
+              {
+                name: "timezone",
+                label: "Scheduling timezone",
+                required: true,
+                options: timezoneOptions(edit.timezone),
+              },
+              {
+                name: "occurrence",
+                label: "If the clocks repeat this time",
+                options: [
+                  { value: "earlier", label: "First occurrence" },
+                  { value: "later", label: "Second occurrence" },
+                ],
               },
               {
                 name: "note",
@@ -582,8 +611,7 @@ export function Followups() {
               await app.mutate("followup_update", {
                 ...p,
                 id: edit.id,
-                timezone: edit.timezone,
-                due_at: new Date(p.due_at).toISOString(),
+                due_at: scheduledInstant(p.due_at, p.timezone, p.occurrence),
               });
               setEdit(null);
             }}
@@ -780,114 +808,7 @@ export function Academy() {
   );
 }
 export { Onboarding } from "./onboarding";
-export function Profile() {
-  const app = useApp(),
-    rep = app.ctx.rep;
-  return (
-    <>
-      <Heading
-        title="Your profile"
-        description="Keep your workspace personal and your information current."
-      />
-      {rep && <ProfileIdentity />}
-      <div className="onboarding-grid">
-        {rep && (
-          <Card title="Profile details">
-            <Form
-              initial={rep || {}}
-              fields={[
-                { name: "name", label: "Display name", required: true },
-                { name: "timezone", label: "Timezone", required: true },
-                { name: "bio", label: "About you", type: "textarea" },
-                {
-                  name: "income_goal",
-                  label: "Monthly income goal ($)",
-                  type: "currency",
-                  min: 0,
-                  hint: "A personal planning goal, not a guarantee of earnings.",
-                },
-              ]}
-              submit="Save profile"
-              onSubmit={(p) => app.mutate("profile", p)}
-            />
-          </Card>
-        )}
-        {rep && (
-          <Card title="Goals & calling preferences">
-            <Form
-              initial={{ shortcuts: true, ...rep.preferences }}
-              fields={[
-                {
-                  name: "sales_goal",
-                  label: "Monthly verified sales goal",
-                  type: "number",
-                  min: 0,
-                  max: 10000,
-                },
-                {
-                  name: "calls_goal",
-                  label: "Monthly qualifying call goal",
-                  type: "number",
-                  min: 0,
-                  max: 100000,
-                },
-                {
-                  name: "shortcuts",
-                  label: "Enable focus keyboard shortcuts",
-                  type: "checkbox",
-                },
-                {
-                  name: "frame",
-                  label: "Profile frame",
-                  options: [
-                    { value: "auto", label: "My current career level" },
-                    { value: "basic", label: "Simple frame" },
-                  ],
-                },
-              ]}
-              submit="Save preferences"
-              onSubmit={(p) => app.mutate("preferences", { value: p })}
-            />
-          </Card>
-        )}
-        {rep && <XpHistory compact />}
-        {rep && <EmailChangeRequest />}
-        <Card title="Password & account">
-          <Form
-            fields={[
-              {
-                name: "password",
-                label: "New password",
-                type: "password",
-                minLength: 12,
-                required: true,
-              },
-            ]}
-            submit="Update password"
-            onSubmit={async (p) => {
-              if (p.password.length < 12)
-                throw Error("Use at least 12 characters.");
-              const r = await app.client.auth.updateUser({
-                password: p.password,
-              });
-              if (r.error) throw Error(authErrorMessage(r.error));
-              app.notify("Password updated.");
-            }}
-          />
-          <div className="divider" />
-          <h3>Make this workspace yours</h3>
-          <p>
-            Choose your theme, accent color, text size, spacing and pinned
-            pages.
-          </p>
-          <LinkButton to="/appearance">
-            Customize appearance <ArrowRight size={16} />
-          </LinkButton>
-        </Card>
-      </div>
-    </>
-  );
-}
+export { Profile } from "./account-settings";
 export function Leaderboard() {
   const [metric, setMetric] = useState("sales"),
     [period, setPeriod] = useState("month"),
@@ -1005,78 +926,5 @@ export function Support() {
         ]}
       />
     </>
-  );
-}
-
-function EmailChangeRequest() {
-  const app = useApp(),
-    state = useData("/report?kind=account_email");
-  if (!state.data?.pending_email) return null;
-  return (
-    <Card title="Confirm email change">
-      <p>
-        Pixelalty requested an update to{" "}
-        <strong>{state.data.pending_email}</strong>. Confirm the change through
-        the email verification links; your sign-in address stays unchanged until
-        verified.
-      </p>
-      <Form
-        fields={[]}
-        submit="Send email verification links"
-        onSubmit={async () => {
-          const r = await app.client.auth.updateUser(
-            { email: state.data.pending_email },
-            { emailRedirectTo: app.config.appUrl + "/welcome" },
-          );
-          if (r.error) throw Error(authErrorMessage(r.error));
-          app.notify("Check your current and new inboxes for verification.");
-        }}
-      />
-    </Card>
-  );
-}
-
-function ProfileIdentity() {
-  const app = useApp(),
-    state = useData("/report?kind=progression"),
-    p = app.preferences,
-    rep = app.ctx.rep;
-  const initials = rep.name
-    .split(/\s+/)
-    .map((v: string) => v[0])
-    .slice(0, 2)
-    .join("");
-  return (
-    <Card className={"profile-identity banner-" + p.banner}>
-      <div
-        className={
-          "profile-avatar avatar-" +
-          p.avatar +
-          " border-" +
-          (p.frame === "double" &&
-          !app.ctx.access_options?.profile_frames &&
-          (app.ctx.career_xp || 0) < 1000
-            ? "simple"
-            : p.frame)
-        }
-      >
-        {p.avatar === "monogram" ? initials : rep.name[0]}
-      </div>
-      <h2>{rep.name}</h2>
-      <p>{rep.bio}</p>
-      <div className="actions">
-        {p.achievements
-          .filter((v: string) => state.data?.achievements?.includes(v))
-          .map((v: string) => (
-            <span className="badge" key={v}>
-              {v === "first_sale"
-                ? "First verified sale"
-                : v === "trained"
-                  ? "Training complete"
-                  : "First call"}
-            </span>
-          ))}
-      </div>
-    </Card>
   );
 }

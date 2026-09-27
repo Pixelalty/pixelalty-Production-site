@@ -53,11 +53,13 @@ import {
 import { workspacePages, WorkspaceNavigation, PageFinder } from "./navigation";
 import { XpHistory } from "./accounts";
 import { Appearance } from "./appearance";
+import { ProfileAvatar } from "./profile-identity";
 import { readAuthLink, authErrorMessage } from "../shared/auth";
 import { AuthShell } from "./auth-shell";
 import { ConfirmAuthLink, InvalidAuthLink } from "./auth-link";
 import "./styles.css";
 import "./workspace.css";
+import "./profile.css";
 import "./auth.css";
 const incoming = readAuthLink(new URL(location.href));
 if (incoming.cleanPath !== location.pathname + location.search + location.hash)
@@ -116,6 +118,11 @@ function App() {
     [session?.user?.user_metadata, ctx?.rep?.preferences, legacyTheme],
   );
   const displayPreferences = previewPreferences || preferences;
+  const preferenceState = useRef(preferences);
+  const preferenceQueue = useRef<Promise<unknown>>(Promise.resolve());
+  useEffect(() => {
+    preferenceState.current = preferences;
+  }, [preferences]);
   const theme = displayPreferences.theme;
   useEffect(() => {
     document
@@ -215,6 +222,16 @@ function App() {
     d.accent = displayPreferences.accent;
     d.textSize = displayPreferences.text_size;
     d.sidebar = displayPreferences.sidebar;
+    d.density = displayPreferences.density;
+    d.contentWidth = displayPreferences.content_width;
+    d.font = displayPreferences.font;
+    d.headingScale = displayPreferences.heading_scale;
+    d.cardSurface = displayPreferences.card_surface;
+    d.borderStrength = displayPreferences.border_strength;
+    d.shadow = displayPreferences.shadow;
+    d.background = displayPreferences.background;
+    d.buttons = displayPreferences.buttons;
+    d.iconSize = displayPreferences.icon_size;
   }, [displayPreferences]);
   useEffect(() => {
     const media = window.matchMedia("(max-width: 900px)");
@@ -308,6 +325,20 @@ function App() {
     else setCtx(null);
   }, [session]);
   useEffect(() => {
+    if (!session) return;
+    const check = () => {
+      if (document.visibilityState === "visible") void reloadContext();
+    };
+    const timer = setInterval(check, 15000);
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [session?.user?.id, reloadContext]);
+  useEffect(() => {
     try {
       localStorage.setItem("pixelalty-theme", theme);
     } catch {
@@ -333,33 +364,55 @@ function App() {
     refresh();
     return result;
   };
-  const savePreferences = async (patch: Partial<WorkspacePreferences>) => {
-    if (!client || !session) throw Error("Sign in to save your preferences.");
-    if (savingPreferences) throw Error("Wait for the current save to finish.");
-    setSavingPreferences(true);
-    try {
-      const next = workspacePreferences({ ...preferences, ...patch });
-      const result = await client.auth.updateUser({
-        data: { pixelalty_workspace: next },
-      });
-      if (result.error)
-        throw Error(
-          authErrorMessage(
-            result.error,
-            "Your appearance changes weren’t saved. Please try again.",
-          ),
+  const savePreferences = (
+    patch: Partial<WorkspacePreferences>,
+  ): Promise<WorkspacePreferences> => {
+    const save = async () => {
+      if (
+        !client ||
+        !session ||
+        sessionRef.current?.user?.id !== session.user.id
+      )
+        throw Error("Sign in to save your preferences.");
+      setSavingPreferences(true);
+      try {
+        const next = workspacePreferences({
+          ...preferenceState.current,
+          ...patch,
+        });
+        const result = await client.auth.updateUser({
+          data: { pixelalty_workspace: next },
+        });
+        if (result.error)
+          throw Error(
+            authErrorMessage(
+              result.error,
+              "Your appearance changes weren’t saved. Please try again.",
+            ),
+          );
+        if (!result.data.user)
+          throw Error("Your preferences were not saved. Please try again.");
+        if (
+          sessionRef.current?.user?.id !== session.user.id ||
+          result.data.user.id !== session.user.id
+        )
+          throw Error(
+            "Your session changed. Open appearance again before saving.",
+          );
+        preferenceState.current = next;
+        setSession((current: any) =>
+          current?.user?.id === result.data.user.id
+            ? { ...current, user: result.data.user }
+            : current,
         );
-      if (!result.data.user)
-        throw Error("Your preferences were not saved. Please try again.");
-      setSession((current: any) =>
-        current?.user?.id === result.data.user.id
-          ? { ...current, user: result.data.user }
-          : current,
-      );
-      return next;
-    } finally {
-      setSavingPreferences(false);
-    }
+        return next;
+      } finally {
+        setSavingPreferences(false);
+      }
+    };
+    const pending = preferenceQueue.current.then(save, save);
+    preferenceQueue.current = pending;
+    return pending;
   };
   const setTheme = (next: string) =>
     run(() =>
@@ -461,8 +514,14 @@ function App() {
         <State loading />
       </AuthShell>
     );
-  if (ctx.roles.length && ctx.aal !== "aal2")
-    return <MFA client={client!} onSuccess={reloadContext} />;
+  if ((ctx.roles.length || ctx.mfa_enrolled) && ctx.aal !== "aal2")
+    return (
+      <MFA
+        client={client!}
+        onSuccess={reloadContext}
+        adminRequired={ctx.roles.length > 0}
+      />
+    );
   if (!ctx.rep && !ctx.roles.length)
     return (
       <AuthShell>
@@ -621,6 +680,7 @@ function App() {
         setTheme,
         reloadContext,
         preferences,
+        displayPreferences,
         previewPreferences: setPreviewPreferences,
         savePreferences,
         savingPreferences,
@@ -682,18 +742,11 @@ function App() {
             pages={pages}
             current={currentPage?.to || root}
           />
-          <a
-            className="sidebar-customize"
-            href="/appearance"
-            onClick={(e) => {
-              e.preventDefault();
-              navigate("/appearance");
-            }}
-          >
-            <Palette size={17} /> Customize workspace
-          </a>
           <div className="sidebar-footer">
-            <div className="avatar">{(ctx.rep?.name || "Admin")[0]}</div>
+            <ProfileAvatar
+              name={ctx.rep?.name || "Administrator"}
+              style={ctx.profile?.style}
+            />
             <div>
               <strong>{ctx.rep?.name || "Administrator"}</strong>
               <small>{ctx.rep?.code || "Pixelalty"}</small>
@@ -789,7 +842,10 @@ function App() {
               >
                 <Bell size={18} />
               </button>
-              <span className="avatar small">{(ctx.rep?.name || "A")[0]}</span>
+              <ProfileAvatar
+                name={ctx.rep?.name || "Administrator"}
+                style={ctx.profile?.style}
+              />
             </div>
           </header>
           <main key={root} id="workspace-content" tabIndex={-1}>

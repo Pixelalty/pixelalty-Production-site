@@ -196,15 +196,23 @@ test("V1 completion uses real SQL, authorization and persistent state", async (t
         });
         const sum = await report("session");
         assert.equal(sum.calls, 3);
-        assert.equal(sum.xp, 5);
+        assert.equal(
+          sum.xp,
+          3,
+          "An immediate call on a second lead is inside the 30-second XP cooldown",
+        );
         assert.equal(sum.conversations, 3);
         await act("session_end");
         assert.ok((await report("session")).ended_at);
         const dash = await report("dashboard");
-        assert.equal(dash.streak.today, 2);
+        assert.equal(dash.streak.today, 1);
         assert.equal(dash.streak.target, 2);
-        assert.equal(dash.month_calls, 2);
-        assert.ok(dash.xp >= 15);
+        assert.equal(dash.month_calls, 1);
+        assert.equal(
+          dash.xp,
+          13,
+          "Only the qualifying call and first-call achievement award XP",
+        );
       },
     );
     await t.test(
