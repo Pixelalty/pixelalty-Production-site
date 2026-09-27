@@ -55,7 +55,10 @@ async function login(owner = false) {
   await page.locator(".sidebar").waitFor();
 }
 async function logout() {
-  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Sign out", exact: true })
+    .last()
+    .click();
 }
 async function reasoned(button: string, reason: string) {
   const dialog = page.getByRole("dialog");

@@ -401,6 +401,7 @@ try {
   await page
     .getByRole("button", { name: "Customize appearance", exact: true })
     .click();
+  await page.getByRole("tab", { name: "Workspace", exact: true }).click();
   await page.getByRole("radio", { name: "Dark", exact: true }).check();
   await page
     .getByRole("button", { name: "Save appearance", exact: true })

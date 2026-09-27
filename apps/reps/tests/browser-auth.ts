@@ -401,7 +401,9 @@ try {
   );
   await page.goto(fixture.base + "/profile");
   await page.getByLabel("Display name", { exact: true }).fill("Applicant Auth");
-  await page.getByLabel("Timezone", { exact: true }).selectOption("UTC");
+  await page
+    .getByLabel("Timezone", { exact: true })
+    .selectOption("America/New_York");
   await page.getByRole("button", { name: "Save profile" }).click();
   await page.getByText("Saved successfully.").first().waitFor();
   await page.goto(fixture.base + "/onboarding");
