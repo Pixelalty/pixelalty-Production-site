@@ -106,6 +106,24 @@ try {
     "Legacy recovery link completes password form and returns admin to the dashboard",
   );
   checks.push("Owner-only dashboard and actual sign-in form");
+  await fixture.db.query(
+    "insert into px_diagnostics(id,user_id,route,category,status,provider_request_id,provider_detail) values($1,$2,'/api/connect/recover','PAYMENT_REQUEST_CONFIGURATION',502,'req_browserDiagnostic','connect_account: Accounts v1 support needs to be enabled in the sandbox.')",
+    [crypto.randomUUID(), fixture.owner],
+  );
+  await go("/admin/health");
+  const diagnostic = page.getByRole("row").filter({
+    hasText: "req_browserDiagnostic",
+  });
+  await diagnostic.getByRole("cell", { name: "502", exact: true }).waitFor();
+  await diagnostic
+    .getByRole("cell", {
+      name: "connect_account: Accounts v1 support needs to be enabled in the sandbox.",
+      exact: true,
+    })
+    .waitFor();
+  checks.push(
+    "System health renders populated provider diagnostics and numeric HTTP response codes without a runtime crash",
+  );
   for (const path of [
     "/admin/recruiting",
     "/admin/reps",

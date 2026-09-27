@@ -607,7 +607,8 @@ export function Table({
                 <td key={k}>
                   {k.includes("cents") ? (
                     money(r[k])
-                  ) : ["status", "stage", "classification"].includes(k) ? (
+                  ) : ["status", "stage", "classification"].includes(k) &&
+                    (typeof r[k] === "string" || r[k] == null) ? (
                     <Badge value={r[k] || "pending"} />
                   ) : k.endsWith("_at") ? (
                     r[k] ? (
