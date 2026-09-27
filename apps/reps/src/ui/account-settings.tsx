@@ -24,12 +24,14 @@ export function Profile() {
   const [user, setUser] = useState<User | null>(null),
     [error, setError] = useState(""),
     [factors, setFactors] = useState<Row[]>([]),
+    [securityReady, setSecurityReady] = useState(false),
     [security, setSecurity] = useState<"verify" | "enroll" | null>(null),
     [removing, setRemoving] = useState<Row | null>(null),
     [notice, setNotice] = useState("");
   const readiness = useData(rep ? "/report?kind=onboarding" : null, 30000),
     requested = useData("/report?kind=account_email");
   const refresh = async () => {
+    setError("");
     const result = await app.client.auth.getUser();
     if (result.error) {
       setError(authErrorMessage(result.error));
@@ -38,7 +40,10 @@ export function Profile() {
     setUser(result.data.user);
     const mfa = await app.client.auth.mfa.listFactors();
     if (mfa.error) setError(authErrorMessage(mfa.error));
-    else setFactors(mfa.data.totp.filter((f: Row) => f.status === "verified"));
+    else {
+      setFactors(mfa.data.totp.filter((f: Row) => f.status === "verified"));
+      setSecurityReady(true);
+    }
   };
   useEffect(() => {
     void refresh();
@@ -51,6 +56,9 @@ export function Profile() {
         description="Your identity, sign-in security and workspace preferences."
       />
       <State error={error} />
+      {error && (
+        <button onClick={() => void refresh()}>Retry account details</button>
+      )}
       {notice && (
         <p className="notice success" role="status">
           {notice}
@@ -129,7 +137,7 @@ export function Profile() {
                 throw Error("Enter a different email address.");
               const result = await app.client.auth.updateUser(
                 { email: p.email.trim() },
-                { emailRedirectTo: app.config.appUrl + "/profile" },
+                { emailRedirectTo: app.config.appUrl + "/auth/confirm" },
               );
               if (result.error) throw Error(authErrorMessage(result.error));
               await refresh();
@@ -184,7 +192,11 @@ export function Profile() {
         <Card title="Security" extra={<ShieldCheck size={20} />}>
           <p>
             <strong>Authenticator:</strong>{" "}
-            {factors.length ? "Enabled" : "Not enrolled"}
+            {!securityReady
+              ? "Loading…"
+              : factors.length
+                ? "Enabled"
+                : "Not enrolled"}
             {app.ctx.roles.length > 0
               ? " · Required for administrative access"
               : ""}
@@ -192,6 +204,7 @@ export function Profile() {
           <p>Authenticator codes add a second check when signing in.</p>
           <button
             onClick={() => setSecurity(factors.length ? "verify" : "enroll")}
+            disabled={!securityReady}
           >
             {factors.length ? "Verify authenticator" : "Set up authenticator"}
           </button>
@@ -244,6 +257,7 @@ export function Profile() {
           />
           <button
             className="text-button"
+            disabled={!user?.email}
             onClick={() =>
               app.run(async () => {
                 const result = await app.client.auth.resetPasswordForEmail(
@@ -372,7 +386,7 @@ export function Profile() {
               if (current.error) throw Error(authErrorMessage(current.error));
               if (
                 app.ctx.roles.length > 0 &&
-                  current.data.totp.filter((f: Row) => f.status === "verified")
+                current.data.totp.filter((f: Row) => f.status === "verified")
                   .length < 2
               )
                 throw Error(

@@ -51,7 +51,9 @@ export async function verifyWorkspace(
     .getByLabel("Card corners", { exact: true })
     .selectOption("rounded");
   await page.getByRole("tab", { name: "Motion", exact: true }).click();
-  await page.getByLabel("Motion", { exact: true }).selectOption("reduced");
+  await page
+    .getByRole("combobox", { name: "Motion", exact: true })
+    .selectOption("reduced");
   await page.getByRole("tab", { name: "Navigation", exact: true }).click();
   await page
     .getByLabel("Sidebar width", { exact: true })

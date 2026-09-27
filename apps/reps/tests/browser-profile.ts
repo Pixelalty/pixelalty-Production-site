@@ -178,7 +178,9 @@ try {
   await page.getByLabel("Banner fit", { exact: true }).selectOption("contain");
   await saveProfile();
   await clickTab("Motion");
-  await page.getByLabel("Motion", { exact: true }).selectOption("off");
+  await page
+    .getByRole("combobox", { name: "Motion", exact: true })
+    .selectOption("off");
   await page
     .getByRole("button", { name: "Save appearance", exact: true })
     .click();
@@ -222,6 +224,11 @@ try {
     .fill("updated-rep@example.test");
   await page.getByRole("button", { name: "Change email", exact: true }).click();
   await page.getByText(/Verification pending for/).waitFor();
+  assert.equal(
+    [...f.authCalls].reverse().find((call) => call.type === "email_change")
+      ?.redirect,
+    f.base + "/auth/confirm",
+  );
   assert.equal(f.users.find((u) => u.id === f.rep)?.email, "rep@example.test");
   await page.goto(
     f.base +
@@ -268,7 +275,11 @@ try {
   await page
     .getByRole("heading", { name: "Appearance", exact: true })
     .waitFor();
+  await page.waitForLoadState("networkidle");
   await page.reload();
+  await page
+    .getByRole("heading", { name: "Appearance", exact: true })
+    .waitFor();
   assert.ok(
     (await groups.evaluateAll(
       (es) => es.filter((e) => (e as HTMLDetailsElement).open).length,
@@ -348,6 +359,48 @@ try {
   checks.push(
     "Multiple navigation groups survive navigation/reload; optional single-section mode and mobile drawer retain state; all appearance tabs fit 390/768/1440",
   );
+  await clickTab("Workspace");
+  await page.getByRole("radio", { name: "Dark", exact: true }).check();
+  await page
+    .getByRole("button", { name: "Save appearance", exact: true })
+    .click();
+  await page
+    .getByText("Appearance saved to your account.", { exact: true })
+    .waitFor();
+  await clickTab("Profile");
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 950 });
+    await page.locator('html[data-theme="dark"]').waitFor();
+    await page.screenshot({
+      path: new URL("profile-dark-" + width + ".png", out).pathname,
+      fullPage: true,
+    });
+  }
+  await clickTab("Workspace");
+  await page.getByRole("radio", { name: "System", exact: true }).check();
+  await clickTab("Motion");
+  await page
+    .getByRole("combobox", { name: "Motion", exact: true })
+    .selectOption("normal");
+  await page
+    .getByRole("button", { name: "Save appearance", exact: true })
+    .click();
+  await page
+    .getByText("Appearance saved to your account.", { exact: true })
+    .waitFor();
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
+  await clickTab("Profile");
+  await page.locator('html[data-theme="dark"]').waitFor();
+  assert.equal(
+    await page
+      .locator(".profile-surface .cosmetic-banner-aurora > i")
+      .first()
+      .evaluate((e) => getComputedStyle(e).animationName),
+    "none",
+  );
+  checks.push(
+    "Profile surfaces render in light/dark/system at all target sizes; OS reduced motion overrides Full motion",
+  );
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(f.base + "/profile");
   await page
@@ -418,6 +471,14 @@ try {
     JSON.stringify({ checks, errors, failures }, null, 2),
   );
   console.log(JSON.stringify({ checks, errors, failures }, null, 2));
+} catch (error) {
+  console.error("Profile browser failure", error);
+  console.error((await page.locator("body").innerText()).slice(0, 12000));
+  await page.screenshot({
+    path: new URL("failure.png", out).pathname,
+    fullPage: true,
+  });
+  throw error;
 } finally {
   await browser.close();
   await f.close();

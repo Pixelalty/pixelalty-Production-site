@@ -39,15 +39,23 @@ jobs:
           cache-dependency-path: apps/reps/package-lock.json
       - run: npm ci
       - run: npm run check
+        id: core_checks
       - run: npm run test:concurrency
+        id: database_checks
         env:
           PIXELALTY_TEST_DATABASE_URL: postgresql://postgres:isolated-test-only@127.0.0.1:5432/pixelalty_test
       - run: npx playwright install --with-deps chromium
+        id: browser_setup
       - run: npm run test:e2e
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
       - run: npm run test:auth
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
       - run: npm run test:profile
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
       - run: npm run test:onboarding
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
       - run: npm run test:branding
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
       - run: npx wrangler deploy --dry-run --env staging
       - uses: actions/upload-artifact@v7
         if: always()
