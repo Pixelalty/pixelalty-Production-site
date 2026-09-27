@@ -1127,8 +1127,11 @@ th {
   background: color-mix(in srgb, var(--surface) 60%, var(--bg));
 }
 :root[data-card-surface="glass"] .card {
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter: blur(8px);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--surface) 96%, transparent),
+    color-mix(in srgb, var(--surface) 88%, transparent)
+  );
 }
 :root[data-border-strength="defined"] {
   --line: color-mix(in srgb, var(--ink) 26%, var(--surface));

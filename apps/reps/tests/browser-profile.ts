@@ -375,6 +375,13 @@ try {
       path: new URL("profile-dark-" + width + ".png", out).pathname,
       fullPage: true,
     });
+    await page
+      .getByRole("heading", { name: "Your own avatar", exact: true })
+      .scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: new URL("profile-dark-upload-" + width + ".png", out).pathname,
+    });
+    await page.evaluate(() => window.scrollTo(0, 0));
   }
   await clickTab("Workspace");
   await page.getByRole("radio", { name: "System", exact: true }).check();
