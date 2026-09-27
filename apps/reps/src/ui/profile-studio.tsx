@@ -377,6 +377,7 @@ export function ProfileStudio() {
                 <label className="field">
                   Banner fit
                   <select
+                    aria-label="Banner fit"
                     value={draft.banner_fit}
                     onChange={(e) =>
                       change({

@@ -4,6 +4,13 @@ import { HttpError, type Env } from "./types";
 import { inspectProfileImage } from "../shared/profile-media";
 
 export const PROFILE_BUCKET = "pixelalty-profile-media";
+export async function expireProfileMedia(env: Env) {
+  const reps = await rpc(client(env, undefined, true), "px_profile_service", {
+    action: "expire",
+    p: {},
+  });
+  for (const repId of reps) await cleanupProfileMedia(env, repId);
+}
 export async function cleanupProfileMedia(env: Env, repId: string) {
   const admin = client(env, undefined, true);
   const pending = await rpc(admin, "px_profile_service", {

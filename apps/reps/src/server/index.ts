@@ -24,6 +24,7 @@ import {
 import { parseUpload } from "./importer";
 import {
   cleanupProfileMedia,
+  expireProfileMedia,
   readProfileMedia,
   uploadProfileMedia,
 } from "./profile";
@@ -290,6 +291,19 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
   if (path === "/api/table") {
     const table = u.searchParams.get("name") || "";
     if (!TABLES.includes(table)) throw new HttpError(404, "Table not found.");
+    if (["applicants", "applicant_notes"].includes(table)) {
+      const context = await rpc(db, "px_context");
+      if (
+        context.aal !== "aal2" ||
+        !context.roles.some((role: string) =>
+          ["owner", "sales_admin"].includes(role),
+        )
+      )
+        throw new HttpError(
+          403,
+          "This view is not available for your account.",
+        );
+    }
     if (table === "businesses" && u.searchParams.get("own") === "true")
       return json(
         await rpc(db, "px_report", {
@@ -971,6 +985,9 @@ export default {
         await service(env, "tick", {});
         await drainMail(env, 10).catch(() =>
           console.error("mail_queue_unavailable"),
+        );
+        await expireProfileMedia(env).catch(() =>
+          console.error("profile_cleanup_retry"),
         );
         const db = client(env, undefined, true),
           payments = await db

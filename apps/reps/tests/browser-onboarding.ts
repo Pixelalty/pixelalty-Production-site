@@ -111,7 +111,7 @@ try {
     .getByRole("button", { name: "Complete profile", exact: true })
     .click();
   await page.getByLabel("Display name", { exact: true }).fill("Alex Test");
-  await page.getByLabel("Timezone", { exact: true }).fill("UTC");
+  await page.getByLabel("Timezone", { exact: true }).selectOption("UTC");
   await page.getByRole("button", { name: "Save profile", exact: true }).click();
   await page.getByText("Saved successfully.", { exact: true }).waitFor();
   await logout();

@@ -286,7 +286,6 @@ try {
   await page.getByRole("button", { name: "Save profile" }).click();
   await page.getByLabel("Monthly verified sales goal").fill("5");
   await page.getByLabel("Monthly qualifying call goal").fill("100");
-  await page.getByLabel("Profile frame").selectOption("auto");
   await page.getByRole("button", { name: "Save preferences" }).click();
   await settle();
   await page.reload();

@@ -15,6 +15,7 @@ import { scheduledInstant, timezoneOptions } from "../src/shared/timezones";
 import { workspacePreferences } from "../src/shared/workspace";
 import { actor, database, rpc } from "./helpers";
 import { startIntegration } from "./integration-server";
+import { expireProfileMedia } from "../src/server/profile";
 
 test("career progress preserves fixed level intervals across awards, multiple levels and corrections", () => {
   assert.deepEqual(careerProgress(275), {
@@ -225,6 +226,12 @@ test("every cosmetic is enforced by SQL; peak unlocks survive a correction and m
       [rep],
     );
     await actor(db, rep);
+    const challenge = (await db.query<any>("select px_context() as result"))
+      .rows[0].result;
+    assert.equal(challenge.rep, null);
+    assert.equal(challenge.mfa_required, true);
+    assert.equal(challenge.settings, undefined);
+    assert.equal(challenge.profile, undefined);
     assert.equal(
       (await db.query("select * from px_profile_styles")).rows.length,
       0,
@@ -296,6 +303,7 @@ test("Worker media upload, owned references, shared visibility, removal and dele
       });
     };
     assert.equal((await upload(f.rep, "avatar")).status, 403);
+    assert.equal((await post(f, f.rep, "/profile/upload", {})).status, 400);
     await post(f, f.owner, "/action", {
       action: "xp_adjust",
       p: {
@@ -387,6 +395,63 @@ test("Worker media upload, owned references, shared visibility, removal and dele
           "select count(*) n from storage.objects where bucket_id='pixelalty-profile-media'",
         )
       ).rows[0].n,
+      0,
+    );
+    await actor(f.db, f.rep);
+    const stale = await rpc(f.db, "px_profile", "reserve", {
+      kind: "avatar",
+      mime: "image/png",
+      width: 64,
+      height: 64,
+      bytes: 200,
+      animated: false,
+    });
+    const recent = await rpc(f.db, "px_profile", "reserve", {
+      kind: "avatar",
+      mime: "image/png",
+      width: 64,
+      height: 64,
+      bytes: 200,
+      animated: false,
+    });
+    await f.db.exec("reset role");
+    await f.db.query(
+      "update px_private.profile_assets set created_at=now()-interval '25 hours' where id=$1",
+      [stale.id],
+    );
+    await f.db.query(
+      "insert into storage.objects(bucket_id,name) values('pixelalty-profile-media',$1)",
+      [stale.object_key],
+    );
+    f.storedFiles.set(
+      "pixelalty-profile-media/" + stale.object_key,
+      Buffer.from(profileImages.png, "base64"),
+    );
+    await expireProfileMedia(f.env);
+    assert.equal(
+      (
+        await f.db.query(
+          "select id from px_private.profile_assets where id=$1",
+          [stale.id],
+        )
+      ).rows.length,
+      0,
+    );
+    assert.equal(
+      (
+        await f.db.query(
+          "select id from px_private.profile_assets where id=$1",
+          [recent.id],
+        )
+      ).rows.length,
+      1,
+    );
+    assert.equal(
+      (
+        await f.db.query("select id from storage.objects where name=$1", [
+          stale.object_key,
+        ])
+      ).rows.length,
       0,
     );
   } finally {

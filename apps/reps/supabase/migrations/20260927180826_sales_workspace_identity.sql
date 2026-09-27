@@ -136,9 +136,15 @@ revoke all on function public.px_profile(text,jsonb),px_private.profile(text,jso
 grant execute on function public.px_profile(text,jsonb),px_private.profile(text,jsonb) to authenticated;
 
 create function px_private.profile_service(action text,p jsonb) returns jsonb language plpgsql security definer set search_path='' as $$
-declare a px_private.profile_assets;begin
+declare a px_private.profile_assets;out jsonb;begin
  if coalesce(auth.jwt()->>'role','')<>'service_role' then raise exception 'Service access required.' using errcode='42501';end if;
- if action='complete' then
+ if action='expire' then
+   update px_private.profile_assets set status='removing' where id in (
+    select id from px_private.profile_assets where status='reserved' and created_at<now()-interval '24 hours' order by created_at limit 20 for update skip locked
+   );
+   select coalesce(jsonb_agg(rep_id),'[]') into out from (select distinct rep_id from px_private.profile_assets where status='removing' order by rep_id limit 20) pending;
+   return out;
+ elsif action='complete' then
   select * into a from px_private.profile_assets where id=(p->>'id')::uuid and status='reserved' for update;
   if a.id is null or not exists(select 1 from storage.objects where bucket_id='pixelalty-profile-media' and name=a.object_key) or not exists(select 1 from storage.objects where bucket_id='pixelalty-profile-media' and name=a.static_key) then raise exception 'The image upload is incomplete.';end if;
   update px_private.profile_assets set status='ready' where id=a.id;
@@ -156,8 +162,13 @@ revoke all on function px_private.profile_xp_peak(),px_private.profile_summary(u
 
 alter function px_private.context() rename to context_before_profile;
 revoke all on function px_private.context_before_profile() from public,anon,authenticated;
-create function px_private.context() returns jsonb language plpgsql security definer set search_path='' as $$begin
- perform px_private.require_access();return px_private.context_before_profile()||jsonb_build_object('profile',px_private.profile_summary(auth.uid()));
+create function px_private.context() returns jsonb language plpgsql security definer set search_path='' as $$declare roles jsonb;begin
+ perform px_private.require_access();
+ select coalesce(jsonb_agg(role),'[]') into roles from public.px_roles where user_id=auth.uid();
+ if coalesce(auth.jwt()->>'aal','aal1')<>'aal2' and (jsonb_array_length(roles)>0 or not px_private.mfa_satisfied()) then
+  return jsonb_build_object('user_id',auth.uid(),'rep',null,'roles',roles,'aal','aal1','mfa_required',true);
+ end if;
+ return px_private.context_before_profile()||jsonb_build_object('profile',px_private.profile_summary(auth.uid()));
 end$$;
 grant execute on function px_private.context() to authenticated;
 
