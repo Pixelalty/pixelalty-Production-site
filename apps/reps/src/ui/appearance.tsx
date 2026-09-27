@@ -199,102 +199,230 @@ export function Appearance() {
                   </select>
                 </div>
               </div>
-              <label className="preference-check">
-                <input
-                  type="checkbox"
-                  disabled={busy}
-                  checked={draft.reduced_motion}
-                  onChange={(e) => change({ reduced_motion: e.target.checked })}
-                />
-                <span>
-                  <strong>Reduce motion</strong>
-                  <small>Keep transitions and animations to a minimum.</small>
-                </span>
-              </label>
+              {(
+                [
+                  [
+                    "sidebar_mode",
+                    "Sidebar width",
+                    ["expanded", "compact", "collapsed"],
+                  ],
+                  ["cards", "Card style", ["minimal", "standard", "rounded"]],
+                  ["motion", "Motion", ["normal", "reduced", "off"]],
+                  [
+                    "avatar",
+                    "Avatar preset",
+                    ["initial", "monogram", "outline"],
+                  ],
+                  ["frame", "Profile frame", ["simple", "line", "double"]],
+                  ["banner", "Profile banner", ["plain", "wash", "grid"]],
+                ] as const
+              ).map(([key, title, values]) => (
+                <label className="field" key={key}>
+                  {title}
+                  <select
+                    disabled={busy}
+                    value={draft[key]}
+                    onChange={(e) =>
+                      change({
+                        [key]: e.target.value,
+                        ...(key === "motion"
+                          ? { reduced_motion: e.target.value !== "normal" }
+                          : {}),
+                      })
+                    }
+                  >
+                    {values.map((v) => (
+                      <option
+                        key={v}
+                        value={v}
+                        disabled={
+                          key === "frame" &&
+                          v === "double" &&
+                          app.ctx.rep &&
+                          !app.ctx.access_options?.profile_frames &&
+                          (app.ctx.career_xp || 0) < 1000
+                        }
+                      >
+                        {v[0].toUpperCase() + v.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+              <p className="muted">
+                The double profile frame unlocks at 1,000 career XP or through
+                an administrator.
+              </p>
+              <fieldset disabled={busy}>
+                <legend>Displayed achievements</legend>
+                {[
+                  ["first_call", "First call"],
+                  ["first_sale", "First verified sale"],
+                  ["trained", "Required training complete"],
+                ].map(([value, title]) => (
+                  <label className="preference-check" key={value}>
+                    <input
+                      type="checkbox"
+                      checked={draft.achievements.includes(value)}
+                      onChange={(e) =>
+                        change({
+                          achievements: e.target.checked
+                            ? [...draft.achievements, value]
+                            : draft.achievements.filter((v) => v !== value),
+                        })
+                      }
+                    />
+                    {title}
+                  </label>
+                ))}
+                <p className="muted">Only earned achievements are displayed.</p>
+              </fieldset>
             </Card>
           </div>
-          <Card title="Your pinned pages" extra={<Pin size={18} />}>
-            <p>
-              Keep up to six destinations at the top of your sidebar. Order them
-              to match the way you work.
-            </p>
-            {draft.pinned.length > 0 && (
+          <div>
+            <Card title="Dashboard widgets">
+              <p>
+                Your next steps and career progress remain visible. Reorder or
+                hide these optional widgets.
+              </p>
               <ol className="pin-order">
-                {draft.pinned.map((to, i) => (
-                  <li key={to}>
-                    <span>
-                      {pages.find((p) => p.to === to)?.title ||
-                        "Unavailable page"}
-                    </span>
+                {draft.widgets.map((widget, i) => (
+                  <li key={widget}>
+                    <label className="preference-check">
+                      <input
+                        type="checkbox"
+                        checked={!draft.hidden_widgets.includes(widget)}
+                        onChange={(e) =>
+                          change({
+                            hidden_widgets: e.target.checked
+                              ? draft.hidden_widgets.filter((v) => v !== widget)
+                              : [...draft.hidden_widgets, widget],
+                          })
+                        }
+                      />
+                      {widget === "goals"
+                        ? "Monthly goals"
+                        : "Team leaderboard"}
+                    </label>
                     <button
                       type="button"
-                      className="icon"
+                      aria-label={"Move " + widget + " up"}
                       disabled={busy || i === 0}
-                      aria-label={
-                        "Move " +
-                        (pages.find((p) => p.to === to)?.title || "page") +
-                        " up"
-                      }
-                      onClick={() => move(i, -1)}
+                      onClick={() => {
+                        const widgets = [...draft.widgets];
+                        [widgets[i - 1], widgets[i]] = [
+                          widgets[i],
+                          widgets[i - 1],
+                        ];
+                        change({ widgets });
+                      }}
                     >
                       <ArrowUp size={16} />
                     </button>
                     <button
                       type="button"
-                      className="icon"
-                      disabled={busy || i === draft.pinned.length - 1}
-                      aria-label={
-                        "Move " +
-                        (pages.find((p) => p.to === to)?.title || "page") +
-                        " down"
-                      }
-                      onClick={() => move(i, 1)}
+                      aria-label={"Move " + widget + " down"}
+                      disabled={busy || i === draft.widgets.length - 1}
+                      onClick={() => {
+                        const widgets = [...draft.widgets];
+                        [widgets[i + 1], widgets[i]] = [
+                          widgets[i],
+                          widgets[i + 1],
+                        ];
+                        change({ widgets });
+                      }}
                     >
                       <ArrowDown size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon"
-                      disabled={busy}
-                      aria-label={
-                        "Unpin " +
-                        (pages.find((p) => p.to === to)?.title ||
-                          "unavailable page")
-                      }
-                      onClick={() =>
-                        change({ pinned: draft.pinned.filter((p) => p !== to) })
-                      }
-                    >
-                      <X size={16} />
                     </button>
                   </li>
                 ))}
               </ol>
-            )}
-            <div className="pin-options">
-              {pages.map(({ to, title, icon: Icon }) => (
-                <label className="preference-check" key={to}>
-                  <input
-                    type="checkbox"
-                    checked={draft.pinned.includes(to)}
-                    disabled={
-                      busy ||
-                      (!draft.pinned.includes(to) && draft.pinned.length >= 6)
-                    }
-                    onChange={(e) =>
-                      change({
-                        pinned: e.target.checked
-                          ? [...draft.pinned, to]
-                          : draft.pinned.filter((p) => p !== to),
-                      })
-                    }
-                  />
-                  <Icon size={17} aria-hidden="true" />
-                  <span>{title}</span>
-                </label>
-              ))}
-            </div>
-          </Card>
+            </Card>
+            <Card title="Your pinned pages" extra={<Pin size={18} />}>
+              <p>
+                Keep up to six destinations at the top of your sidebar. Order
+                them to match the way you work.
+              </p>
+              {draft.pinned.length > 0 && (
+                <ol className="pin-order">
+                  {draft.pinned.map((to, i) => (
+                    <li key={to}>
+                      <span>
+                        {pages.find((p) => p.to === to)?.title ||
+                          "Unavailable page"}
+                      </span>
+                      <button
+                        type="button"
+                        className="icon"
+                        disabled={busy || i === 0}
+                        aria-label={
+                          "Move " +
+                          (pages.find((p) => p.to === to)?.title || "page") +
+                          " up"
+                        }
+                        onClick={() => move(i, -1)}
+                      >
+                        <ArrowUp size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon"
+                        disabled={busy || i === draft.pinned.length - 1}
+                        aria-label={
+                          "Move " +
+                          (pages.find((p) => p.to === to)?.title || "page") +
+                          " down"
+                        }
+                        onClick={() => move(i, 1)}
+                      >
+                        <ArrowDown size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon"
+                        disabled={busy}
+                        aria-label={
+                          "Unpin " +
+                          (pages.find((p) => p.to === to)?.title ||
+                            "unavailable page")
+                        }
+                        onClick={() =>
+                          change({
+                            pinned: draft.pinned.filter((p) => p !== to),
+                          })
+                        }
+                      >
+                        <X size={16} />
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              <div className="pin-options">
+                {pages.map(({ to, title, icon: Icon }) => (
+                  <label className="preference-check" key={to}>
+                    <input
+                      type="checkbox"
+                      checked={draft.pinned.includes(to)}
+                      disabled={
+                        busy ||
+                        (!draft.pinned.includes(to) && draft.pinned.length >= 6)
+                      }
+                      onChange={(e) =>
+                        change({
+                          pinned: e.target.checked
+                            ? [...draft.pinned, to]
+                            : draft.pinned.filter((p) => p !== to),
+                        })
+                      }
+                    />
+                    <Icon size={17} aria-hidden="true" />
+                    <span>{title}</span>
+                  </label>
+                ))}
+              </div>
+            </Card>
+          </div>
         </div>
         <div className="preference-savebar">
           <div aria-live="polite">

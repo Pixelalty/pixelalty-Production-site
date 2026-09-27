@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ManageAccount, StripeHealth, LoginAccounts } from "./accounts";
 import {
   ShieldCheck,
   Activity,
@@ -64,6 +65,12 @@ export function Admin() {
     </>
   );
   const repCode = new URLSearchParams(app.path.split("?")[1]).get("rep_code");
+  if (
+    page === "/admin/reps" &&
+    repCode &&
+    new URLSearchParams(app.path.split("?")[1]).get("manage") === "1"
+  )
+    return <ManageAccount code={repCode} />;
   if (page === "/admin/tax") return <TaxReview />;
   if (page === "/admin/reps" && repCode)
     return <RepOnboardingDetail code={repCode} />;
@@ -198,6 +205,13 @@ export function Admin() {
           actions={(r) => (
             <>
               <button
+                onClick={() =>
+                  app.navigate("/admin/reps?rep_code=" + r.code + "&manage=1")
+                }
+              >
+                Manage account
+              </button>
+              <button
                 onClick={() => app.navigate("/admin/reps?rep_code=" + r.code)}
               >
                 Manage onboarding & readiness
@@ -295,6 +309,7 @@ export function Admin() {
             </button>
           </Card>
         )}
+        {app.has("owner") && <LoginAccounts />}
         {view}
       </>
     );
@@ -364,6 +379,7 @@ export function Admin() {
           title="Commissions & payouts"
           description="Review payment health, release holds, and authorize eligible transfers."
         />
+        <StripeHealth />
         <div className="notice">
           A Connect transfer moves funds to a connected account. The bank payout
           is a separate event. An uncertain transfer requires reconciliation
@@ -1279,6 +1295,24 @@ function Health() {
             </>
           )}
         </State>
+      </Card>
+      <StripeHealth />
+      <Card title="Staging diagnostics">
+        <p>
+          Request references and safe categories only. No credentials or
+          document contents are recorded.
+        </p>
+        <Listing
+          name="diagnostics"
+          columns={[
+            ["id", "Request reference"],
+            ["category", "Category"],
+            ["route", "Action"],
+            ["status", "Response"],
+            ["provider_request_id", "Provider reference"],
+            ["created_at", "Time"],
+          ]}
+        />
       </Card>
       <h2>Background jobs</h2>
       <Listing

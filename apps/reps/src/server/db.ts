@@ -25,6 +25,16 @@ export function client(env: Env, token?: string, admin = false) {
 export async function rpc(db: SupabaseClient, name: string, args: Row = {}) {
   const { data, error } = await db.rpc(name, args);
   if (error) {
+    if (
+      error.code === "P0001" &&
+      error.message ===
+        "Reconcile the previous Connect account attempt before creating another."
+    )
+      throw new HttpError(
+        409,
+        "Your previous payout setup needs an administrator’s review. Contact Pixelalty support to reconnect it.",
+        "CONNECT_RECONCILIATION_REQUIRED",
+      );
     if (error.code === "42501")
       throw new HttpError(
         403,
@@ -47,6 +57,8 @@ export async function rpc(db: SupabaseClient, name: string, args: Row = {}) {
     throw new HttpError(
       500,
       "This change could not be saved. Please try again or contact Pixelalty support.",
+      "DATABASE_" +
+        (/^[A-Z0-9]{5}$/.test(error.code) ? error.code : "UNAVAILABLE"),
     );
   }
   return data;
@@ -58,6 +70,12 @@ export async function identity(req: Request, env: Env) {
   const { data, error } = await db.auth.getUser(token);
   if (error || !data.user)
     throw new HttpError(401, "Your session has expired. Sign in again.");
+  if (!(await rpc(db, "px_session_check")))
+    throw new HttpError(
+      401,
+      "Your session has ended. Sign in again.",
+      "SESSION_REVOKED",
+    );
   return { db, user: data.user, token };
 }
 export function service(env: Env, action: string, p: Row) {

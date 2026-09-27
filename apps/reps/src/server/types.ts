@@ -19,6 +19,8 @@ export class HttpError extends Error {
   constructor(
     public status: number,
     message: string,
+    public category = "REQUEST_REJECTED",
+    public providerRequestId?: string,
   ) {
     super(message);
   }

@@ -53,6 +53,13 @@ export function workspacePages(ctx: Row): WorkspacePage[] {
     "Your overview and next steps",
   );
   if (ctx.rep) {
+    add(
+      "/xp",
+      "XP history",
+      "My progress",
+      Trophy,
+      "Career awards and corrections",
+    );
     if (ctx.rep.status === "active") {
       add(
         "/focus",
@@ -205,13 +212,14 @@ export function workspacePages(ctx: Row): WorkspacePage[] {
     BookOpen,
     "Read training and complete quizzes",
   );
-  add(
-    "/leaderboard",
-    "Leaderboard",
-    "Resources",
-    Trophy,
-    "Team sales and activity rankings",
-  );
+  if (ctx.access_options?.leaderboard !== false || has("sales_admin"))
+    add(
+      "/leaderboard",
+      "Leaderboard",
+      "Resources",
+      Trophy,
+      "Team sales and activity rankings",
+    );
   add(
     "/appearance",
     "Appearance",

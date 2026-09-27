@@ -51,6 +51,7 @@ import {
   type WorkspacePreferences,
 } from "../shared/workspace";
 import { workspacePages, WorkspaceNavigation, PageFinder } from "./navigation";
+import { XpHistory } from "./accounts";
 import { Appearance } from "./appearance";
 import { readAuthLink, authErrorMessage } from "../shared/auth";
 import { AuthShell } from "./auth-shell";
@@ -205,7 +206,12 @@ function App() {
   useEffect(() => {
     const d = document.documentElement.dataset;
     d.compact = String(displayPreferences.density === "compact");
-    d.motion = displayPreferences.reduced_motion ? "reduced" : "auto";
+    d.motion =
+      displayPreferences.motion === "normal"
+        ? "auto"
+        : displayPreferences.motion;
+    d.sidebarMode = displayPreferences.sidebar_mode;
+    d.cards = displayPreferences.cards;
     d.accent = displayPreferences.accent;
     d.textSize = displayPreferences.text_size;
     d.sidebar = displayPreferences.sidebar;
@@ -587,6 +593,7 @@ function App() {
         "/academy": <Academy />,
         "/onboarding": <Onboarding />,
         "/profile": <Profile />,
+        "/xp": <XpHistory />,
         "/appearance": <Appearance />,
         "/leaderboard": <Leaderboard />,
         "/support": <Support />,

@@ -26,7 +26,7 @@ import { label, type Row } from "../shared/core";
 
 const taxLabels: Record<string, string> = {
   not_submitted: "Not submitted",
-  submitted: "Submitted",
+  submitted: "Submitted — awaiting Finance review",
   under_review: "Under review",
   verified: "Verified",
   needs_correction: "Needs correction",
@@ -96,9 +96,11 @@ export function Onboarding() {
     }
   }, [app.path, readiness.loading]);
   useEffect(() => {
-    if (new URLSearchParams(location.search).has("connect")) {
+    const connectStep = new URLSearchParams(location.search).get("connect");
+    if (connectStep === "refresh" || connectStep === "returned") {
       history.replaceState({}, "", "/onboarding?step=payout");
-      void payout(true);
+      // Expired/used links must be replaced; the return only synchronizes readiness.
+      void payout(connectStep === "returned");
     }
   }, []);
   useEffect(() => {
@@ -357,6 +359,11 @@ function TaxSubmission() {
           }
           setBusy(true);
           try {
+            const { validateTaxPdf } = await import("../shared/tax-pdf");
+            await validateTaxPdf(
+              new Uint8Array(await file.arrayBuffer()),
+              "application/pdf",
+            );
             await uploadPdf(file, requestId);
             form.reset();
             setFile(null);
@@ -434,6 +441,9 @@ export function RepOnboardingDetail({ code }: { code: string }) {
         description="Review each requirement and complete the actions assigned to your role."
       >
         <LinkButton to="/admin/reps">All reps</LinkButton>
+        <LinkButton to={"/admin/reps?rep_code=" + code + "&manage=1"}>
+          Manage account
+        </LinkButton>
       </Heading>
       <State {...state}>
         {d && (

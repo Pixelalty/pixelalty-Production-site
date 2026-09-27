@@ -116,6 +116,9 @@ test("PostgreSQL contention preserves assignment and financial invariants", asyn
     await control.query(
       "create role anon; create role authenticated; create role service_role bypassrls; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz); create function auth.uid() returns uuid language sql stable as $$select (nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'sub')::uuid$$; create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$; grant usage on schema auth to anon,authenticated,service_role; grant execute on all functions in schema auth to anon,authenticated,service_role;",
     );
+    await control.query(
+      "create table auth.sessions(id uuid primary key,user_id uuid references auth.users(id) on delete cascade,created_at timestamptz not null default now());",
+    );
     await control.query(storageSchema);
     const dir = new URL("../supabase/migrations/", import.meta.url);
     for (const name of (await readdir(dir))

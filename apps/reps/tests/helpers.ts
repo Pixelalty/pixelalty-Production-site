@@ -17,6 +17,9 @@ export async function database() {
   await db.exec(
     `create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;grant usage on schema auth to anon,authenticated,service_role;grant execute on all functions in schema auth to anon,authenticated,service_role;`,
   );
+  await db.exec(
+    "create table auth.sessions(id uuid primary key,user_id uuid references auth.users(id) on delete cascade,created_at timestamptz not null default now());",
+  );
   await db.exec(storageSchema);
   const dir = new URL("../supabase/migrations/", import.meta.url);
   for (const f of (await readdir(dir)).filter((x) => x.endsWith(".sql")).sort())

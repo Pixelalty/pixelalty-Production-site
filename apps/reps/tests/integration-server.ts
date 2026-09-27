@@ -7,9 +7,12 @@ import { resolve, extname } from "node:path";
 import { database } from "./helpers";
 import worker from "../src/server/index";
 import type { Env } from "../src/server/types";
-export async function startIntegration(options: { ownerMfa?: boolean } = {}) {
+export async function startIntegration(
+  options: { ownerMfa?: boolean; connectError?: boolean } = {},
+) {
   const storedFiles = new Map<string, Uint8Array>();
   let connectedReady = false;
+  let createdAccountRep = "";
   const userMetadata = new Map<string, Record<string, unknown>>();
   const passwords = new Map<string, string>(),
     emailLinks = new Map<string, { id: string; type: string }>(),
@@ -64,6 +67,47 @@ export async function startIntegration(options: { ownerMfa?: boolean } = {}) {
         data: Object.fromEntries(data),
         method: req.method,
       });
+      if (u.pathname === "/v1/account")
+        return Response.json({ id: "acct_platform", object: "account" });
+      if (u.pathname === "/v1/webhook_endpoints")
+        return Response.json({
+          data: ["stripe", "connect"].map((kind) => ({
+            id: "we_" + kind,
+            url: env.APP_URL + "/api/webhooks/" + kind,
+            status: "enabled",
+          })),
+          has_more: false,
+        });
+      if (u.pathname === "/v1/accounts" && req.method === "GET")
+        return Response.json({
+          data: createdAccountRep
+            ? [
+                {
+                  id: "acct_isolated_onboarding",
+                  metadata: { rep_id: createdAccountRep },
+                  payouts_enabled: connectedReady,
+                  details_submitted: connectedReady,
+                  capabilities: {
+                    transfers: connectedReady ? "active" : "pending",
+                  },
+                },
+              ]
+            : [],
+          has_more: false,
+        });
+      if (u.pathname === "/v1/accounts" && options.connectError)
+        return Response.json(
+          {
+            error: {
+              type: "invalid_request_error",
+              message:
+                "Please review the responsibilities of managing losses in your platform profile.",
+            },
+          },
+          { status: 400, headers: { "request-id": "req_fixtureProfile" } },
+        );
+      if (u.pathname === "/v1/accounts" && req.method === "POST")
+        createdAccountRep = data.get("metadata[rep_id]") || "";
       if (
         u.pathname === "/v1/accounts" ||
         u.pathname === "/v1/accounts/acct_isolated_onboarding"
@@ -266,16 +310,26 @@ export async function startIntegration(options: { ownerMfa?: boolean } = {}) {
               "px_mail",
               "px_tax",
               "px_tax_complete",
+              "px_session_check",
+              "px_account_complete",
+              "px_account_cleanup_files",
             ].includes(name)
           )
             throw Error("Unknown RPC");
           const p = (await req.json()) as any;
-          const args =
-            name === "px_context" || name === "px_public_config"
-              ? []
-              : name === "px_tax_complete"
-                ? [p.p || {}]
-                : [p.action || p.kind, p.p || {}];
+          const args = [
+            "px_context",
+            "px_public_config",
+            "px_session_check",
+          ].includes(name)
+            ? []
+            : [
+                  "px_tax_complete",
+                  "px_account_complete",
+                  "px_account_cleanup_files",
+                ].includes(name)
+              ? [p.p || {}]
+              : [p.action || p.kind, p.p || {}];
           const sql = `select public.${name}(${args.length === 1 ? "$1::jsonb" : args.length ? "$1,$2::jsonb" : ""}) result`;
           return Response.json((await db.query<any>(sql, args)).rows[0].result);
         }
@@ -438,7 +492,21 @@ export async function startIntegration(options: { ownerMfa?: boolean } = {}) {
             { message: "Private object" },
             { status: 403 },
           );
-        else if (req.method === "POST") {
+        else if (req.method === "DELETE") {
+          const { prefixes } = (await req.json()) as { prefixes: string[] };
+          const removeBucket = objectPath;
+          await withDb(async () => {
+            await db.exec("reset role");
+            for (const key of prefixes) {
+              await db.query(
+                "delete from storage.objects where bucket_id=$1 and name=$2",
+                [removeBucket, key],
+              );
+              storedFiles.delete(removeBucket + "/" + key);
+            }
+          });
+          response = Response.json(prefixes.map((name) => ({ name })));
+        } else if (req.method === "POST") {
           if (storedFiles.has(objectPath))
             response = Response.json(
               { statusCode: "409", message: "Already exists" },
@@ -568,6 +636,20 @@ export async function startIntegration(options: { ownerMfa?: boolean } = {}) {
                   },
                   { status: 400 },
                 );
+        } else if (
+          u.pathname.includes("/admin/users/") &&
+          req.method === "DELETE" &&
+          c.role === "service_role"
+        ) {
+          const id = u.pathname.split("/").at(-1)!;
+          await withDb(async () => {
+            await db.exec("reset role");
+            await db.query("delete from auth.users where id=$1", [id]);
+          });
+          const pos = users.findIndex((x) => x.id === id);
+          if (pos >= 0) users.splice(pos, 1);
+          authCalls.push({ type: "delete", id });
+          response = Response.json({});
         } else if (u.pathname.endsWith("/logout")) response = Response.json({});
         else {
           const person = users.find((x) => x.id === c.sub);
@@ -603,6 +685,7 @@ export async function startIntegration(options: { ownerMfa?: boolean } = {}) {
   env.APP_URL = env.SUPABASE_URL = "http://127.0.0.1:" + address.port;
   return {
     db,
+    env,
     base: env.APP_URL,
     owner,
     rep,

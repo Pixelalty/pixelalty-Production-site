@@ -168,8 +168,9 @@ test("a valid signed unsupported event is logged only through the service bounda
       env,
     );
     assert.equal(r.status, 200);
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].body.action, "event_ignored");
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].body.action, "event_received");
+    assert.equal(calls[1].body.action, "event_ignored");
     assert.equal(calls[0].key, env.SUPABASE_SERVICE_ROLE_KEY);
   } finally {
     globalThis.fetch = original;

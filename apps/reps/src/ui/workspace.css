@@ -983,3 +983,112 @@ th {
     gap: 11px;
   }
 }
+
+/* Bounded account presets; no user-authored CSS is accepted. */
+:root[data-accent="emerald"] {
+  --blue: #087568;
+}
+:root[data-accent="red"] {
+  --blue: #b12c43;
+}
+:root[data-accent="slate"] {
+  --blue: #526580;
+}
+:root[data-accent="monochrome"] {
+  --blue: #3e4756;
+}
+:root[data-cards="minimal"] .card {
+  border-radius: 5px;
+  box-shadow: none;
+}
+:root[data-cards="rounded"] .card {
+  border-radius: 24px;
+}
+:root[data-motion="off"] *,
+:root[data-motion="off"] *::before,
+:root[data-motion="off"] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+.profile-identity {
+  margin-bottom: 24px;
+}
+.profile-avatar {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--link);
+  font-size: 25px;
+  font-weight: 800;
+}
+.profile-avatar.avatar-outline {
+  background: none;
+  border: 2px solid var(--line);
+}
+.profile-avatar.border-line {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
+}
+.profile-avatar.border-double {
+  outline: 4px double var(--blue);
+  outline-offset: 4px;
+}
+.banner-wash {
+  background: linear-gradient(115deg, var(--soft), var(--surface));
+}
+.banner-grid {
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+@media (min-width: 901px) {
+  :root[data-sidebar-mode="compact"] .sidebar {
+    width: 220px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  :root[data-sidebar-mode="compact"] .main-shell {
+    margin-left: 220px;
+    width: calc(100% - 220px);
+  }
+  :root[data-sidebar-mode="compact"] .sidebar-search kbd {
+    display: none;
+  }
+  :root[data-sidebar-mode="collapsed"] .sidebar {
+    width: 88px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  :root[data-sidebar-mode="collapsed"] .main-shell {
+    margin-left: 88px;
+    width: calc(100% - 88px);
+  }
+  :root[data-sidebar-mode="collapsed"] .sidebar a,
+  :root[data-sidebar-mode="collapsed"] .sidebar button {
+    justify-content: center;
+  }
+  :root[data-sidebar-mode="collapsed"] .sidebar a > span,
+  :root[data-sidebar-mode="collapsed"] .sidebar .sidebar-search span,
+  :root[data-sidebar-mode="collapsed"] .sidebar kbd,
+  :root[data-sidebar-mode="collapsed"] .sidebar-footer > div {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  :root[data-sidebar-mode="collapsed"] .sidebar .sidebar-customize {
+    font-size: 0;
+  }
+  :root[data-sidebar-mode="collapsed"] .sidebar nav summary {
+    font-size: 10px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}

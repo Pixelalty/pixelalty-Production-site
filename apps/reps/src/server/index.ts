@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { deleteAccount, resetAccountPassword } from "./accounts";
+import { stripeHealth } from "./health";
 import { client, identity, rpc, service } from "./db";
 import { type Env, HttpError } from "./types";
 import {
@@ -11,6 +13,7 @@ import { downloadTax, TAX_MAX_BYTES, uploadTax } from "./tax";
 import {
   checkout,
   connectAccount,
+  recoverConnect,
   webhook,
   transfer,
   reverse,
@@ -101,6 +104,7 @@ const TABLES = [
   "assignments",
   "focus_sessions",
   "quote_requests",
+  "diagnostics",
 ];
 const application = z.object({
   name: z.string().trim().min(2).max(150),
@@ -131,11 +135,13 @@ const application = z.object({
   token: z.string().min(1),
   website: z.string().optional(),
 });
-async function api(req: Request, env: Env) {
+async function api(req: Request, env: Env, trace: { userId?: string }) {
   const u = new URL(req.url),
     path = u.pathname,
     post = req.method === "POST";
   if (path.startsWith("/api/webhooks/")) {
+    if (!["/api/webhooks/stripe", "/api/webhooks/connect"].includes(path))
+      throw new HttpError(404, "Route not found.");
     if (!post) throw new HttpError(405, "POST required.");
     return json(
       await webhook(
@@ -222,6 +228,7 @@ async function api(req: Request, env: Env) {
     );
   }
   const { db, user } = await identity(req, env);
+  trace.userId = user.id;
   if (path === "/api/me") return json(await rpc(db, "px_context"));
   if (path === "/api/report")
     return json(
@@ -490,6 +497,14 @@ async function api(req: Request, env: Env) {
     const p = await body(req);
     return json(await connectAccount(env, db, user.id, !!p.refresh));
   }
+  if (path === "/api/connect/recover" && post)
+    return json(await recoverConnect(env, db, user.id, await body(req)));
+  if (path === "/api/account/delete" && post)
+    return json(await deleteAccount(env, db, await body(req)));
+  if (path === "/api/account/reset-password" && post)
+    return json(await resetAccountPassword(env, db, await body(req)));
+  if (path === "/api/stripe/health" && !post)
+    return json(await stripeHealth(env, db));
   if (path === "/api/transfer" && post)
     return json(await transfer(env, db, await body(req)));
   if (path === "/api/reverse" && post)
@@ -772,6 +787,7 @@ export default {
   ): Promise<Response> {
     let response: Response;
     const requestId = crypto.randomUUID();
+    const trace: { userId?: string } = {};
     try {
       const u = new URL(req.url),
         urls = deploymentUrls(env, req.url);
@@ -813,16 +829,35 @@ export default {
         response = Response.redirect(urls.recruiting, 302);
       else
         response = u.pathname.startsWith("/api/")
-          ? await api(req, env)
+          ? await api(req, env, trace)
           : await env.ASSETS.fetch(req);
     } catch (e) {
       const status = e instanceof HttpError ? e.status : 500;
-      if (status === 500)
-        console.error(
-          "request_failed",
+      const category = e instanceof HttpError ? e.category : "UNEXPECTED_ERROR";
+      console.error(
+        JSON.stringify({
+          event: "request_failed",
           requestId,
-          e instanceof Error ? e.name : "Error",
-        );
+          category,
+          status,
+          route: new URL(req.url).pathname,
+          providerRequestId:
+            e instanceof HttpError ? e.providerRequestId : undefined,
+        }),
+      );
+      if (trace.userId) {
+        const record = service(env, "diagnostic", {
+          id: requestId,
+          user_id: trace.userId,
+          route: new URL(req.url).pathname,
+          category,
+          status,
+          provider_request_id:
+            e instanceof HttpError ? e.providerRequestId : null,
+        }).catch(() => console.error("diagnostic_record_failed", requestId));
+        if (ctx) ctx.waitUntil(record);
+        else await record;
+      }
       response = json(
         {
           error:

@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { PDFDocument } from "pdf-lib";
 import { startIntegration } from "./integration-server";
+import { verifyAccounts } from "./account-browser";
 const f = await startIntegration({ ownerMfa: true });
 await f.db.query(
   "update px_rep_private set classification='unconfigured' where rep_id=$1",
@@ -84,7 +85,7 @@ async function submitPdf(replace = false) {
     .click();
   await page
     .locator("#onboarding-tax .tax-status")
-    .getByText("Submitted", { exact: true })
+    .getByText("Submitted — awaiting Finance review", { exact: true })
     .waitFor();
 }
 try {
@@ -200,7 +201,7 @@ try {
   await page.reload();
   await page
     .locator("#onboarding-tax .tax-status")
-    .getByText("Submitted", { exact: true })
+    .getByText("Submitted — awaiting Finance review", { exact: true })
     .waitFor();
   await logout();
   await login(true);
@@ -243,7 +244,7 @@ try {
     await page.goto(f.base + "/onboarding");
     await page
       .locator("#onboarding-tax .tax-status")
-      .getByText("Submitted", { exact: true })
+      .getByText("Submitted — awaiting Finance review", { exact: true })
       .waitFor();
     await page.waitForLoadState("networkidle");
     if (width < 900)
@@ -354,6 +355,7 @@ try {
   checks.push(
     "PDF rejection, private submission, download audit, correction/replacement, Finance verification, Connect callback, training, activation and fresh-login persistence pass",
   );
+  await verifyAccounts(page, f, code, out, checks, login, logout);
   assert.deepEqual(errors, []);
   assert.deepEqual(failures, []);
   await writeFile(

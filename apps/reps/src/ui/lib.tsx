@@ -18,8 +18,10 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly requestId?: string,
+    readonly category?: string,
   ) {
-    super(message);
+    super(message + (requestId ? ` Reference: ${requestId}.` : ""));
     this.name = "ApiError";
   }
 }
@@ -48,7 +50,12 @@ export async function api(path: string, data?: unknown): Promise<any> {
     error: "The service returned an unreadable response. Please try again.",
   }))) as Row;
   if (!response.ok)
-    throw new ApiError(out.error || "The request failed.", response.status);
+    throw new ApiError(
+      out.error || "The request failed.",
+      response.status,
+      out.requestId,
+      out.category,
+    );
   return out;
 }
 export async function uploadPdf(file: File, requestId: string) {
@@ -66,7 +73,12 @@ export async function uploadPdf(file: File, requestId: string) {
     error: "Your upload could not be confirmed. Retry the same file.",
   }))) as Row;
   if (!response.ok)
-    throw Error(out.error || "Your upload could not be confirmed.");
+    throw new ApiError(
+      out.error || "Your upload could not be confirmed.",
+      response.status,
+      out.requestId,
+      out.category,
+    );
   return out;
 }
 export async function download(path: string, filename: string, data?: unknown) {
@@ -92,13 +104,17 @@ export async function download(path: string, filename: string, data?: unknown) {
 }
 export const AppContext = createContext<any>(null);
 export const useApp = () => useContext(AppContext);
-export function useData(path: string, pollMs = 0) {
+export function useData(path: string | null, pollMs = 0) {
   const { version } = useApp();
   const [state, set] = useState<{ data: any; error: string; loading: boolean }>(
     { data: null, error: "", loading: true },
   );
   useEffect(() => {
     let live = true;
+    if (!path) {
+      set({ data: null, error: "", loading: false });
+      return;
+    }
     set((s) => ({ ...s, loading: true, error: "" }));
     api(path)
       .then((data) => live && set({ data, error: "", loading: false }))
@@ -110,7 +126,7 @@ export function useData(path: string, pollMs = 0) {
     };
   }, [path, version]);
   useEffect(() => {
-    if (!pollMs) return;
+    if (!pollMs || !path) return;
     let live = true,
       pending = false;
     const refresh = async () => {
@@ -198,13 +214,17 @@ export function Card({
   title,
   children,
   extra,
+  style,
+  className,
 }: {
   title?: string;
   children: ReactNode;
   extra?: ReactNode;
+  style?: React.CSSProperties;
+  className?: string;
 }) {
   return (
-    <section className="card">
+    <section className={"card " + (className || "")} style={style}>
       {title && (
         <div className="card-head">
           <h2>{title}</h2>

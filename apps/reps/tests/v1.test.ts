@@ -365,7 +365,7 @@ test("V1 completion uses real SQL, authorization and persistent state", async (t
           slug: "v1-qa-lesson",
           title: "Practical lesson",
           body: "Complete this lesson in the isolated QA database.",
-          required: false,
+          required: true,
           reason: "Publish lesson",
         });
         await actor(db, rep);

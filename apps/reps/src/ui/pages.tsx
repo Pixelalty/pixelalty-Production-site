@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { XpHistory } from "./accounts";
 import { authErrorMessage } from "../shared/auth";
 import {
   ArrowRight,
@@ -31,7 +32,19 @@ const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 export function Dashboard() {
   const app = useApp(),
     state = useData("/report?kind=dashboard"),
-    board = useData("/report?kind=leaderboard");
+    board = useData(
+      app.ctx.access_options?.leaderboard === false && !app.has("sales_admin")
+        ? null
+        : "/report?kind=leaderboard",
+    );
+  const widgetStyle = (key: string) => ({
+    order: 3 + app.preferences.widgets.indexOf(key),
+    display:
+      app.preferences.hidden_widgets.includes(key) ||
+      (key === "leaderboard" && app.ctx.access_options?.leaderboard === false)
+        ? "none"
+        : undefined,
+  });
   const d = state.data || {},
     xp = Math.max(0, d.xp || 0),
     step = d.level_step || 250,
@@ -60,7 +73,7 @@ export function Dashboard() {
           ))}
         </div>
         <div className="dashboard-grid">
-          <section className="focus-hero">
+          <section className="focus-hero" style={{ order: 0 }}>
             <span className="eyebrow">YOUR NEXT MOVE</span>
             <h2>
               Make room for
@@ -89,7 +102,11 @@ export function Dashboard() {
               <Target />
             </div>
           </section>
-          <Card title="Your progression" extra={<Trophy size={20} />}>
+          <Card
+            title="Your progression"
+            style={{ order: 1 }}
+            extra={<Trophy size={20} />}
+          >
             <div
               className={
                 "profile-medallion frame-" +
@@ -112,6 +129,7 @@ export function Dashboard() {
             </div>
             <h3 className="center">Level {level}</h3>
             <p className="center muted">{xp.toLocaleString()} career XP</p>
+            <LinkButton to="/xp">View XP history</LinkButton>
             <progress
               aria-label="Career level progress"
               value={xp % step}
@@ -124,6 +142,7 @@ export function Dashboard() {
           </Card>
           <Card
             title="Your monthly goals"
+            style={widgetStyle("goals")}
             extra={<LinkButton to="/profile">Set goals</LinkButton>}
           >
             {[
@@ -165,7 +184,11 @@ export function Dashboard() {
               future earnings are not guaranteed.
             </p>
           </Card>
-          <Card title="Next steps" extra={<Calendar size={20} />}>
+          <Card
+            title="Next steps"
+            style={{ order: 2 }}
+            extra={<Calendar size={20} />}
+          >
             <div className="next-step">
               <div className="mini-icon">
                 <Calendar />
@@ -189,6 +212,7 @@ export function Dashboard() {
           </Card>
           <Card
             title="Team leaderboard"
+            style={widgetStyle("leaderboard")}
             extra={<LinkButton to="/leaderboard">View all</LinkButton>}
           >
             <State {...board} empty={!board.data?.length}>
@@ -765,6 +789,7 @@ export function Profile() {
         title="Your profile"
         description="Keep your workspace personal and your information current."
       />
+      {rep && <ProfileIdentity />}
       <div className="onboarding-grid">
         {rep && (
           <Card title="Profile details">
@@ -825,6 +850,8 @@ export function Profile() {
             />
           </Card>
         )}
+        {rep && <XpHistory compact />}
+        {rep && <EmailChangeRequest />}
         <Card title="Password & account">
           <Form
             fields={[
@@ -978,5 +1005,78 @@ export function Support() {
         ]}
       />
     </>
+  );
+}
+
+function EmailChangeRequest() {
+  const app = useApp(),
+    state = useData("/report?kind=account_email");
+  if (!state.data?.pending_email) return null;
+  return (
+    <Card title="Confirm email change">
+      <p>
+        Pixelalty requested an update to{" "}
+        <strong>{state.data.pending_email}</strong>. Confirm the change through
+        the email verification links; your sign-in address stays unchanged until
+        verified.
+      </p>
+      <Form
+        fields={[]}
+        submit="Send email verification links"
+        onSubmit={async () => {
+          const r = await app.client.auth.updateUser(
+            { email: state.data.pending_email },
+            { emailRedirectTo: app.config.appUrl + "/welcome" },
+          );
+          if (r.error) throw Error(authErrorMessage(r.error));
+          app.notify("Check your current and new inboxes for verification.");
+        }}
+      />
+    </Card>
+  );
+}
+
+function ProfileIdentity() {
+  const app = useApp(),
+    state = useData("/report?kind=progression"),
+    p = app.preferences,
+    rep = app.ctx.rep;
+  const initials = rep.name
+    .split(/\s+/)
+    .map((v: string) => v[0])
+    .slice(0, 2)
+    .join("");
+  return (
+    <Card className={"profile-identity banner-" + p.banner}>
+      <div
+        className={
+          "profile-avatar avatar-" +
+          p.avatar +
+          " border-" +
+          (p.frame === "double" &&
+          !app.ctx.access_options?.profile_frames &&
+          (app.ctx.career_xp || 0) < 1000
+            ? "simple"
+            : p.frame)
+        }
+      >
+        {p.avatar === "monogram" ? initials : rep.name[0]}
+      </div>
+      <h2>{rep.name}</h2>
+      <p>{rep.bio}</p>
+      <div className="actions">
+        {p.achievements
+          .filter((v: string) => state.data?.achievements?.includes(v))
+          .map((v: string) => (
+            <span className="badge" key={v}>
+              {v === "first_sale"
+                ? "First verified sale"
+                : v === "trained"
+                  ? "Training complete"
+                  : "First call"}
+            </span>
+          ))}
+      </div>
+    </Card>
   );
 }

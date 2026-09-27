@@ -2,6 +2,8 @@ import Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { client, rpc, service } from "./db";
 import { type Env, HttpError } from "./types";
+import { paymentOperation } from "./diagnostics";
+import { deploymentUrls } from "./urls";
 import type { Row } from "../shared/core";
 export function stripe(env: Env) {
   if (
@@ -10,7 +12,8 @@ export function stripe(env: Env) {
   )
     throw new HttpError(
       503,
-      "Payment credentials are missing or do not match the configured mode.",
+      "Pixelalty’s payment connection needs attention. Contact Pixelalty support.",
+      "PAYMENT_MODE_CONFIGURATION",
     );
   return new Stripe(env.STRIPE_SECRET_KEY, {
     httpClient: Stripe.createFetchHttpClient(),
@@ -113,10 +116,20 @@ export async function syncAccount(env: Env, account: Stripe.Account) {
     .select("rep_id")
     .eq("account_id", account.id)
     .maybeSingle();
+  if (found.error)
+    throw new HttpError(
+      502,
+      "Payout setup could not be read. Please retry.",
+      "CONNECT_MAPPING_READ",
+    );
   if (found.data) repId = found.data.rep_id;
-  if (!repId)
-    throw new HttpError(409, "Connected account is not attributed to a rep.");
-  await service(env, "connect", {
+  if (!repId || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(repId))
+    throw new HttpError(
+      409,
+      "Connected account is not attributed to a rep.",
+      "CONNECT_UNATTRIBUTED",
+    );
+  const mapped = await service(env, "connect", {
     rep_id: repId,
     account_id: account.id,
     transfers_enabled: account.capabilities?.transfers === "active",
@@ -124,13 +137,19 @@ export async function syncAccount(env: Env, account: Stripe.Account) {
     details_submitted: account.details_submitted,
     requirements: account.requirements?.currently_due || [],
   });
+  if (mapped?.unattributed)
+    throw new HttpError(
+      409,
+      "Connected account is not attributed to an available rep.",
+      "CONNECT_UNATTRIBUTED",
+    );
   return account;
 }
 export async function connectAccount(
   env: Env,
   db: SupabaseClient,
   userId: string,
-  refresh = false,
+  refresh: boolean | "prepare" = false,
 ) {
   const profile = await one(db, "px_rep_private", "rep_id", userId);
   if (profile.classification !== "contractor")
@@ -145,28 +164,131 @@ export async function connectAccount(
       .eq("rep_id", userId)
       .maybeSingle();
   if (existing.error) throw new HttpError(500, "Unable to read payout setup.");
-  if (!existing.data) await service(env, "connect_begin", { rep_id: userId });
-  const account = existing.data
-    ? await s.accounts.retrieve(existing.data.account_id)
-    : await s.accounts.create(
-        {
-          type: "express",
-          email: profile.email,
-          capabilities: { transfers: { requested: true } },
-          metadata: { rep_id: userId },
-        },
-        { idempotencyKey: `connect:${userId}` },
-      );
+  if (refresh === true && !existing.data)
+    return { refreshed: true, started: false };
+  const attempt = !existing.data
+    ? await service(env, "connect_begin", { rep_id: userId })
+    : null;
+  if (attempt?.needs_reconcile)
+    throw new HttpError(
+      409,
+      "Your previous payout setup needs an administrator’s review. Contact Pixelalty support to reconnect it.",
+      "CONNECT_RECONCILIATION_REQUIRED",
+    );
+  const account = await paymentOperation("connect_account", () =>
+    existing.data
+      ? s.accounts.retrieve(existing.data.account_id)
+      : s.accounts.create(
+          {
+            type: "express",
+            email: profile.email,
+            capabilities: { transfers: { requested: true } },
+            metadata: { rep_id: userId },
+          },
+          { idempotencyKey: attempt?.idempotency_key || `connect:${userId}` },
+        ),
+  );
   await syncAccount(env, account);
   if (refresh) return { refreshed: true };
-  const link = await s.accountLinks.create({
-    account: account.id,
-    type: "account_onboarding",
-    refresh_url: `${env.APP_URL}/onboarding?connect=refresh`,
-    return_url: `${env.APP_URL}/onboarding?connect=returned`,
-  });
+  const appUrl = deploymentUrls(env, env.APP_URL).app;
+  const link = await paymentOperation("connect_link", () =>
+    s.accountLinks.create({
+      account: account.id,
+      type: "account_onboarding",
+      refresh_url: `${appUrl}/onboarding?connect=refresh`,
+      return_url: `${appUrl}/onboarding?connect=returned`,
+    }),
+  );
   return { url: link.url };
 }
+
+// Explicit, audited recovery. Enumerate the platform before rotating an attempt
+// so a lost create response cannot silently result in a duplicate Express account.
+export async function recoverConnect(
+  env: Env,
+  db: SupabaseClient,
+  actorId: string,
+  p: Row,
+) {
+  await finance(db);
+  if (String(p.reason || "").trim().length < 5)
+    throw new HttpError(400, "Enter an audit reason.");
+  const rep = await one(db, "px_reps", "id", p.id);
+  const s = stripe(env),
+    matches: Stripe.Account[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < 100; page++) {
+    const result = await paymentOperation("connect_reconcile", () =>
+      s.accounts.list({
+        limit: 100,
+        ...(cursor ? { starting_after: cursor } : {}),
+      }),
+    );
+    matches.push(...result.data.filter((a) => a.metadata?.rep_id === rep.id));
+    if (!result.has_more) break;
+    cursor = result.data.at(-1)?.id;
+    if (page === 99)
+      throw new HttpError(
+        409,
+        "Account history requires further Finance review.",
+        "CONNECT_RECONCILE_LIMIT",
+      );
+  }
+  if (matches.length > 1)
+    throw new HttpError(
+      409,
+      "Multiple payout accounts were found. Finance must reconcile the matching account before continuing.",
+      "CONNECT_MULTIPLE_ACCOUNTS",
+    );
+  if (matches.length === 1) {
+    const current = await client(env, undefined, true)
+      .from("px_connect")
+      .select("account_id")
+      .eq("rep_id", rep.id)
+      .maybeSingle();
+    if (current.error)
+      throw new HttpError(
+        502,
+        "Payout setup could not be read.",
+        "CONNECT_MAPPING_READ",
+      );
+    if (current.data && current.data.account_id !== matches[0].id) {
+      if (env.STRIPE_MODE !== "test")
+        throw new HttpError(
+          409,
+          "Finance must review the existing account mapping.",
+          "CONNECT_RECONCILIATION_REQUIRED",
+        );
+      await service(env, "connect_reset", {
+        rep_id: rep.id,
+        actor_id: actorId,
+        reason: p.reason,
+      });
+    }
+    await syncAccount(env, matches[0]);
+    await rpc(db, "px_action", {
+      action: "finance_reconcile",
+      p: { id: rep.id, reason: p.reason },
+    });
+    return { recovered: true, ready: matches[0].payouts_enabled };
+  }
+  if (env.STRIPE_MODE !== "test")
+    throw new HttpError(
+      409,
+      "No matching payout account was found. Finance must review this account before resetting it.",
+      "CONNECT_RECONCILIATION_REQUIRED",
+    );
+  await service(env, "connect_reset", {
+    rep_id: rep.id,
+    actor_id: actorId,
+    reason: p.reason,
+  });
+  // Complete the authorized recovery through the same account-creation path.
+  // The rep still creates their own fresh Account Link; none is stored or shared.
+  await connectAccount(env, db, rep.id, "prepare");
+  return { reset: true, recovered: true };
+}
+
 export async function reconcilePayment(
   env: Env,
   s: Stripe,
@@ -246,12 +368,33 @@ export async function webhook(
   if (event.livemode !== (env.STRIPE_MODE === "live"))
     throw new HttpError(400, "Webhook mode mismatch.");
   const obj = event.data.object as any;
+  await service(env, "event_received", {
+    event_id: event.id,
+    event_type: event.type,
+    channel: connect ? "connect" : "platform",
+    account_id: event.account || null,
+  });
   try {
-    if (event.type === "account.updated")
-      await syncAccount(env, await s.accounts.retrieve(obj.id));
-    else if (event.type.startsWith("payout.")) {
+    if (connect && event.type === "account.updated")
+      await syncAccount(
+        env,
+        await paymentOperation("connect_account", () =>
+          s.accounts.retrieve(obj.id),
+        ),
+      );
+    else if (connect && event.type.startsWith("payout.")) {
       if (!event.account)
-        throw new HttpError(409, "Connected account is required.");
+        throw new HttpError(
+          409,
+          "Connected account is required.",
+          "CONNECT_UNATTRIBUTED",
+        );
+      await syncAccount(
+        env,
+        await paymentOperation("connect_account", () =>
+          s.accounts.retrieve(event.account!),
+        ),
+      );
       const payout = await s.payouts.retrieve(
         obj.id,
         {},
@@ -303,6 +446,19 @@ export async function webhook(
     });
     return { received: true };
   } catch (e) {
+    if (
+      e instanceof HttpError &&
+      ["CONNECT_UNATTRIBUTED", "CONNECT_ACCOUNT_UNAVAILABLE"].includes(
+        e.category,
+      )
+    ) {
+      await service(env, "event_unattributed", {
+        event_id: event.id,
+        event_type: event.type,
+        category: e.category,
+      });
+      return { received: true };
+    }
     await service(env, "event_error", {
       event_id: event.id,
       event_type: event.type,

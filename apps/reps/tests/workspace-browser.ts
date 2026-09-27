@@ -47,9 +47,11 @@ export async function verifyWorkspace(
   await page
     .getByLabel("Sidebar style", { exact: true })
     .selectOption("matching");
+  await page.getByLabel("Motion", { exact: true }).selectOption("reduced");
+  await page.getByLabel("Card style", { exact: true }).selectOption("rounded");
   await page
-    .getByRole("checkbox", { name: "Reduce motion", exact: false })
-    .check();
+    .getByLabel("Sidebar width", { exact: true })
+    .selectOption("compact");
   await page.getByRole("checkbox", { name: "Finance", exact: true }).check();
   await page
     .getByRole("button", { name: "Unpin Finance", exact: true })
@@ -97,6 +99,9 @@ export async function verifyWorkspace(
   const stored = fixture.userMetadata.get(fixture.owner)
     ?.pixelalty_workspace as any;
   assert.equal(stored.accent, "teal");
+  assert.equal(stored.motion, "reduced");
+  assert.equal(stored.cards, "rounded");
+  assert.equal(stored.sidebar_mode, "compact");
   assert.deepEqual(stored.pinned, ["/admin/imports", "/admin/finance"]);
   await page.reload();
   await page
