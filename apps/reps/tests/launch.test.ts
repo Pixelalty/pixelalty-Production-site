@@ -5,10 +5,26 @@ import Stripe from "stripe";
 import { startIntegration } from "./integration-server";
 import { actor, database, rpc, service } from "./helpers";
 import { validateTaxPdf, INTERACTIVE_PDF_MESSAGE } from "../src/shared/tax-pdf";
+import { redactPaymentDetail } from "../src/server/diagnostics";
 
 const auth = (f: Awaited<ReturnType<typeof startIntegration>>, id: string) => ({
   authorization:
     "Bearer " + f.session(f.users.find((u) => u.id === id)).access_token,
+});
+test("staging payment diagnostics remove contact information, credentials, object IDs and URLs", () => {
+  const detail = redactPaymentDetail(
+    "capabilities[transfers] is invalid for user@example.test, acct_fixture or sk_test_fixture at https://dashboard.stripe.com/secret?token=hidden and 00000000-0000-4000-8000-000000000001. Reference 123456789.",
+  );
+  assert.match(detail, /capabilities\[transfers\] is invalid/);
+  for (const value of [
+    "user@example.test",
+    "acct_fixture",
+    "sk_test_fixture",
+    "https://",
+    "00000000",
+    "123456789",
+  ])
+    assert.ok(!detail.includes(value));
 });
 async function post(
   f: Awaited<ReturnType<typeof startIntegration>>,
@@ -114,13 +130,18 @@ test("provider setup failure is safely classified and visible to authorized diag
     assert.ok(data.requestId);
     assert.match(data.error, /finish its payout provider setup/);
     assert.equal(data.category, undefined);
+    assert.equal(data.diagnosticDetail, undefined);
     const diag = (
       await f.db.query<any>(
-        "select category,provider_request_id from px_diagnostics",
+        "select category,provider_request_id,provider_detail from px_diagnostics",
       )
     ).rows;
     assert.equal(diag[0].category, "CONNECT_PLATFORM_PROFILE_REQUIRED");
     assert.equal(diag[0].provider_request_id, "req_fixtureProfile");
+    assert.match(
+      diag[0].provider_detail,
+      /connect_account: Please review the responsibilities/,
+    );
     const denied = await fetch(f.base + "/api/table?name=diagnostics", {
       headers: auth(f, f.newRep),
     });

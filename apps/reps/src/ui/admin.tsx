@@ -1299,8 +1299,8 @@ function Health() {
       <StripeHealth />
       <Card title="Staging diagnostics">
         <p>
-          Request references and safe categories only. No credentials or
-          document contents are recorded.
+          Request references, safe categories and redacted staging provider
+          details. No credentials or document contents are recorded.
         </p>
         <Listing
           name="diagnostics"
@@ -1310,6 +1310,7 @@ function Health() {
             ["route", "Action"],
             ["status", "Response"],
             ["provider_request_id", "Provider reference"],
+            ["provider_detail", "Staging detail"],
             ["created_at", "Time"],
           ]}
         />

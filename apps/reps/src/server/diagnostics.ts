@@ -1,8 +1,26 @@
 import Stripe from "stripe";
 import { HttpError } from "./types";
 
-// Provider messages may contain customer input. Only explicitly classified
-// categories and provider request references may cross the server boundary.
+// Only staging administrators receive this bounded, redacted provider detail.
+// Never include request bodies, headers, tax data, URLs, account IDs or credentials.
+export function redactPaymentDetail(message: string) {
+  return message
+    .replace(/https?:\/\/[^\s<>"']+/gi, "[link]")
+    .replace(/[\w.!#$%&'*+/=?^`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,}/gi, "[email]")
+    .replace(
+      /\b(?:sk|rk|pk)_(?:test|live)_[a-zA-Z0-9]+\b|\bwhsec_[a-zA-Z0-9]+\b/g,
+      "[credential]",
+    )
+    .replace(
+      /\b(?:acct|cus|pi|ch|pm|tok|ba|card|cs|seti|src)_[a-zA-Z0-9_]+\b/g,
+      "[reference]",
+    )
+    .replace(/\b[0-9a-f]{8}-[0-9a-f-]{27}\b/gi, "[reference]")
+    .replace(/\b\d[\d -]{5,}\d\b/g, "[number]")
+    .replace(/[\r\n\t]/g, " ")
+    .slice(0, 500);
+}
+// Ordinary responses contain classified messages and request references only.
 export function paymentError(error: unknown, operation: string): HttpError {
   if (error instanceof HttpError) return error;
   if (error instanceof Stripe.errors.StripeError) {
@@ -55,7 +73,13 @@ export function paymentError(error: unknown, operation: string): HttpError {
       safe =
         "Pixelalty’s payment setup needs attention before you can continue. Please contact support.";
     }
-    return new HttpError(502, safe, category, reference);
+    return new HttpError(
+      502,
+      safe,
+      category,
+      reference,
+      `${operation}: ${redactPaymentDetail(error.message)}`,
+    );
   }
   return new HttpError(
     502,

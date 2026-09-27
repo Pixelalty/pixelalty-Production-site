@@ -278,14 +278,34 @@ export async function recoverConnect(
       "No matching payout account was found. Finance must review this account before resetting it.",
       "CONNECT_RECONCILIATION_REQUIRED",
     );
-  await service(env, "connect_reset", {
-    rep_id: rep.id,
-    actor_id: actorId,
-    reason: p.reason,
-  });
+  const prior = await client(env, undefined, true)
+    .from("px_connect_requests")
+    .select("started_at,account_id")
+    .eq("rep_id", rep.id)
+    .maybeSingle();
+  if (prior.error)
+    throw new HttpError(
+      502,
+      "Payout setup could not be read.",
+      "CONNECT_MAPPING_READ",
+    );
+  const retrySameAttempt =
+    prior.data &&
+    !prior.data.account_id &&
+    Date.parse(prior.data.started_at) > Date.now() - 23 * 60 * 60 * 1000;
+  if (!retrySameAttempt)
+    await service(env, "connect_reset", {
+      rep_id: rep.id,
+      actor_id: actorId,
+      reason: p.reason,
+    });
   // Complete the authorized recovery through the same account-creation path.
   // The rep still creates their own fresh Account Link; none is stored or shared.
   await connectAccount(env, db, rep.id, "prepare");
+  await rpc(db, "px_action", {
+    action: "finance_reconcile",
+    p: { id: rep.id, reason: p.reason },
+  });
   return { reset: true, recovered: true };
 }
 

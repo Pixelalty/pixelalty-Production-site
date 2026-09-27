@@ -27,7 +27,7 @@ export async function verifyAccounts(
   await login(true);
   await page.goto(f.base + "/admin/reps?rep_code=" + code + "&manage=1");
   await page
-    .getByRole("heading", { name: "Manage Alex", exact: true })
+    .getByRole("heading", { name: "Manage Alex Test", exact: true })
     .waitFor();
   await page
     .getByLabel("Legal / admin name", { exact: true })
@@ -39,7 +39,10 @@ export async function verifyAccounts(
   await page
     .getByRole("button", { name: "Save account changes", exact: true })
     .click();
-  await page.getByRole("status").filter({ hasText: "Saved" }).waitFor();
+  await page
+    .getByRole("status")
+    .filter({ hasText: "Account changes saved." })
+    .waitFor();
   await page.reload();
   await page.getByLabel("Legal / admin name", { exact: true }).waitFor();
   assert.equal(

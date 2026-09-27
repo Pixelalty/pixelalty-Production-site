@@ -326,9 +326,10 @@ export function ManageAccount({ code }: { code: string }) {
                       },
                     ]}
                     submit="Save account changes"
-                    onSubmit={(p) =>
-                      app.mutate("account_edit", { ...p, id: r.id })
-                    }
+                    onSubmit={async (p) => {
+                      await app.mutate("account_edit", { ...p, id: r.id });
+                      app.notify("Account changes saved.");
+                    }}
                   />
                 </Card>
                 <div>

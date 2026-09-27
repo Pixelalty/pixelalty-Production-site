@@ -854,6 +854,10 @@ export default {
           status,
           provider_request_id:
             e instanceof HttpError ? e.providerRequestId : null,
+          provider_detail:
+            env.STRIPE_MODE === "test" && e instanceof HttpError
+              ? e.diagnosticDetail
+              : undefined,
         }).catch(() => console.error("diagnostic_record_failed", requestId));
         if (ctx) ctx.waitUntil(record);
         else await record;
