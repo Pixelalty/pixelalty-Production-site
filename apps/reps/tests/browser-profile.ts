@@ -145,6 +145,50 @@ try {
     "Locked previews cannot equip; server XP award refreshes unlocked styles without sign-out; frame and banner persist after reload",
   );
   await page.getByRole("button", { name: "Avatar", exact: true }).click();
+  await page.evaluate(() => {
+    const original = File.prototype.arrayBuffer;
+    File.prototype.arrayBuffer = function () {
+      File.prototype.arrayBuffer = original;
+      return Promise.reject(
+        new DOMException("Internal file access failed", "NotFoundError"),
+      );
+    };
+  });
+  await page.getByLabel("Choose avatar image", { exact: true }).setInputFiles({
+    name: "unavailable.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(profileImages.png, "base64"),
+  });
+  await page
+    .getByRole("alert")
+    .filter({
+      hasText:
+        "This image is no longer available. Select it again or choose another image.",
+    })
+    .waitFor();
+  await page.evaluate(() => {
+    const original = HTMLImageElement.prototype.decode;
+    HTMLImageElement.prototype.decode = function () {
+      HTMLImageElement.prototype.decode = original;
+      return Promise.reject(
+        new DOMException("Internal decoder failure", "EncodingError"),
+      );
+    };
+  });
+  await page.getByLabel("Choose avatar image", { exact: true }).setInputFiles({
+    name: "unreadable.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(profileImages.png, "base64"),
+  });
+  await page
+    .getByRole("alert")
+    .filter({
+      hasText: "This image could not be read. Export it again and retry.",
+    })
+    .waitFor();
+  checks.push(
+    "Unavailable files and browser decoder failures show actionable messages and allow another selection",
+  );
   await page.getByLabel("Choose avatar image", { exact: true }).setInputFiles({
     name: "fake.jpg",
     mimeType: "image/jpeg",

@@ -26,7 +26,9 @@ export async function staticImage(file: File): Promise<File> {
     image = new Image();
   try {
     image.src = url;
-    await image.decode();
+    await image.decode().catch(() => {
+      throw Error("This image could not be read. Export it again and retry.");
+    });
     if (!image.naturalWidth || !image.naturalHeight)
       throw Error("This image could not be read. Export it again and retry.");
     const scale = Math.min(
@@ -114,8 +116,13 @@ export function ProfileStudio() {
   };
   const chooseFile = async (file: File, k: "avatar" | "banner") =>
     operation("Preparing image", async () => {
+      const bytes = await file.arrayBuffer().catch(() => {
+        throw Error(
+          "This image is no longer available. Select it again or choose another image.",
+        );
+      });
       const info = inspectProfileImage(
-          new Uint8Array(await file.arrayBuffer()),
+          new Uint8Array(bytes),
           file.type,
           file.name,
         ),
