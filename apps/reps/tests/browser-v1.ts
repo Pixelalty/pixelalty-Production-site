@@ -243,6 +243,13 @@ try {
   );
   for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForFunction(
+      () =>
+        innerWidth > 900 ||
+        (document.querySelector(".sidebar")?.getBoundingClientRect().right ??
+          0) <= 1,
+    );
     assert.ok(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth + 1,
@@ -252,6 +259,7 @@ try {
     await page.screenshot({
       path: new URL(`import-mapping-${width}.png`, out).pathname,
       fullPage: true,
+      animations: "disabled",
     });
   }
   await page
