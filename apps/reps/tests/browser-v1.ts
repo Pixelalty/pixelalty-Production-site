@@ -241,6 +241,19 @@ try {
       .count(),
     0,
   );
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    assert.ok(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth + 1,
+      ),
+      `Import mapping overflows at ${width}px`,
+    );
+    await page.screenshot({
+      path: new URL(`import-mapping-${width}.png`, out).pathname,
+      fullPage: true,
+    });
+  }
   await page
     .getByLabel("Default timezone for rows without one")
     .selectOption("America/New_York");
