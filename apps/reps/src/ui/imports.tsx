@@ -270,12 +270,21 @@ export function Imports() {
             Rejected rows remain in the downloadable report.
           </p>
           <p>
-            Committed leads enter the existing claim pool. Reps claim within
-            their configured capacity and approved calling hours. Ownership and
-            follow-ups use the workspace’s configured expiry rules. Admins can
-            correct a business in All leads. Archive unused leads removes only
-            untouched, unowned imported leads from the pool and preserves
-            history; it does not undo calls, customer records or sales.
+            Committed leads enter the existing claim pool. Active reps choose
+            Get leads on their Leads page, up to their remaining capacity. Calls
+            must follow the approved calling hours. Admins can correct a
+            business in All leads. Archive unused leads removes only untouched,
+            unowned imported leads from the pool and preserves history; it does
+            not undo calls, customer records or sales.
+          </p>
+          <p>
+            The current workspace claim size is {app.ctx.settings.claim_count}{" "}
+            leads. A new claim expires after{" "}
+            {app.ctx.settings.first_attempt_hours} hours without a first call
+            attempt. Recording a call extends ownership to at least{" "}
+            {app.ctx.settings.ownership_days} days after that call. When
+            ownership expires, open follow-ups are cancelled and eligible leads
+            return to the pool. Each rep’s capacity is managed in Admin → Reps.
           </p>
         </details>
         <label
