@@ -382,11 +382,13 @@ export function Imports() {
             <div className="mapping-grid">
               {fields.map((k) => (
                 <label className="field" key={k}>
-                  <span>
+                  <span id={`import-${k}-label`}>
                     {k === "name" ? "Business name" : label(k)}
                     {["name", "phone"].includes(k) ? " *" : ""}
                   </span>
                   <select
+                    aria-labelledby={`import-${k}-label`}
+                    aria-required={["name", "phone"].includes(k)}
                     disabled={busy}
                     value={mapping[k] || ""}
                     onChange={(e) =>
