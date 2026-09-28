@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Upload, ArrowRight } from "lucide-react";
 import {
   api,
@@ -15,6 +15,8 @@ import {
   ActionDialog,
 } from "./lib";
 import { header, label, type Row } from "../shared/core";
+import { importMappingError, inspectImport } from "../shared/imports";
+import { timezoneOptions } from "../shared/timezones";
 const fields = [
   "name",
   "phone",
@@ -39,7 +41,17 @@ const fields = [
 ];
 const aliases: Record<string, string[]> = {
   name: ["business", "businessname", "company", "companyname", "name"],
-  phone: ["phone", "phonenumber", "telephone"],
+  phone: [
+    "phone",
+    "phonenumber",
+    "telephone",
+    "telephonenumber",
+    "businessphone",
+    "businessphonenumber",
+    "mobile",
+    "mobilephone",
+    "tel",
+  ],
   website: ["website", "url", "domain"],
   timezone: ["timezone", "tz"],
   contact: ["contact", "contactname", "owner", "decisionmaker"],
@@ -67,6 +79,11 @@ export function Imports() {
     [archive, setArchive] = useState<Row | null>(null),
     [rowReview, setRowReview] = useState<Row | null>(null),
     [batchTag, setBatchTag] = useState("");
+  const inspection = useMemo(
+    () => (file ? inspectImport(file.rows, mapping, zone) : null),
+    [file, mapping, zone],
+  );
+  const mappingError = importMappingError(mapping, zone);
   function autoMap(data: Row) {
     return Object.fromEntries(
       fields.map((k) => [
@@ -84,10 +101,6 @@ export function Imports() {
       const form = new FormData();
       form.set("file", f);
       const data = await api("/import/preview", form);
-      const hash = await crypto.subtle.digest("SHA-256", await f.arrayBuffer());
-      data.fingerprint = Array.from(new Uint8Array(hash), (x) =>
-        x.toString(16).padStart(2, "0"),
-      ).join("");
       setFile(data);
       setMapping(autoMap(data));
       setBatch(null);
@@ -99,7 +112,20 @@ export function Imports() {
     }
   }
   async function stage(existing?: Row) {
-    if (!file) return;
+    if (!file) {
+      setError("Choose your lead spreadsheet first.");
+      return;
+    }
+    if (!existing && mappingError) {
+      setError(mappingError);
+      return;
+    }
+    if (!existing && !inspection?.valid) {
+      setError(
+        "No rows can be imported with these settings. Check the phone column and timezone, then validate again.",
+      );
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -215,6 +241,52 @@ export function Imports() {
         <span className={batch ? "active" : ""}>3 · Review & import</span>
       </div>
       <Card>
+        <details>
+          <summary>Spreadsheet requirements and how importing works</summary>
+          <p>
+            Use CSV, TSV or XLSX with one header row and one business per row.
+            Business name and Phone are required. Each business also needs its
+            verified timezone, either in a Timezone column or selected below.
+          </p>
+          <p>
+            Phone examples: (212) 555-0123, 2125550123 or +1 212 555 0123.
+            International numbers need a + and country code. Do not map a
+            row-number column such as # to Phone. Names must be between 1 and
+            200 characters. Timezone examples: America/New_York and
+            America/Los_Angeles; avoid abbreviations such as EST.
+          </p>
+          <p>
+            Optional columns include website, email, city, state, industry,
+            contact, notes, source, tags, address, ZIP, country, external ID,
+            Google profile URL, rating, review count and website assessment.
+            Leave a field unmapped when you do not have it. Export formulas as
+            values.
+          </p>
+          <p>
+            Validation stages a review only. It checks invalid rows, existing
+            customers, matching phone numbers or websites, possible duplicates
+            and the do-not-contact list. Review exceptions, then choose Import
+            clean records. Duplicate and DNC checks run again when saving.
+            Rejected rows remain in the downloadable report.
+          </p>
+          <p>
+            Committed leads enter the existing claim pool. Active reps choose
+            Get leads on their Leads page, up to their remaining capacity. Calls
+            must follow the approved calling hours. Admins can correct a
+            business in All leads. Archive unused leads removes only untouched,
+            unowned imported leads from the pool and preserves history; it does
+            not undo calls, customer records or sales.
+          </p>
+          <p>
+            The current workspace claim size is {app.ctx.settings.claim_count}{" "}
+            leads. A new claim expires after{" "}
+            {app.ctx.settings.first_attempt_hours} hours without a first call
+            attempt. Recording a call extends ownership to at least{" "}
+            {app.ctx.settings.ownership_days} days after that call. When
+            ownership expires, open follow-ups are cancelled and eligible leads
+            return to the pool. Each rep’s capacity is managed in Admin → Reps.
+          </p>
+        </details>
         <label
           className="upload-zone"
           onDragOver={(e) => e.preventDefault()}
@@ -260,7 +332,6 @@ export function Imports() {
             Read pasted table
           </button>
         </details>
-        {error && <State error={error} />}{" "}
         {busy && (
           <div role="status" aria-live="polite">
             <p>
@@ -311,11 +382,14 @@ export function Imports() {
             <div className="mapping-grid">
               {fields.map((k) => (
                 <label className="field" key={k}>
-                  <span>
-                    {label(k)}
+                  <span id={`import-${k}-label`}>
+                    {k === "name" ? "Business name" : label(k)}
                     {["name", "phone"].includes(k) ? " *" : ""}
                   </span>
                   <select
+                    aria-labelledby={`import-${k}-label`}
+                    aria-required={["name", "phone"].includes(k)}
+                    disabled={busy}
                     value={mapping[k] || ""}
                     onChange={(e) =>
                       setMapping({ ...mapping, [k]: e.target.value })
@@ -331,11 +405,18 @@ export function Imports() {
             </div>
             <label className="field">
               <span>Default timezone for rows without one</span>
-              <input
+              <select
                 value={zone}
-                placeholder="America/New_York"
+                disabled={busy}
                 onChange={(e) => setZone(e.target.value)}
-              />
+              >
+                <option value="">Choose a verified timezone</option>
+                {timezoneOptions(zone).map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
               <small>
                 Use a default only when you have verified that these businesses
                 share this timezone.
@@ -350,14 +431,48 @@ export function Imports() {
                 placeholder="Optional campaign or source tag"
               />
             </label>
-            <h3>First five rows</h3>
+            <h3>Mapped preview — first five rows</h3>
             <Table
-              rows={file.rows.slice(0, 5)}
-              columns={file.headers.slice(0, 6).map((h: string) => [h, h])}
+              rows={inspection?.preview || []}
+              columns={[
+                ["row", "Spreadsheet row"],
+                ["name", "Business"],
+                ["phone", "Phone"],
+                ["timezone", "Timezone"],
+                ["result", "Validation result"],
+              ]}
             />
+            <div id="import-validation-help" aria-live="polite">
+              {mappingError ? (
+                <p className="notice">{mappingError}</p>
+              ) : (
+                <p>
+                  {inspection?.valid} rows pass format validation;{" "}
+                  {inspection?.invalid} need correction. Duplicate and DNC
+                  checks happen next.
+                </p>
+              )}
+              {!!inspection?.invalidPhones && mapping.phone && (
+                <p>
+                  Phone column “{mapping.phone}” has {inspection.invalidPhones}{" "}
+                  invalid numbers. Confirm it contains telephone numbers, not
+                  row numbers.
+                </p>
+              )}
+              {!mappingError && !!inspection?.invalid && (
+                <ul>
+                  {inspection.issues.map((issue) => (
+                    <li key={issue.message}>
+                      {issue.count} rows: {issue.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             <button
               className="primary"
-              disabled={busy || !mapping.name || !mapping.phone}
+              disabled={busy}
+              aria-describedby="import-validation-help"
               onClick={() => stage()}
             >
               Validate & stage import
@@ -365,21 +480,26 @@ export function Imports() {
             </button>
           </>
         )}
+        {error && <State error={error} />}
         {batch && (
           <>
             <h2>
               {batch.status === "complete"
                 ? "Import complete"
                 : batch.status === "staging"
-                  ? "Upload interrupted — ready to resume"
+                  ? busy
+                    ? "Validating and staging…"
+                    : "Upload interrupted — ready to resume"
                   : "Review before importing"}
             </h2>
             {batch.status === "staging" ? (
               <>
-                <p>
-                  Re-upload the original file if needed, then resume this batch.
-                  Previously staged rows will not be duplicated.
-                </p>
+                {!busy && (
+                  <p>
+                    Re-upload the original file if needed, then resume this
+                    batch. Previously staged rows will not be duplicated.
+                  </p>
+                )}
                 <button disabled={busy || !file} onClick={() => stage(batch)}>
                   Resume staging
                 </button>
@@ -410,11 +530,17 @@ export function Imports() {
                   Rejected rows remain in the report. Committing rechecks
                   current DNC and existing records.
                 </p>
+                {progress?.ready === 0 && batch.status === "ready" && (
+                  <State error="No clean rows are ready to import. Review the row errors below or download the report, then correct your spreadsheet or mappings and start another import." />
+                )}
+                {batch.status === "complete" && progress?.accepted === 0 && (
+                  <State error="This batch added no leads. Every row was rejected. Review the validation report, correct the spreadsheet or timezone settings, then start another import." />
+                )}
                 <div className="actions">
                   {batch.status === "ready" && (
                     <button
                       className="primary"
-                      disabled={busy}
+                      disabled={busy || progress?.ready === 0}
                       onClick={commit}
                     >
                       Import clean records

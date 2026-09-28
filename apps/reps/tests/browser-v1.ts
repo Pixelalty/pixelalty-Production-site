@@ -223,6 +223,73 @@ try {
 
   await go("/admin/imports");
   await page.locator("input[type=file]").setInputFiles({
+    name: "missing-timezone.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("#,Business,Phone\n1,Mapping QA,2125550198"),
+  });
+  await page.getByRole("heading", { name: "missing-timezone.csv" }).waitFor();
+  await page.getByRole("button", { name: "Validate & stage import" }).click();
+  await page
+    .getByText(
+      "Choose a default timezone or map a Timezone column before staging. Use the businesses’ timezone, not your own.",
+    )
+    .first()
+    .waitFor();
+  assert.equal(
+    await page
+      .getByRole("heading", { name: "Review before importing" })
+      .count(),
+    0,
+  );
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForFunction(
+      () =>
+        innerWidth > 900 ||
+        (document.querySelector(".sidebar")?.getBoundingClientRect().right ??
+          0) <= 1,
+    );
+    assert.ok(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth + 1,
+      ),
+      `Import mapping overflows at ${width}px`,
+    );
+    await page.screenshot({
+      path: new URL(`import-mapping-${width}.png`, out).pathname,
+      fullPage: true,
+      animations: "disabled",
+    });
+  }
+  await page
+    .getByLabel("Default timezone for rows without one")
+    .selectOption("America/New_York");
+  await page.getByLabel("Phone *", { exact: true }).selectOption("#");
+  await page.getByRole("button", { name: "Validate & stage import" }).click();
+  await page
+    .getByText(
+      "No rows can be imported with these settings. Check the phone column and timezone, then validate again.",
+    )
+    .waitFor();
+  assert.equal(
+    await page
+      .getByRole("heading", { name: "Review before importing" })
+      .count(),
+    0,
+  );
+  await page.getByLabel("Phone *", { exact: true }).selectOption("Phone");
+  await page.getByRole("button", { name: "Validate & stage import" }).click();
+  await page
+    .getByRole("heading", { name: "Review before importing" })
+    .waitFor();
+  await page.getByRole("button", { name: "Import clean records" }).click();
+  await page.getByRole("heading", { name: "Import complete" }).waitFor();
+  checks.push(
+    "Import blocks missing timezone and row-number mapping, then stages and commits the corrected mapping",
+  );
+  await page.getByRole("button", { name: "Start another import" }).click();
+  await page.locator("input[type=file]").setInputFiles({
     name: "acceptance.csv",
     mimeType: "text/csv",
     buffer: Buffer.from(

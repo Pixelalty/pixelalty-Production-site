@@ -22,6 +22,7 @@ import {
   stripe,
 } from "./payments";
 import { parseUpload } from "./importer";
+import { importMappingError } from "../shared/imports";
 import {
   cleanupProfileMedia,
   expireProfileMedia,
@@ -591,11 +592,13 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
       file = form.get("file");
     if (!file || typeof file === "string")
       throw new HttpError(400, "Choose a file.");
-    const parsed = await parseUpload(
-      file.name,
-      new Uint8Array(await file.arrayBuffer()),
-    );
-    return json({ ...parsed, filename: file.name });
+    const fileBytes = await file.arrayBuffer();
+    const parsed = await parseUpload(file.name, new Uint8Array(fileBytes));
+    const digest = await crypto.subtle.digest("SHA-256", fileBytes);
+    const fingerprint = Array.from(new Uint8Array(digest), (v) =>
+      v.toString(16).padStart(2, "0"),
+    ).join("");
+    return json({ ...parsed, filename: file.name, fingerprint });
   }
   if (path === "/api/import/prepare" && post) {
     const p = await body(req, 12 * 1024 * 1024),
@@ -653,6 +656,11 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
   if (path === "/api/import/start" && post) {
     const p = await body(req);
     const mapping = z.record(z.string(), z.string()).parse(p.mapping);
+    const mappingProblem = importMappingError(
+      mapping,
+      String(p.defaultZone || ""),
+    );
+    if (mappingProblem) throw new HttpError(400, mappingProblem);
     if (
       !mapping.name ||
       !mapping.phone ||
