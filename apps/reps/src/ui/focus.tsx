@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Phone, Pause, Play, Check, BookOpen } from "lucide-react";
+import {
+  ArrowRight,
+  Phone,
+  Pause,
+  Play,
+  Check,
+  BookOpen,
+  Mic,
+} from "lucide-react";
 import {
   useApp,
   useData,
@@ -326,6 +334,13 @@ export function Focus() {
                       Schedule follow-up
                     </button>
                     <button onClick={() => show("deal")}>Create deal</button>
+                    <button
+                      onClick={() =>
+                        app.navigate(`/recordings?business=${lead.id}`)
+                      }
+                    >
+                      Record call <Mic size={16} />
+                    </button>
                   </div>
                   <div className="divider" />
                   <h3>Log the outcome</h3>
