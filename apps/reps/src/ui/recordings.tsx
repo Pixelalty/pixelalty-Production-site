@@ -1139,6 +1139,7 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
                     Rep
                     <select
                       id="recording-filter-rep"
+                      aria-label="Rep"
                       value={filterDraft.repId}
                       onChange={(e) =>
                         setFilterDraft((value) => ({
@@ -1159,6 +1160,7 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
                     Business
                     <input
                       id="recording-filter-business"
+                      aria-label="Business"
                       value={filterDraft.business}
                       onChange={(e) =>
                         setFilterDraft((value) => ({
@@ -1173,6 +1175,7 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
                     From
                     <input
                       id="recording-filter-from"
+                      aria-label="From"
                       type="date"
                       value={filterDraft.dateFrom}
                       onChange={(e) =>
@@ -1187,6 +1190,7 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
                     Through
                     <input
                       id="recording-filter-through"
+                      aria-label="Through"
                       type="date"
                       value={filterDraft.dateTo}
                       onChange={(e) =>
@@ -1201,6 +1205,7 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
                     Minimum seconds
                     <input
                       id="recording-filter-min-duration"
+                      aria-label="Minimum seconds"
                       type="number"
                       min="0"
                       max={RECORDING_MAX_SECONDS}
@@ -1217,6 +1222,7 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
                     Maximum seconds
                     <input
                       id="recording-filter-max-duration"
+                      aria-label="Maximum seconds"
                       type="number"
                       min="0"
                       max={RECORDING_MAX_SECONDS}
