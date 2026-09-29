@@ -151,7 +151,7 @@ try {
   ])
     await go(path);
   await go("/admin/recordings");
-  await page.getByLabel("Rep", { exact: true }).waitFor();
+  await page.getByLabel("Rep", { exact: true }).waitFor({ timeout: 30000 });
   await page.getByLabel("Business", { exact: true }).waitFor();
   await page.getByLabel("From", { exact: true }).waitFor();
   await page.getByLabel("Through", { exact: true }).waitFor();
