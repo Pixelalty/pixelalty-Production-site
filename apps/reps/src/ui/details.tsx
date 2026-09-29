@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Star, ArrowRight } from "lucide-react";
+import { Star, ArrowRight, Mic } from "lucide-react";
 import {
   useApp,
   useData,
@@ -93,15 +93,25 @@ export function BusinessDetails({
                       : "Favorite"}
                   </button>
                   {!lead.customer && !lead.dnc && (
-                    <button
-                      className="primary"
-                      onClick={() => {
-                        onClose();
-                        app.navigate(`/focus?business=${id}`);
-                      }}
-                    >
-                      Open in calling queue <ArrowRight size={16} />
-                    </button>
+                    <>
+                      <button
+                        className="primary"
+                        onClick={() => {
+                          onClose();
+                          app.navigate(`/focus?business=${id}`);
+                        }}
+                      >
+                        Open in calling queue <ArrowRight size={16} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          onClose();
+                          app.navigate(`/recordings?business=${id}`);
+                        }}
+                      >
+                        Record call <Mic size={16} />
+                      </button>
+                    </>
                   )}
                 </>
               )}

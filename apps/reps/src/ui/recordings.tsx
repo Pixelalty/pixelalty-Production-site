@@ -127,7 +127,10 @@ async function uploadRecording(
 
 function InputMeter({ level }: { level: number }) {
   return (
-    <div className="input-meter" aria-label={`Microphone level ${Math.round(level * 100)} percent`}>
+    <div
+      className="input-meter"
+      aria-label={`Microphone level ${Math.round(level * 100)} percent`}
+    >
       <span style={{ width: `${Math.max(2, level * 100)}%` }} />
     </div>
   );
@@ -140,12 +143,16 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
   const [deviceId, setDeviceId] = useState(
     () => localStorage.getItem("pixelalty-recording-microphone") || "",
   );
-  const [permission, setPermission] = useState<"unknown" | "ready" | "denied">("unknown");
+  const [permission, setPermission] = useState<"unknown" | "ready" | "denied">(
+    "unknown",
+  );
   const [noiseSuppression, setNoiseSuppression] = useState(true);
   const [autoGainControl, setAutoGainControl] = useState(true);
   const [echoCancellation, setEchoCancellation] = useState(false);
   const [consent, setConsent] = useState(false);
-  const [status, setStatus] = useState<"idle" | "recording" | "paused" | "review" | "saving">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "recording" | "paused" | "review" | "saving"
+  >("idle");
   const [elapsed, setElapsed] = useState(0);
   const [bytes, setBytes] = useState(0);
   const [level, setLevel] = useState(0);
@@ -158,10 +165,18 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
   const [recordedAt, setRecordedAt] = useState("");
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
-  const [businessId, setBusinessId] = useState("");
-  const [callId, setCallId] = useState("");
-  const [dealId, setDealId] = useState("");
-  const [markers, setMarkers] = useState<Array<{ at: number; label: string }>>([]);
+  const [businessId, setBusinessId] = useState(
+    () => new URLSearchParams(window.location.search).get("business") || "",
+  );
+  const [callId, setCallId] = useState(
+    () => new URLSearchParams(window.location.search).get("call") || "",
+  );
+  const [dealId, setDealId] = useState(
+    () => new URLSearchParams(window.location.search).get("deal") || "",
+  );
+  const [markers, setMarkers] = useState<Array<{ at: number; label: string }>>(
+    [],
+  );
   const [progress, setProgress] = useState(0);
   const [requestId, setRequestId] = useState(crypto.randomUUID());
   const [reservationId, setReservationId] = useState("");
@@ -215,7 +230,9 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
   const refreshDevices = async () => {
     setError("");
     try {
-      const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const permissionStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
       permissionStream.getTracks().forEach((track) => track.stop());
       const inputs = (await navigator.mediaDevices.enumerateDevices()).filter(
         (device) => device.kind === "audioinput",
@@ -224,9 +241,13 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
       const remembered = inputs.find((device) => device.deviceId === deviceId);
       const selected = remembered?.deviceId || inputs[0]?.deviceId || "";
       setDeviceId(selected);
-      if (selected) localStorage.setItem("pixelalty-recording-microphone", selected);
+      if (selected)
+        localStorage.setItem("pixelalty-recording-microphone", selected);
       setPermission("ready");
-      if (!inputs.length) setError("No microphone was found. Connect one, then refresh microphones.");
+      if (!inputs.length)
+        setError(
+          "No microphone was found. Connect one, then refresh microphones.",
+        );
     } catch (cause) {
       setPermission("denied");
       setError(
@@ -238,18 +259,22 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
   };
   const testMicrophone = async () => {
     setError("");
-    setNotice("Recording a private three-second microphone test. It will not be uploaded.");
+    setNotice(
+      "Recording a private three-second microphone test. It will not be uploaded.",
+    );
     if (testUrl) URL.revokeObjectURL(testUrl);
     try {
       const selectedFormat = supportedRecordingFormat();
-      if (!selectedFormat) throw Error("This browser does not support a compatible audio format.");
+      if (!selectedFormat)
+        throw Error("This browser does not support a compatible audio format.");
       const input = await getStream();
       const parts: Blob[] = [];
       const test = new MediaRecorder(input, {
         mimeType: selectedFormat.mime,
         audioBitsPerSecond: RECORDING_BITRATE,
       });
-      test.ondataavailable = (event) => event.data.size && parts.push(event.data);
+      test.ondataavailable = (event) =>
+        event.data.size && parts.push(event.data);
       await new Promise<void>((resolve, reject) => {
         test.onerror = () => reject(Error("The microphone test failed."));
         test.onstop = () => resolve();
@@ -257,11 +282,18 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
         window.setTimeout(() => test.stop(), 3_000);
       });
       const clip = new Blob(parts, { type: selectedFormat.mime });
-      if (!clip.size) throw Error("The microphone test was empty. Choose another microphone.");
+      if (!clip.size)
+        throw Error(
+          "The microphone test was empty. Choose another microphone.",
+        );
       setTestUrl(URL.createObjectURL(clip));
-      setNotice("Microphone test complete. Play it below; this clip stays on this device and is never uploaded.");
+      setNotice(
+        "Microphone test complete. Play it below; this clip stays on this device and is never uploaded.",
+      );
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The microphone test failed.");
+      setError(
+        cause instanceof Error ? cause.message : "The microphone test failed.",
+      );
     } finally {
       releaseStream();
     }
@@ -269,9 +301,15 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
   const start = async () => {
     setError("");
     setNotice("");
-    if (!consent) return setError("Confirm consent and applicable recording laws before starting.");
+    if (!consent)
+      return setError(
+        "Confirm consent and applicable recording laws before starting.",
+      );
     const selectedFormat = supportedRecordingFormat();
-    if (!selectedFormat) return setError("This browser does not support a compatible Opus or AAC recording format.");
+    if (!selectedFormat)
+      return setError(
+        "This browser does not support a compatible Opus or AAC recording format.",
+      );
     try {
       const input = await getStream();
       const next = new MediaRecorder(input, {
@@ -292,20 +330,28 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
         const total = chunks.current.reduce((sum, item) => sum + item.size, 0);
         setBytes(total);
         if (total >= RECORDING_MAX_BYTES && next.state !== "inactive") {
-          setNotice("The 45 MB safety limit was reached, so recording stopped before an oversized upload could occur.");
+          setNotice(
+            "The 45 MB safety limit was reached, so recording stopped before an oversized upload could occur.",
+          );
           next.stop();
         }
       };
       next.onerror = () => {
-        setError("Recording stopped because the microphone became unavailable. Any captured audio is kept for review.");
+        setError(
+          "Recording stopped because the microphone became unavailable. Any captured audio is kept for review.",
+        );
         if (next.state !== "inactive") next.stop();
       };
       next.onstop = () => {
-        const complete = new Blob(chunks.current, { type: selectedFormat.mime });
+        const complete = new Blob(chunks.current, {
+          type: selectedFormat.mime,
+        });
         releaseStream();
         if (!complete.size || seconds.current < 0.25) {
           setStatus("idle");
-          setError("The recording was empty. Check the microphone and try again.");
+          setError(
+            "The recording was empty. Check the microphone and try again.",
+          );
           return;
         }
         const url = URL.createObjectURL(complete);
@@ -329,14 +375,19 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
     }
   };
   const stop = () => {
-    if (recorder.current && recorder.current.state !== "inactive") recorder.current.stop();
+    if (recorder.current && recorder.current.state !== "inactive")
+      recorder.current.stop();
   };
   const discard = async () => {
     try {
       if (reservationId)
         await api("/recordings/delete", { id: reservationId, confirmed: true });
     } catch (cause) {
-      return setError(cause instanceof Error ? cause.message : "The saved upload could not be discarded.");
+      return setError(
+        cause instanceof Error
+          ? cause.message
+          : "The saved upload could not be discarded.",
+      );
     }
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setBlob(null);
@@ -350,8 +401,10 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
     setMarkers([]);
   };
   const save = async () => {
-    if (!blob || !format || blob.size < 1) return setError("There is no recording to save.");
-    if (blob.size > RECORDING_MAX_BYTES) return setError("This recording exceeds the 45 MB upload limit.");
+    if (!blob || !format || blob.size < 1)
+      return setError("There is no recording to save.");
+    if (blob.size > RECORDING_MAX_BYTES)
+      return setError("This recording exceeds the 45 MB upload limit.");
     setStatus("saving");
     setError("");
     try {
@@ -369,14 +422,20 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
           codec: `${format.codec} · 96 kbps mono`,
           size_bytes: blob.size,
           duration_seconds: Math.max(0.25, elapsed),
-          device_label: devices.find((device) => device.deviceId === deviceId)?.label || "Selected microphone",
+          device_label:
+            devices.find((device) => device.deviceId === deviceId)?.label ||
+            "Selected microphone",
           recorded_at: recordedAt,
+          consent_confirmed: true,
         },
       });
       setReservationId(reservation.id);
       if (reservation.status !== "ready") {
         await uploadRecording(app, blob, reservation, setProgress);
-        await api("/action", { action: "recording_finalize", p: { id: reservation.id } });
+        await api("/action", {
+          action: "recording_finalize",
+          p: { id: reservation.id },
+        });
       }
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setBlob(null);
@@ -401,9 +460,6 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
   };
 
   useEffect(() => {
-    if (permission === "unknown") void refreshDevices();
-  }, []);
-  useEffect(() => {
     if (!deviceId) return;
     localStorage.setItem("pixelalty-recording-microphone", deviceId);
   }, [deviceId]);
@@ -413,9 +469,13 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
       seconds.current = Math.min(RECORDING_MAX_SECONDS, seconds.current + 0.25);
       setElapsed(seconds.current);
       if (seconds.current >= 2_700 && seconds.current < 2_701)
-        setNotice("Five minutes remain before the visible 50-minute safety limit.");
+        setNotice(
+          "Five minutes remain before the visible 50-minute safety limit.",
+        );
       if (seconds.current >= RECORDING_MAX_SECONDS) {
-        setNotice("The stated 50-minute safety limit was reached, so recording stopped.");
+        setNotice(
+          "The stated 50-minute safety limit was reached, so recording stopped.",
+        );
         stop();
       }
     }, 250);
@@ -443,17 +503,32 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
       <div className="notice recording-honesty">
         <Mic size={18} aria-hidden="true" />
         <span>
-          This records sound heard by the selected microphone. Put your phone on speaker near the microphone. Remote speech capture depends on room, speaker, and microphone quality and is not guaranteed.
+          This records sound heard by the selected microphone. Put your phone on
+          speaker near the microphone. Remote speech capture depends on room,
+          speaker, and microphone quality and is not guaranteed.
         </span>
       </div>
       <p className="fine-print">
-        Before recording, tell everyone and obtain any consent required by the laws and policies that apply to the call. Recording never starts automatically.
+        Only record a call if all participants have been informed and have
+        consented where required by law. Recording laws vary by location. Obtain
+        all required consent before recording. Recording never starts
+        automatically.
       </p>
       <div className="recorder-settings">
         <label>
           Microphone
-          <select value={deviceId} onChange={(event) => setDeviceId(event.target.value)} disabled={status !== "idle"}>
-            {!devices.length && <option value="">No microphone available</option>}
+          <select
+            value={deviceId}
+            onChange={(event) => setDeviceId(event.target.value)}
+            disabled={status !== "idle"}
+          >
+            {!devices.length && (
+              <option value="">
+                {permission === "unknown"
+                  ? "Choose a microphone"
+                  : "No microphone available"}
+              </option>
+            )}
             {devices.map((device, index) => (
               <option key={device.deviceId} value={device.deviceId}>
                 {device.label || `Microphone ${index + 1}`}
@@ -462,28 +537,77 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
           </select>
         </label>
         <div className="button-row">
-          <button onClick={() => void refreshDevices()} disabled={!['idle','review'].includes(status)}>
-            <RefreshCw size={15} /> Refresh microphones
+          <button
+            onClick={() => void refreshDevices()}
+            disabled={!["idle", "review"].includes(status)}
+          >
+            <RefreshCw size={15} />{" "}
+            {permission === "unknown"
+              ? "Enable microphone"
+              : "Refresh microphones"}
           </button>
-          <button onClick={() => void testMicrophone()} disabled={status !== "idle" || permission === "denied"}>
+          <button
+            onClick={() => void testMicrophone()}
+            disabled={status !== "idle" || permission !== "ready" || !deviceId}
+          >
             <Volume2 size={15} /> Test microphone
           </button>
         </div>
       </div>
       <InputMeter level={level} />
-      {testUrl && <audio className="test-audio" controls src={testUrl} aria-label="Local microphone test playback" />}
+      {testUrl && (
+        <audio
+          className="test-audio"
+          controls
+          src={testUrl}
+          aria-label="Local microphone test playback"
+        />
+      )}
       <div className="recorder-toggles" aria-label="Microphone processing">
-        <label><input type="checkbox" checked={noiseSuppression} onChange={(e) => setNoiseSuppression(e.target.checked)} disabled={status !== "idle"} /> Noise suppression</label>
-        <label><input type="checkbox" checked={autoGainControl} onChange={(e) => setAutoGainControl(e.target.checked)} disabled={status !== "idle"} /> Automatic gain</label>
-        <label><input type="checkbox" checked={echoCancellation} onChange={(e) => setEchoCancellation(e.target.checked)} disabled={status !== "idle"} /> Echo cancellation</label>
+        <label>
+          <input
+            type="checkbox"
+            checked={noiseSuppression}
+            onChange={(e) => setNoiseSuppression(e.target.checked)}
+            disabled={status !== "idle"}
+          />{" "}
+          Noise suppression
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={autoGainControl}
+            onChange={(e) => setAutoGainControl(e.target.checked)}
+            disabled={status !== "idle"}
+          />{" "}
+          Automatic gain
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={echoCancellation}
+            onChange={(e) => setEchoCancellation(e.target.checked)}
+            disabled={status !== "idle"}
+          />{" "}
+          Echo cancellation
+        </label>
       </div>
       {status === "idle" && (
         <>
           <label className="consent-check">
-            <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
-            I have informed everyone and obtained any consent required to record this call.
+            <input
+              type="checkbox"
+              checked={consent}
+              onChange={(event) => setConsent(event.target.checked)}
+            />
+            I confirm that all participants have been informed of and consent to
+            this recording.
           </label>
-          <button className="primary" disabled={!consent || !deviceId} onClick={() => void start()}>
+          <button
+            className="primary"
+            disabled={!consent || permission !== "ready" || !deviceId}
+            onClick={() => void start()}
+          >
             <Mic size={16} /> Start recording
           </button>
         </>
@@ -491,20 +615,53 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
       {["recording", "paused"].includes(status) && (
         <div className="recording-live" aria-live="polite">
           <div>
-            <span className="recording-dot" /> <strong>{status === "paused" ? "Paused" : "Recording"}</strong>
+            <span className="recording-dot" />{" "}
+            <strong>{status === "paused" ? "Paused" : "Recording"}</strong>
             <span className="recording-timer">{formatTime(elapsed)}</span>
           </div>
           <p>
-            {devices.find((device) => device.deviceId === deviceId)?.label || "Selected microphone"} · estimated {formatBytes(Math.max(bytes, estimatedRecordingBytes(elapsed)))} · limit 50:00 / 45 MB
+            {devices.find((device) => device.deviceId === deviceId)?.label ||
+              "Selected microphone"}{" "}
+            · estimated{" "}
+            {formatBytes(Math.max(bytes, estimatedRecordingBytes(elapsed)))} ·
+            limit 50:00 / 45 MB
           </p>
           <div className="button-row">
             {status === "recording" ? (
-              <button onClick={() => { recorder.current?.pause(); setStatus("paused"); }}><Pause size={16} /> Pause</button>
+              <button
+                onClick={() => {
+                  recorder.current?.pause();
+                  setStatus("paused");
+                }}
+              >
+                <Pause size={16} /> Pause
+              </button>
             ) : (
-              <button onClick={() => { recorder.current?.resume(); setStatus("recording"); }}><Play size={16} /> Resume</button>
+              <button
+                onClick={() => {
+                  recorder.current?.resume();
+                  setStatus("recording");
+                }}
+              >
+                <Play size={16} /> Resume
+              </button>
             )}
-            <button onClick={() => setMarkers((current) => [...current, { at: Number(elapsed.toFixed(2)), label: `Marker ${current.length + 1}` }])}>Add marker</button>
-            <button className="danger" onClick={stop}><CircleStop size={16} /> Stop</button>
+            <button
+              onClick={() =>
+                setMarkers((current) => [
+                  ...current,
+                  {
+                    at: Number(elapsed.toFixed(2)),
+                    label: `Marker ${current.length + 1}`,
+                  },
+                ])
+              }
+            >
+              Add marker
+            </button>
+            <button className="danger" onClick={stop}>
+              <CircleStop size={16} /> Stop
+            </button>
           </div>
         </div>
       )}
@@ -512,31 +669,132 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
         <div className="recording-review">
           <h3>Review before saving</h3>
           <div className="recording-summary">
-            <span>{formatTime(elapsed)}</span><span>{formatBytes(blob.size)}</span><span>{format.codec.toUpperCase()} · 96 kbps mono</span><span>{new Date(recordedAt).toLocaleString()}</span>
+            <span>{formatTime(elapsed)}</span>
+            <span>{formatBytes(blob.size)}</span>
+            <span>{format.codec.toUpperCase()} · 96 kbps mono</span>
+            <span>{new Date(recordedAt).toLocaleString()}</span>
           </div>
-          <audio controls src={previewUrl} aria-label="Unsaved recording playback" />
+          <audio
+            controls
+            src={previewUrl}
+            aria-label="Unsaved recording playback"
+          />
           <div className="form-grid">
-            <label>Title (optional)<input maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} /></label>
-            <label>Business (optional)<select value={businessId} onChange={(e) => setBusinessId(e.target.value)}><option value="">Not attached</option>{options.data?.businesses?.map((r: Row) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
-            <label>Call (optional)<select value={callId} onChange={(e) => setCallId(e.target.value)}><option value="">Not attached</option>{options.data?.calls?.filter((r: Row) => !businessId || r.business_id === businessId).map((r: Row) => <option key={r.id} value={r.id}>{r.business_name} · {new Date(r.created_at).toLocaleString()}</option>)}</select></label>
-            <label>Deal (optional)<select value={dealId} onChange={(e) => setDealId(e.target.value)}><option value="">Not attached</option>{options.data?.deals?.filter((r: Row) => !businessId || r.business_id === businessId).map((r: Row) => <option key={r.id} value={r.id}>{r.business_name} · {r.package_name}</option>)}</select></label>
+            <label>
+              Title (optional)
+              <input
+                maxLength={120}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </label>
+            <label>
+              Business (optional)
+              <select
+                value={businessId}
+                onChange={(e) => setBusinessId(e.target.value)}
+              >
+                <option value="">Not attached</option>
+                {options.data?.businesses?.map((r: Row) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Call (optional)
+              <select
+                value={callId}
+                onChange={(e) => setCallId(e.target.value)}
+              >
+                <option value="">Not attached</option>
+                {options.data?.calls
+                  ?.filter(
+                    (r: Row) => !businessId || r.business_id === businessId,
+                  )
+                  .map((r: Row) => (
+                    <option key={r.id} value={r.id}>
+                      {r.business_name} ·{" "}
+                      {new Date(r.created_at).toLocaleString()}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              Deal (optional)
+              <select
+                value={dealId}
+                onChange={(e) => setDealId(e.target.value)}
+              >
+                <option value="">Not attached</option>
+                {options.data?.deals
+                  ?.filter(
+                    (r: Row) => !businessId || r.business_id === businessId,
+                  )
+                  .map((r: Row) => (
+                    <option key={r.id} value={r.id}>
+                      {r.business_name} · {r.package_name}
+                    </option>
+                  ))}
+              </select>
+            </label>
           </div>
-          <label>Private note (optional)<textarea maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} /></label>
-          {!!markers.length && <p className="fine-print">Markers: {markers.map((marker) => `${formatTime(marker.at)} ${marker.label}`).join(" · ")}</p>}
-          {status === "saving" && <div className="upload-progress"><progress value={progress} max={100} /><span>{progress}% uploaded</span></div>}
+          <label>
+            Private note (optional)
+            <textarea
+              maxLength={2000}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </label>
+          {!!markers.length && (
+            <p className="fine-print">
+              Markers:{" "}
+              {markers
+                .map((marker) => `${formatTime(marker.at)} ${marker.label}`)
+                .join(" · ")}
+            </p>
+          )}
+          {status === "saving" && (
+            <div className="upload-progress">
+              <progress value={progress} max={100} />
+              <span>{progress}% uploaded</span>
+            </div>
+          )}
           <div className="button-row">
-            <button className="primary" disabled={status === "saving"} onClick={() => void save()}><Save size={16} /> {reservationId ? "Retry save" : "Save privately"}</button>
-            <button disabled={status === "saving"} onClick={() => void discard()}><Trash2 size={16} /> Discard</button>
+            <button
+              className="primary"
+              disabled={status === "saving"}
+              onClick={() => void save()}
+            >
+              <Save size={16} />{" "}
+              {reservationId ? "Retry save" : "Save privately"}
+            </button>
+            <button
+              disabled={status === "saving"}
+              onClick={() => void discard()}
+            >
+              <Trash2 size={16} /> Discard
+            </button>
           </div>
         </div>
       )}
-      {notice && <div className="notice" role="status">{notice}</div>}
-      {error && <div className="notice error" role="alert">{error}</div>}
+      {notice && (
+        <div className="notice" role="status">
+          {notice}
+        </div>
+      )}
+      {error && (
+        <div className="notice error" role="alert">
+          {error}
+        </div>
+      )}
     </Card>
   );
 }
 
-function RecordingPlayer({ row }: { row: Row }) {
+function RecordingPlayer({ row, admin }: { row: Row; admin: boolean }) {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -545,10 +803,17 @@ function RecordingPlayer({ row }: { row: Row }) {
     setLoading(true);
     setError("");
     try {
-      const result = await api("/recordings/url", { id: row.id, download: false });
+      const result = await api("/recordings/url", {
+        id: row.id,
+        download: false,
+      });
       setUrl(result.url);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Playback could not be opened.");
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Playback could not be opened.",
+      );
     } finally {
       setLoading(false);
     }
@@ -557,7 +822,10 @@ function RecordingPlayer({ row }: { row: Row }) {
     setLoading(true);
     setError("");
     try {
-      const result = await api("/recordings/url", { id: row.id, download: true });
+      const result = await api("/recordings/url", {
+        id: row.id,
+        download: true,
+      });
       const response = await fetch(result.url);
       if (!response.ok) throw Error("Download failed.");
       const object = URL.createObjectURL(await response.blob());
@@ -574,18 +842,86 @@ function RecordingPlayer({ row }: { row: Row }) {
   };
   return (
     <div className="recording-player">
-      {!url ? <button onClick={() => void open()} disabled={loading}><Play size={15} /> {loading ? "Opening…" : "Play"}</button> : (
+      {!url ? (
+        <button onClick={() => void open()} disabled={loading}>
+          <Play size={15} /> {loading ? "Opening…" : "Play"}
+        </button>
+      ) : (
         <>
-          <audio ref={audio} controls src={url} preload="metadata" aria-label={`Recording ${row.title || row.business_name || "untitled"} playback`} />
+          <audio
+            ref={audio}
+            controls
+            src={url}
+            preload="metadata"
+            aria-label={`Recording ${row.title || row.business_name || "untitled"} playback`}
+          />
           <div className="player-tools">
-            <button aria-label="Back 10 seconds" onClick={() => audio.current && (audio.current.currentTime = Math.max(0, audio.current.currentTime - 10))}><RotateCcw size={15} /> 10s</button>
-            <button aria-label="Forward 10 seconds" onClick={() => audio.current && (audio.current.currentTime = Math.min(audio.current.duration || Infinity, audio.current.currentTime + 10))}><RotateCw size={15} /> 10s</button>
-            <label>Speed <select defaultValue="1" onChange={(e) => audio.current && (audio.current.playbackRate = Number(e.target.value))}>{[0.75,1,1.25,1.5,2].map((speed) => <option key={speed} value={speed}>{speed}×</option>)}</select></label>
+            <button
+              aria-label="Back 10 seconds"
+              onClick={() =>
+                audio.current &&
+                (audio.current.currentTime = Math.max(
+                  0,
+                  audio.current.currentTime - 10,
+                ))
+              }
+            >
+              <RotateCcw size={15} /> 10s
+            </button>
+            <button
+              aria-label="Forward 10 seconds"
+              onClick={() =>
+                audio.current &&
+                (audio.current.currentTime = Math.min(
+                  audio.current.duration || Infinity,
+                  audio.current.currentTime + 10,
+                ))
+              }
+            >
+              <RotateCw size={15} /> 10s
+            </button>
+            <label>
+              Speed{" "}
+              <select
+                defaultValue="1"
+                onChange={(e) =>
+                  audio.current &&
+                  (audio.current.playbackRate = Number(e.target.value))
+                }
+              >
+                {[0.75, 1, 1.25, 1.5, 2].map((speed) => (
+                  <option key={speed} value={speed}>
+                    {speed}×
+                  </option>
+                ))}
+              </select>
+            </label>
+            {row.markers?.map(
+              (marker: { at: number; label: string }, index: number) => (
+                <button
+                  key={`${marker.at}-${index}`}
+                  onClick={() =>
+                    audio.current && (audio.current.currentTime = marker.at)
+                  }
+                >
+                  {marker.label || `Marker ${index + 1}`} ·{" "}
+                  {formatTime(marker.at)}
+                </button>
+              ),
+            )}
           </div>
         </>
       )}
-      <button onClick={() => void download()} disabled={loading}><Download size={15} /> Download</button>
-      {error && <div className="notice error" role="alert">{error}</div>}
+      {admin && (
+        <button onClick={() => void download()} disabled={loading}>
+          <Download size={15} /> Download
+        </button>
+      )}
+      {error && (
+        <div className="notice error" role="alert">
+          {error}
+        </div>
+      )}
     </div>
   );
 }
@@ -594,35 +930,115 @@ function Usage({ usage, admin }: { usage: Row; admin: boolean }) {
   const warning = Number(usage?.warning || 0);
   return (
     <Card className={`recording-usage ${warning ? "warning" : ""}`}>
-      <div className="card-head"><div><span className="eyebrow">PRIVATE RECORDING STORAGE</span><h2>{formatBytes(usage?.bytes)} of {formatBytes(usage?.quota_bytes)}</h2></div><Gauge size={22} /></div>
-      <progress value={Number(usage?.bytes || 0)} max={Number(usage?.quota_bytes || 1)} />
-      <p>{usage?.count || 0} saved recordings · {usage?.percent || 0}% used. Per recording: up to {formatTime(usage?.max_seconds || RECORDING_MAX_SECONDS)} and {formatBytes(usage?.max_bytes || RECORDING_MAX_BYTES)}.</p>
-      {warning > 0 && <div className="notice error" role="alert">Storage has reached the {warning}% warning threshold. {admin ? "Review recordings before the quota is full. Nothing is deleted automatically." : "Ask Pixelalty Support to review storage before saving more calls."}</div>}
+      <div className="card-head">
+        <div>
+          <span className="eyebrow">PRIVATE RECORDING STORAGE</span>
+          <h2>
+            {formatBytes(usage?.bytes)} of {formatBytes(usage?.quota_bytes)}
+          </h2>
+        </div>
+        <Gauge size={22} />
+      </div>
+      <progress
+        value={Number(usage?.bytes || 0)}
+        max={Number(usage?.quota_bytes || 1)}
+      />
+      <p>
+        {usage?.count || 0} saved recordings · {usage?.percent || 0}% used. Per
+        recording: up to{" "}
+        {formatTime(usage?.max_seconds || RECORDING_MAX_SECONDS)} and{" "}
+        {formatBytes(usage?.max_bytes || RECORDING_MAX_BYTES)}.
+      </p>
+      {warning > 0 && (
+        <div className="notice error" role="alert">
+          Storage has reached the {warning}% warning threshold.{" "}
+          {admin
+            ? "Review recordings before the quota is full. Nothing is deleted automatically."
+            : "Ask Pixelalty Support to review storage before saving more calls."}
+        </div>
+      )}
     </Card>
   );
 }
 
-function QuotaSettings({ usage, onSaved }: { usage: Row; onSaved: () => void }) {
+function QuotaSettings({
+  usage,
+  onSaved,
+}: {
+  usage: Row;
+  onSaved: () => void;
+}) {
   const app = useApp();
-  const [megabytes, setMegabytes] = useState(Math.round(Number(usage?.quota_bytes || 900_000_000) / 1_000_000));
-  useEffect(() => setMegabytes(Math.round(Number(usage?.quota_bytes || 900_000_000) / 1_000_000)), [usage?.quota_bytes]);
+  const [megabytes, setMegabytes] = useState(
+    Math.round(Number(usage?.quota_bytes || 900_000_000) / 1_000_000),
+  );
+  useEffect(
+    () =>
+      setMegabytes(
+        Math.round(Number(usage?.quota_bytes || 900_000_000) / 1_000_000),
+      ),
+    [usage?.quota_bytes],
+  );
   return (
     <Card title="Recording quota">
-      <p>Set the application ceiling below the 1 GB project allowance. Pixelalty never deletes recordings automatically.</p>
+      <p>
+        Set the application ceiling below the 1 GB project allowance. Pixelalty
+        never deletes recordings automatically.
+      </p>
       <div className="quota-form">
-        <label>Total quota (MB)<input type="number" min={100} max={950} step={10} value={megabytes} onChange={(event) => setMegabytes(Number(event.target.value))} /></label>
-        <button className="primary" disabled={megabytes < 100 || megabytes > 950 || megabytes * 1_000_000 < Number(usage?.bytes || 0)} onClick={() => app.run(async () => { await app.mutate("recording_quota", { quota_bytes: megabytes * 1_000_000 }); onSaved(); })}>Save quota</button>
+        <label>
+          Total quota (MB)
+          <input
+            type="number"
+            min={100}
+            max={950}
+            step={10}
+            value={megabytes}
+            onChange={(event) => setMegabytes(Number(event.target.value))}
+          />
+        </label>
+        <button
+          className="primary"
+          disabled={
+            megabytes < 100 ||
+            megabytes > 950 ||
+            megabytes * 1_000_000 < Number(usage?.bytes || 0)
+          }
+          onClick={() =>
+            app.run(async () => {
+              await app.mutate("recording_quota", {
+                quota_bytes: megabytes * 1_000_000,
+              });
+              onSaved();
+            })
+          }
+        >
+          Save quota
+        </button>
       </div>
-      <p className="fine-print">The per-recording safety limit remains 45 MB / 50 minutes. Current usage: {formatBytes(usage?.bytes)}.</p>
+      <p className="fine-print">
+        The per-recording safety limit remains 45 MB / 50 minutes. Current
+        usage: {formatBytes(usage?.bytes)}.
+      </p>
     </Card>
   );
 }
 
 export function Recordings({ admin = false }: { admin?: boolean }) {
   const app = useApp();
+  const emptyFilters = {
+    repId: "",
+    business: "",
+    dateFrom: "",
+    dateTo: "",
+    minDuration: "",
+    maxDuration: "",
+  };
   const [page, setPage] = useState(0);
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState(emptyFilters);
+  const [filterDraft, setFilterDraft] = useState(emptyFilters);
   const [status, setStatus] = useState("ready");
   const [sort, setSort] = useState("date");
   const [direction, setDirection] = useState("desc");
@@ -631,14 +1047,21 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
   const [reason, setReason] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState("");
-  const path = `/report?kind=recordings&admin=${admin}&page=${page}&status=${encodeURIComponent(status)}&sort=${sort}&direction=${direction}&q=${encodeURIComponent(query)}&revision=${revision}`;
+  const filterQuery = admin
+    ? `&rep_id=${encodeURIComponent(filters.repId)}&business=${encodeURIComponent(filters.business)}&date_from=${encodeURIComponent(filters.dateFrom)}&date_to=${encodeURIComponent(filters.dateTo)}&min_duration=${encodeURIComponent(filters.minDuration)}&max_duration=${encodeURIComponent(filters.maxDuration)}`
+    : "";
+  const path = `/report?kind=recordings&admin=${admin}&page=${page}&status=${encodeURIComponent(status)}&sort=${sort}&direction=${direction}&q=${encodeURIComponent(query)}${filterQuery}&revision=${revision}`;
   const state = useData(path);
   const rows = state.data?.rows || [];
   const removeRecording = async () => {
     if (!remove || !confirmDelete) return;
     setDeleteError("");
     try {
-      await api("/recordings/delete", { id: remove.id, confirmed: !admin, reason: admin ? reason : undefined });
+      await api("/recordings/delete", {
+        id: remove.id,
+        confirmed: !admin,
+        reason: admin ? reason : undefined,
+      });
       setRemove(null);
       setReason("");
       setConfirmDelete(false);
@@ -646,56 +1069,349 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
       app.refresh();
       app.notify("Recording deleted from private storage.");
     } catch (cause) {
-      setDeleteError(cause instanceof Error ? cause.message : "The recording was not deleted.");
+      setDeleteError(
+        cause instanceof Error
+          ? cause.message
+          : "The recording was not deleted.",
+      );
     }
   };
   const subtitle = admin
     ? "Search, review, play, download, and remove authorized room-audio recordings. Every administrative access is audited."
     : "Record calls through your selected device microphone and manage your private saved recordings.";
+  const directionLabel =
+    sort === "duration"
+      ? direction === "asc"
+        ? "Shortest first"
+        : "Longest first"
+      : sort === "size"
+        ? direction === "asc"
+          ? "Smallest first"
+          : "Largest first"
+        : direction === "asc"
+          ? "Oldest first"
+          : "Newest first";
   return (
     <>
-      <Heading eyebrow={admin ? "ADMIN · CALLS" : "MY SALES"} title={admin ? "Call recordings" : "Room-audio recordings"} description={subtitle} />
+      <Heading
+        eyebrow={admin ? "ADMIN · CALLS" : "MY SALES"}
+        title={admin ? "Call recordings" : "Room-audio recordings"}
+        description={subtitle}
+      />
       {!admin && <Recorder onSaved={() => setRevision((value) => value + 1)} />}
       <State {...state}>
         <Usage usage={state.data?.usage || {}} admin={admin} />
-        {admin && <QuotaSettings usage={state.data?.usage || {}} onSaved={() => setRevision((value) => value + 1)} />}
-        <Card title={admin ? "All authorized recordings" : "My saved recordings"}>
+        {admin && (
+          <QuotaSettings
+            usage={state.data?.usage || {}}
+            onSaved={() => setRevision((value) => value + 1)}
+          />
+        )}
+        <Card
+          title={admin ? "All authorized recordings" : "My saved recordings"}
+        >
           <div className="recording-filters">
-            <form onSubmit={(event) => { event.preventDefault(); setPage(0); setQuery(search); }}>
-              <label className="sr-only" htmlFor="recording-search">Search recordings</label>
-              <input id="recording-search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search title, note, business or rep" />
-              <button type="submit">Search</button>
+            <form
+              className={admin ? "recording-admin-filters" : ""}
+              onSubmit={(event) => {
+                event.preventDefault();
+                setPage(0);
+                setQuery(search);
+                setFilters(filterDraft);
+              }}
+            >
+              <label className="sr-only" htmlFor="recording-search">
+                Search recordings
+              </label>
+              <input
+                id="recording-search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={
+                  admin
+                    ? "Search title or note"
+                    : "Search title, note or business"
+                }
+              />
+              {admin && (
+                <>
+                  <label htmlFor="recording-filter-rep">
+                    Rep
+                    <select
+                      id="recording-filter-rep"
+                      aria-label="Rep"
+                      value={filterDraft.repId}
+                      onChange={(e) =>
+                        setFilterDraft((value) => ({
+                          ...value,
+                          repId: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">All reps</option>
+                      {state.data?.reps?.map((rep: Row) => (
+                        <option key={rep.id} value={rep.id}>
+                          {rep.name} · {rep.code}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label htmlFor="recording-filter-business">
+                    Business
+                    <input
+                      id="recording-filter-business"
+                      aria-label="Business"
+                      value={filterDraft.business}
+                      onChange={(e) =>
+                        setFilterDraft((value) => ({
+                          ...value,
+                          business: e.target.value,
+                        }))
+                      }
+                      placeholder="Business name"
+                    />
+                  </label>
+                  <label htmlFor="recording-filter-from">
+                    From
+                    <input
+                      id="recording-filter-from"
+                      aria-label="From"
+                      type="date"
+                      value={filterDraft.dateFrom}
+                      onChange={(e) =>
+                        setFilterDraft((value) => ({
+                          ...value,
+                          dateFrom: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label htmlFor="recording-filter-through">
+                    Through
+                    <input
+                      id="recording-filter-through"
+                      aria-label="Through"
+                      type="date"
+                      value={filterDraft.dateTo}
+                      onChange={(e) =>
+                        setFilterDraft((value) => ({
+                          ...value,
+                          dateTo: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label htmlFor="recording-filter-min-duration">
+                    Minimum seconds
+                    <input
+                      id="recording-filter-min-duration"
+                      aria-label="Minimum seconds"
+                      type="number"
+                      min="0"
+                      max={RECORDING_MAX_SECONDS}
+                      value={filterDraft.minDuration}
+                      onChange={(e) =>
+                        setFilterDraft((value) => ({
+                          ...value,
+                          minDuration: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label htmlFor="recording-filter-max-duration">
+                    Maximum seconds
+                    <input
+                      id="recording-filter-max-duration"
+                      aria-label="Maximum seconds"
+                      type="number"
+                      min="0"
+                      max={RECORDING_MAX_SECONDS}
+                      value={filterDraft.maxDuration}
+                      onChange={(e) =>
+                        setFilterDraft((value) => ({
+                          ...value,
+                          maxDuration: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </>
+              )}
+              <button type="submit">
+                {admin ? "Apply filters" : "Search"}
+              </button>
             </form>
-            <select aria-label="Recording status" value={status} onChange={(e) => { setStatus(e.target.value); setPage(0); }}>
-              <option value="ready">Saved</option><option value="uploading">Uploading</option><option value="upload_failed">Upload failed</option>{admin && <option value="deleted">Deleted</option>}<option value="all">All</option>
+            <select
+              aria-label="Recording status"
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setPage(0);
+              }}
+            >
+              <option value="ready">Saved</option>
+              <option value="uploading">Uploading</option>
+              <option value="upload_failed">Upload failed</option>
+              {admin && <option value="deleted">Deleted</option>}
+              <option value="all">All</option>
             </select>
-            <select aria-label="Sort recordings" value={sort} onChange={(e) => setSort(e.target.value)}><option value="date">Date</option><option value="duration">Duration</option><option value="size">File size</option></select>
-            <button onClick={() => setDirection((value) => value === "asc" ? "desc" : "asc")}>{direction === "asc" ? "Oldest first" : "Newest first"}</button>
+            <select
+              aria-label="Sort recordings"
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+            >
+              <option value="date">Date</option>
+              <option value="duration">Duration</option>
+              <option value="size">File size</option>
+            </select>
+            <button
+              onClick={() =>
+                setDirection((value) => (value === "asc" ? "desc" : "asc"))
+              }
+            >
+              {directionLabel}
+            </button>
           </div>
-          {!rows.length ? <div className="state">No recordings match this view.</div> : <div className="recording-list">
-            {rows.map((row: Row) => (
-              <article className="recording-item" key={row.id}>
-                <div className="recording-item-head">
-                  <div><h3>{row.title || row.business_name || "Call recording"}</h3><p>{admin && `${row.rep_name} · `}{row.business_name ? `${row.business_name} · ` : ""}{new Date(row.recorded_at).toLocaleString()}</p></div>
-                  <span className={`badge ${row.status}`}>{row.status}</span>
-                </div>
-                <div className="recording-summary"><span>{formatTime(row.duration_seconds)}</span><span>{formatBytes(row.size_bytes)}</span><span>{row.codec}</span><span>{row.device_label || "Microphone"}</span></div>
-                {row.note && <p className="recording-note">{row.note}</p>}
-                {row.status === "ready" && <RecordingPlayer row={row} />}
-                {row.status !== "deleted" && <button className="danger-outline" onClick={() => { setRemove(row); setConfirmDelete(false); setReason(""); setDeleteError(""); }}><Trash2 size={15} /> Delete</button>}
-              </article>
-            ))}
-          </div>}
-          <div className="pagination"><button disabled={!page} onClick={() => setPage((value) => value - 1)}>Previous</button><span>{state.data?.total || 0} recording{state.data?.total === 1 ? "" : "s"}</span><button disabled={(page + 1) * 50 >= (state.data?.total || 0)} onClick={() => setPage((value) => value + 1)}>Next</button></div>
+          {!rows.length ? (
+            <div className="state">No recordings match this view.</div>
+          ) : (
+            <div className="recording-list">
+              {rows.map((row: Row) => (
+                <article className="recording-item" key={row.id}>
+                  <div className="recording-item-head">
+                    <div>
+                      <h3>
+                        {row.title || row.business_name || "Call recording"}
+                      </h3>
+                      <p>
+                        {admin && `${row.rep_name} · `}
+                        {row.business_name ? `${row.business_name} · ` : ""}
+                        {new Date(row.recorded_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <span className={`badge ${row.status}`}>{row.status}</span>
+                  </div>
+                  <div className="recording-summary">
+                    <span>{formatTime(row.duration_seconds)}</span>
+                    <span>{formatBytes(row.size_bytes)}</span>
+                    <span>{row.mime_type}</span>
+                    <span>{row.codec}</span>
+                    <span>{row.device_label || "Microphone"}</span>
+                    {row.consent_confirmed_at && (
+                      <span>
+                        Consent confirmed{" "}
+                        {new Date(row.consent_confirmed_at).toLocaleString()}
+                      </span>
+                    )}
+                    {row.call_id && <span>Call attached</span>}
+                    {row.deal_id && <span>Deal attached</span>}
+                  </div>
+                  {row.note && <p className="recording-note">{row.note}</p>}
+                  {row.status === "ready" && (
+                    <RecordingPlayer row={row} admin={admin} />
+                  )}
+                  {(row.business_id || row.call_id) && (
+                    <div className="button-row">
+                      {row.business_id && (
+                        <button
+                          onClick={() =>
+                            app.navigate(`/leads?business=${row.business_id}`)
+                          }
+                        >
+                          Open related lead
+                        </button>
+                      )}
+                      {row.call_id && row.business_id && (
+                        <button
+                          onClick={() =>
+                            app.navigate(`/leads?business=${row.business_id}`)
+                          }
+                        >
+                          Open related call
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {row.status !== "deleted" && (
+                    <button
+                      className="danger-outline"
+                      onClick={() => {
+                        setRemove(row);
+                        setConfirmDelete(false);
+                        setReason("");
+                        setDeleteError("");
+                      }}
+                    >
+                      <Trash2 size={15} /> Delete
+                    </button>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+          <div className="pagination">
+            <button
+              disabled={!page}
+              onClick={() => setPage((value) => value - 1)}
+            >
+              Previous
+            </button>
+            <span>
+              {state.data?.total || 0} recording
+              {state.data?.total === 1 ? "" : "s"}
+            </span>
+            <button
+              disabled={(page + 1) * 50 >= (state.data?.total || 0)}
+              onClick={() => setPage((value) => value + 1)}
+            >
+              Next
+            </button>
+          </div>
         </Card>
       </State>
-      {remove && <Modal title="Delete recording" onClose={() => setRemove(null)}>
-        <p>This permanently removes the private audio object and marks its metadata deleted. It cannot be undone.</p>
-        {admin && <label>Audit reason<textarea required minLength={5} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} /></label>}
-        <label className="consent-check"><input type="checkbox" checked={confirmDelete} onChange={(e) => setConfirmDelete(e.target.checked)} /> I understand this recording will be permanently deleted.</label>
-        <div className="button-row"><button className="danger" disabled={!confirmDelete || (admin && reason.trim().length < 5)} onClick={() => void removeRecording()}>Delete recording</button><button onClick={() => setRemove(null)}>Cancel</button></div>
-        {deleteError && <div className="notice error" role="alert">{deleteError}</div>}
-      </Modal>}
+      {remove && (
+        <Modal title="Delete recording" onClose={() => setRemove(null)}>
+          <p>
+            This permanently removes the private audio object and marks its
+            metadata deleted. It cannot be undone.
+          </p>
+          {admin && (
+            <label>
+              Audit reason
+              <textarea
+                required
+                minLength={5}
+                maxLength={500}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+            </label>
+          )}
+          <label className="consent-check">
+            <input
+              type="checkbox"
+              checked={confirmDelete}
+              onChange={(e) => setConfirmDelete(e.target.checked)}
+            />{" "}
+            I understand this recording will be permanently deleted.
+          </label>
+          <div className="button-row">
+            <button
+              className="danger"
+              disabled={!confirmDelete || (admin && reason.trim().length < 5)}
+              onClick={() => void removeRecording()}
+            >
+              Delete recording
+            </button>
+            <button onClick={() => setRemove(null)}>Cancel</button>
+          </div>
+          {deleteError && (
+            <div className="notice error" role="alert">
+              {deleteError}
+            </div>
+          )}
+        </Modal>
+      )}
     </>
   );
 }
