@@ -345,6 +345,34 @@ try {
     true,
   );
   await page.goto(f.base + "/admin/finance/payout-setup");
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.getByRole("button", { name: "View", exact: true }).waitFor();
+    await page.waitForLoadState("networkidle");
+    assert.ok(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth + 1,
+      ),
+    );
+    const repName = await page
+      .locator(".payout-admin tbody tr td")
+      .first()
+      .evaluate((cell) => {
+        const text = document.createRange();
+        text.selectNodeContents(cell);
+        return {
+          height: text.getBoundingClientRect().height,
+          lineHeight: Number.parseFloat(getComputedStyle(cell).lineHeight),
+        };
+      });
+    assert.ok(
+      repName.height <= repName.lineHeight * 2 + 1,
+      `Payout queue rep name remains readable at ${width}px`,
+    );
+    await page.screenshot({
+      path: new URL("payout-queue-" + width + ".png", out).pathname,
+    });
+  }
   for (const action of ["Mark Stripe setup sent", "Approve payout setup"]) {
     await page.getByRole("button", { name: "View", exact: true }).click();
     dialog = page.getByRole("dialog");

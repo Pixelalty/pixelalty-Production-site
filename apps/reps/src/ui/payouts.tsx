@@ -314,12 +314,14 @@ export function PayoutSetupAdmin() {
     payout_correction: "Request correction",
   };
   return (
-    <>
+    <div className="payout-admin">
       <Heading
         title="Payout Setup"
         description="Review safe contact information, then track the Stripe steps you complete manually."
       />
-      <LinkButton to="/admin/finance">Back to Finance</LinkButton>
+      <div className="actions">
+        <LinkButton to="/admin/finance">Back to Finance</LinkButton>
+      </div>
       <Card>
         <p>
           In your own browser: Stripe → Global Payouts → Recipients → Add
@@ -327,24 +329,26 @@ export function PayoutSetupAdmin() {
           recipient. These Pixelalty actions only record your progress; they do
           not call Stripe or verify bank information.
         </p>
-        <label htmlFor="payout-filter">Status</label>
-        <select
-          id="payout-filter"
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setPage(0);
-          }}
-        >
-          <option value="all">All</option>
-          {Object.entries(payoutLabels)
-            .filter(([k]) => k !== "not_started")
-            .map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-        </select>
+        <div className="field finance-filter">
+          <label htmlFor="payout-filter">Status</label>
+          <select
+            id="payout-filter"
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(0);
+            }}
+          >
+            <option value="all">All</option>
+            {Object.entries(payoutLabels)
+              .filter(([k]) => k !== "not_started")
+              .map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+          </select>
+        </div>
         <State
           {...state}
           empty={!state.data?.rows.length}
@@ -499,6 +503,6 @@ export function PayoutSetupAdmin() {
           )}
         </Modal>
       )}
-    </>
+    </div>
   );
 }

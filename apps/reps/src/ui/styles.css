@@ -710,10 +710,12 @@ form > .primary {
   overflow-x: auto;
   width: 100%;
 }
-.manual-finance > .actions {
+.manual-finance > .actions,
+.payout-admin > .actions {
   margin-bottom: 20px;
 }
-.manual-finance td {
+.manual-finance td,
+.payout-admin td {
   min-width: 100px;
   overflow-wrap: break-word;
 }
