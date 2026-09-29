@@ -231,17 +231,36 @@ try {
     .getByText("Please add the required signature and date.", { exact: true })
     .waitFor();
   await submitPdf(true);
-  // The button invokes the production account creation and account-link code;
-  // the isolated Stripe transport returns to the actual hosted-return handler.
+  // Manual V1 intake stays inside Pixelalty and never calls Stripe account APIs.
   await page
     .locator("#onboarding-payout")
-    .getByRole("button", { name: "Set Up Payouts Securely", exact: true })
+    .getByRole("button", { name: "Set Up Payouts", exact: true })
     .click();
+  dialog = page.getByRole("dialog");
+  await dialog
+    .getByLabel("Phone number", { exact: true })
+    .fill("(212) 555-0198");
+  await dialog
+    .getByLabel("Legal first name (as it appears on your ID)")
+    .fill("Alex");
+  await dialog
+    .getByLabel("Legal last name (as it appears on your ID)")
+    .fill("Test");
+  await dialog.getByRole("checkbox").check();
+  await dialog
+    .getByRole("button", { name: "Submit payout setup", exact: true })
+    .click();
+  await dialog.waitFor({ state: "hidden" });
   await page
-    .getByText("Your payout account is ready.", { exact: true })
+    .locator("#onboarding-payout")
+    .getByText("Submitted — awaiting Stripe setup", { exact: true })
     .waitFor();
-  assert.equal(new URL(page.url()).search, "?step=payout");
-  assert.ok(f.providerCalls.some((x) => x.path === "/v1/account_links"));
+  assert.equal(
+    f.providerCalls.filter((x) =>
+      ["/v1/accounts", "/v1/account_links"].includes(x.path),
+    ).length,
+    0,
+  );
   for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(f.base + "/onboarding");
@@ -310,6 +329,65 @@ try {
     .click();
   await dialog.waitFor({ state: "hidden" });
   await page.getByRole("heading", { name: "Verified", exact: true }).waitFor();
+  await page
+    .getByRole("button", { name: "Confirm securely archived", exact: true })
+    .click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByRole("checkbox").check();
+  await dialog
+    .getByRole("button", { name: "Confirm securely archived", exact: true })
+    .click();
+  await dialog.waitFor({ state: "hidden" });
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Download PDF for review", exact: true })
+      .isDisabled(),
+    true,
+  );
+  await page.goto(f.base + "/admin/finance/payout-setup");
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.getByRole("button", { name: "View", exact: true }).waitFor();
+    await page.waitForLoadState("networkidle");
+    assert.ok(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth + 1,
+      ),
+    );
+    const repName = await page
+      .locator(".payout-admin tbody tr td")
+      .first()
+      .evaluate((cell) => {
+        const text = document.createRange();
+        text.selectNodeContents(cell);
+        return {
+          height: text.getBoundingClientRect().height,
+          lineHeight: Number.parseFloat(getComputedStyle(cell).lineHeight),
+        };
+      });
+    assert.ok(
+      repName.height <= repName.lineHeight * 2 + 1,
+      `Payout queue rep name remains readable at ${width}px`,
+    );
+    await page.screenshot({
+      path: new URL("payout-queue-" + width + ".png", out).pathname,
+    });
+  }
+  for (const action of ["Mark Stripe setup sent", "Approve payout setup"]) {
+    await page.getByRole("button", { name: "View", exact: true }).click();
+    dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: action, exact: true }).click();
+    await dialog.getByRole("checkbox").check();
+    await dialog.getByRole("button", { name: action, exact: true }).click();
+    await dialog.waitFor({ state: "hidden" });
+  }
+  await page.goto(f.base + "/admin/reps?rep_code=" + code);
+  await page.getByRole("link", { name: "Manage account", exact: true }).click();
+  await page.getByRole("button", { name: "Add Code", exact: true }).click();
+  dialog = page.getByRole("dialog").last();
+  await dialog.getByLabel("Promotion code", { exact: true }).fill("ALEX2");
+  await dialog.getByRole("button", { name: "Save Code", exact: true }).click();
+  await dialog.waitFor({ state: "hidden" });
   await page.goto(f.base + "/admin/reps?rep_code=" + code);
   await page
     .getByRole("heading", { name: "Ready for activation", exact: true })
@@ -356,7 +434,7 @@ try {
     .getByRole("heading", { name: "Hello, Alex.", exact: true })
     .waitFor();
   checks.push(
-    "PDF rejection, private submission, download audit, correction/replacement, Finance verification, Connect callback, training, activation and fresh-login persistence pass",
+    "PDF rejection, private submission, download audit, correction/replacement, secure archive, manual payout approval, sales-code assignment, training, activation and fresh-login persistence pass",
   );
   await verifyAccounts(page, f, code, out, checks, login, logout);
   assert.deepEqual(errors, []);

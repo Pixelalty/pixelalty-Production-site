@@ -710,6 +710,18 @@ form > .primary {
   overflow-x: auto;
   width: 100%;
 }
+.manual-finance > .actions,
+.payout-admin > .actions {
+  margin-bottom: 20px;
+}
+.manual-finance td,
+.payout-admin td {
+  min-width: 100px;
+  overflow-wrap: break-word;
+}
+.finance-filter {
+  max-width: 280px;
+}
 table {
   width: 100%;
   border-collapse: collapse;
@@ -1747,5 +1759,43 @@ input[type="file"]::file-selector-button {
   }
   .recruiting-benefits article {
     padding: 22px;
+  }
+}
+/* Manual payout intake shares the workspace surfaces and theme tokens. */
+.payout-status {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.payout-details {
+  display: grid;
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+.payout-details > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.4rem 1rem;
+}
+.payout-details strong {
+  grid-column: 1/-1;
+}
+.payout-details span {
+  overflow-wrap: anywhere;
+  align-self: center;
+}
+.sales-code-value {
+  font-size: clamp(1.6rem, 4vw, 2.5rem);
+  letter-spacing: 0.07em;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 540px) {
+  .payout-details > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .payout-details button {
+    justify-self: start;
   }
 }

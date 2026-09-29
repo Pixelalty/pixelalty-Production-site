@@ -34,6 +34,8 @@ import { Pipeline } from "./pipeline";
 import { Imports } from "./imports";
 import { BusinessDetails } from "./details";
 import { OperationsQueue, RepOnboardingDetail, TaxReview } from "./onboarding";
+import { PayoutSetupAdmin } from "./payouts";
+import { ManualFinance } from "./manual-finance";
 const choices = (values: string[]) =>
   values.map((value) => ({ value, label: label(value) }));
 type Dialog = {
@@ -72,6 +74,7 @@ export function Admin() {
   )
     return <ManageAccount code={repCode} />;
   if (page === "/admin/tax") return <TaxReview />;
+  if (page === "/admin/finance/payout-setup") return <PayoutSetupAdmin />;
   if (page === "/admin/reps" && repCode)
     return <RepOnboardingDetail code={repCode} />;
   if (page === "/admin/pipeline") return <Pipeline admin />;
@@ -377,71 +380,13 @@ export function Admin() {
         <Heading
           eyebrow="FINANCE"
           title="Commissions & payouts"
-          description="Review payment health, release holds, and authorize eligible transfers."
+          description="Review verified sales, commissions, and payouts you confirm manually."
         />
-        <StripeHealth />
-        <div className="notice">
-          A Connect transfer moves funds to a connected account. The bank payout
-          is a separate event. An uncertain transfer requires reconciliation
-          before retrying.
-        </div>
-        <Listing
-          name="commissions"
-          columns={[
-            ["amount_cents", "Commission"],
-            ["status", "Status"],
-            ["hold_until", "Hold until"],
-            ["reversed_cents", "Reversed"],
-            ["rep_name", "Rep"],
-          ]}
-          actions={(r) => (
-            <>
-              <button onClick={() => show("Place hold", "commission_hold", r)}>
-                Hold
-              </button>
-              <button
-                onClick={() =>
-                  show("Release manual hold", "commission_release", r)
-                }
-              >
-                Release hold
-              </button>
-              {!r.transfer_id && (
-                <button
-                  onClick={() =>
-                    show("Authorize transfer", "", r, [], "/transfer")
-                  }
-                >
-                  Transfer
-                </button>
-              )}
-              {r.transfer_id && (
-                <button
-                  onClick={() =>
-                    show(
-                      "Reverse transfer",
-                      "",
-                      { ...r, request_id: crypto.randomUUID() },
-                      [
-                        {
-                          name: "amount_cents",
-                          label: "Amount to reverse (cents)",
-                          type: "number",
-                          min: 1,
-                          max: r.amount_cents - r.reversed_cents,
-                          required: true,
-                        },
-                      ],
-                      "/reverse",
-                    )
-                  }
-                >
-                  Reverse
-                </button>
-              )}
-            </>
-          )}
-        />
+        <ManualFinance />
+        <details>
+          <summary>Payment connection status</summary>
+          <StripeHealth />
+        </details>
         <h2>Package versions</h2>
         <button
           onClick={() =>
@@ -548,7 +493,7 @@ export function Admin() {
             ["payment_intent", "Payment intent"],
           ]}
         />
-        <h2>Bank payouts</h2>
+        <h2>Legacy bank payout history</h2>
         <Listing
           name="payouts"
           columns={[
@@ -559,80 +504,84 @@ export function Admin() {
           ]}
         />
         <h2>Stripe event health</h2>
-        <Card title="Reconcile an interrupted provider operation">
-          <p>
-            Look up the original Stripe object and match it to the deal or
-            request below. This verifies an existing operation; it does not
-            create a new charge or transfer.
-          </p>
-          <button
-            onClick={() =>
-              show(
-                "Reconcile Stripe operation",
-                "",
-                {},
-                [
-                  {
-                    name: "kind",
-                    label: "Operation",
-                    required: true,
-                    options: choices([
-                      "checkout",
-                      "connect",
-                      "transfer",
-                      "reversal",
-                    ]),
-                  },
-                  {
-                    name: "id",
-                    label:
-                      "Deal ID for checkout, rep ID for Connect, or transfer/reversal request ID",
-                    required: true,
-                  },
-                  {
-                    name: "object_id",
-                    label: "Stripe Checkout, Account, Transfer, or Reversal ID",
-                    required: true,
-                  },
-                ],
-                "/reconcile",
-              )
-            }
-          >
-            Reconcile operation
-          </button>
-        </Card>
-        <h2>Connect setup attempts</h2>
-        <Listing
-          name="connect_requests"
-          columns={[
-            ["rep_id", "Rep ID"],
-            ["started_at", "Started"],
-            ["account_id", "Connected account"],
-          ]}
-        />
-        <h2>Transfer requests</h2>
-        <Listing
-          name="transfer_requests"
-          columns={[
-            ["id", "Request ID"],
-            ["commission_id", "Commission"],
-            ["status", "Status"],
-            ["transfer_id", "Stripe transfer"],
-            ["created_at", "Requested"],
-          ]}
-        />
-        <h2>Reversal requests</h2>
-        <Listing
-          name="reversal_requests"
-          columns={[
-            ["id", "Request ID"],
-            ["commission_id", "Commission"],
-            ["amount_cents", "Amount"],
-            ["status", "Status"],
-            ["reversal_id", "Stripe reversal"],
-          ]}
-        />
+        <details>
+          <summary>Historical Stripe reconciliation</summary>
+          <Card title="Reconcile an existing provider operation">
+            <p>
+              Look up the original Stripe object and match it to the deal or
+              request below. This verifies an existing operation; it does not
+              create a new charge or transfer.
+            </p>
+            <button
+              onClick={() =>
+                show(
+                  "Reconcile Stripe operation",
+                  "",
+                  {},
+                  [
+                    {
+                      name: "kind",
+                      label: "Operation",
+                      required: true,
+                      options: choices([
+                        "checkout",
+                        "connect",
+                        "transfer",
+                        "reversal",
+                      ]),
+                    },
+                    {
+                      name: "id",
+                      label:
+                        "Deal ID for checkout, rep ID for Connect, or transfer/reversal request ID",
+                      required: true,
+                    },
+                    {
+                      name: "object_id",
+                      label:
+                        "Stripe Checkout, Account, Transfer, or Reversal ID",
+                      required: true,
+                    },
+                  ],
+                  "/reconcile",
+                )
+              }
+            >
+              Reconcile operation
+            </button>
+          </Card>
+          <h2>Legacy Connect setup attempts</h2>
+          <Listing
+            name="connect_requests"
+            columns={[
+              ["rep_id", "Rep ID"],
+              ["started_at", "Started"],
+              ["account_id", "Connected account"],
+            ]}
+          />
+          <h2>Legacy transfer requests</h2>
+          <Listing
+            name="transfer_requests"
+            columns={[
+              ["id", "Request ID"],
+              ["commission_id", "Commission"],
+              ["status", "Status"],
+              ["transfer_id", "Stripe transfer"],
+              ["created_at", "Requested"],
+            ]}
+          />
+          <h2>Legacy reversal requests</h2>
+          <Listing
+            name="reversal_requests"
+            columns={[
+              ["id", "Request ID"],
+              ["commission_id", "Commission"],
+              ["amount_cents", "Amount"],
+              ["status", "Status"],
+              ["reversal_id", "Stripe reversal"],
+            ]}
+          />
+        </details>
         <Listing
           name="stripe_events"
           columns={[

@@ -17,6 +17,7 @@ import { label, type Row } from "../shared/core";
 import { careerProgress } from "../shared/progression";
 import { SharedIdentity } from "./profile-identity";
 import { timezoneOptions } from "../shared/timezones";
+import { SalesCode } from "./payouts";
 
 type AccountDialog = {
   title: string;
@@ -371,6 +372,7 @@ export function ManageAccount({ code }: { code: string }) {
                   />
                 </Card>
                 <div>
+                  <SalesCode repId={r.id} manage />
                   {(app.has("sales_admin") || app.has("support")) && (
                     <Card title="Profile moderation">
                       <p>
@@ -409,18 +411,9 @@ export function ManageAccount({ code }: { code: string }) {
                     </LinkButton>
                     <LinkButton to="/admin/tax">Tax review</LinkButton>
                     {app.has("finance_admin") && (
-                      <button
-                        onClick={() =>
-                          show(
-                            "Recover payout setup",
-                            "",
-                            [],
-                            "/connect/recover",
-                          )
-                        }
-                      >
-                        Recover payout setup
-                      </button>
+                      <LinkButton to="/admin/finance/payout-setup">
+                        Review payout setup
+                      </LinkButton>
                     )}
                   </Card>
                   <Card title="Access & account security">

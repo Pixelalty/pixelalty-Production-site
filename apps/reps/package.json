@@ -24,7 +24,8 @@
     "deploy:pixelalty": "npm run domains:prepare && npm run build && wrangler deploy --env staging",
     "test:concurrency": "node --import tsx --test tests/concurrency.ts",
     "test:onboarding": "node --import tsx tests/browser-onboarding.ts",
-    "test:profile": "node --import tsx tests/browser-profile.ts"
+    "test:profile": "node --import tsx tests/browser-profile.ts",
+    "test:finance": "node --import tsx tests/browser-manual-finance.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.1",

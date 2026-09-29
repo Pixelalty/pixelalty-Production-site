@@ -660,6 +660,9 @@
 .shared-identity small {
   color: var(--muted);
 }
+.table-wrap .shared-identity {
+  min-width: 160px;
+}
 .leader-row .shared-identity {
   flex: 1;
 }

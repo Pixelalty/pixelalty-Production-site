@@ -12,17 +12,14 @@ import { drainMail, mailConfigured } from "./mail";
 import { downloadTax, TAX_MAX_BYTES, uploadTax } from "./tax";
 import {
   checkout,
-  connectAccount,
-  recoverConnect,
   webhook,
-  transfer,
-  reverse,
   reconcile,
   reconcilePayment,
   stripe,
 } from "./payments";
 import { parseUpload } from "./importer";
 import { importMappingError } from "../shared/imports";
+import { drainSms, smsConfigured, receiveSms } from "./sms";
 import {
   cleanupProfileMedia,
   expireProfileMedia,
@@ -112,6 +109,8 @@ const TABLES = [
   "focus_sessions",
   "quote_requests",
   "diagnostics",
+  "manual_payouts",
+  "verified_sales",
 ];
 const application = z.object({
   name: z.string().trim().min(2).max(150),
@@ -137,6 +136,7 @@ const application = z.object({
   experience: z.string().max(3000),
   cold_calling_experience: z.string().max(2000).optional(),
   customer_service_experience: z.string().max(2000).optional(),
+  sms_opt_in: z.boolean().optional().default(false),
   availability: z.coerce.number().min(1).max(80),
   motivation: z.string().min(10).max(3000),
   token: z.string().min(1),
@@ -147,6 +147,12 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
     path = u.pathname,
     post = req.method === "POST";
   if (path.startsWith("/api/webhooks/")) {
+    if (path === "/api/webhooks/sms" && post)
+      return receiveSms(
+        env,
+        req,
+        new TextDecoder().decode(await bytes(req, 16384)),
+      );
     if (!["/api/webhooks/stripe", "/api/webhooks/connect"].includes(path))
       throw new HttpError(404, "Route not found.");
     if (!post) throw new HttpError(405, "POST required.");
@@ -229,7 +235,12 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
       await service(env, "application", {
         name: p.name,
         email: p.email,
-        details,
+        details: {
+          ...details,
+          phone: normalizePhone(p.phone),
+          sms_opt_in_at: p.sms_opt_in ? new Date().toISOString() : null,
+          sms_consent_source: "application_optional_checkbox",
+        },
         ip_hash,
       }),
     );
@@ -323,7 +334,7 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
       quote_requests:
         "*,business:px_businesses(name,code),rep:px_reps(name,code)",
       commissions:
-        "*,deal:px_deals(code,package_name,price_cents,business:px_businesses(name))",
+        "*,deal:px_deals(code,package_name,price_cents,business:px_businesses(name)),sale:px_verified_sales(package_name,amount_cents)",
       fulfillment:
         "*,deal:px_deals(code,package_name,business:px_businesses(name))",
     };
@@ -452,8 +463,9 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
       rep_code: r.rep?.code,
       rep_status: r.rep?.status,
       deal_code: r.deal?.code,
-      package_name: r.package_name || r.deal?.package_name,
-      sale_cents: r.deal?.price_cents,
+      package_name:
+        r.package_name || r.sale?.package_name || r.deal?.package_name,
+      sale_cents: r.sale?.amount_cents || r.deal?.price_cents,
     }));
     return json({ rows, total: result.count, page });
   }
@@ -497,9 +509,13 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
   if (path === "/api/tax/review" && post) {
     const p = await body(req);
     if (
-      !["start_review", "verify", "request_correction", "archive"].includes(
-        p.action,
-      )
+      ![
+        "start_review",
+        "verify",
+        "request_correction",
+        "archive",
+        "confirm_secure_archive",
+      ].includes(p.action)
     )
       throw new HttpError(400, "Choose a review action.");
     return json(await rpc(db, "px_tax", { action: p.action, p }));
@@ -558,22 +574,24 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
     const p = await body(req);
     return json(await checkout(env, db, user.id, p.id));
   }
-  if (path === "/api/connect" && post) {
-    const p = await body(req);
-    return json(await connectAccount(env, db, user.id, !!p.refresh));
-  }
-  if (path === "/api/connect/recover" && post)
-    return json(await recoverConnect(env, db, user.id, await body(req)));
+  if (
+    [
+      "/api/connect",
+      "/api/connect/recover",
+      "/api/transfer",
+      "/api/reverse",
+    ].includes(path)
+  )
+    throw new HttpError(
+      410,
+      "This legacy payout action has been retired. Open Payout setup in Pixelalty.",
+    );
   if (path === "/api/account/delete" && post)
     return json(await deleteAccount(env, db, await body(req)));
   if (path === "/api/account/reset-password" && post)
     return json(await resetAccountPassword(env, db, await body(req)));
   if (path === "/api/stripe/health" && !post)
     return json(await stripeHealth(env, db));
-  if (path === "/api/transfer" && post)
-    return json(await transfer(env, db, await body(req)));
-  if (path === "/api/reverse" && post)
-    return json(await reverse(env, db, await body(req)));
   if (path === "/api/reconcile" && post)
     return json(await reconcile(env, db, await body(req)));
   if (path === "/api/import/preview" && post) {
@@ -844,6 +862,10 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
       applicationProtection: !!env.TURNSTILE_SECRET_KEY,
       mode: env.STRIPE_MODE,
       automaticTransfers: false,
+      payoutWorkflow: "Manual owner-confirmed Stripe Global Payouts",
+      smsProvider: smsConfigured(env)
+        ? "Configured"
+        : "SMS provider not configured (optional)",
       calling: ctx.settings.calling_enabled,
       brandedNotifications: mailConfigured(env),
       emailDelivery: await rpc(db, "px_mail", { action: "summary", p: {} }),
@@ -985,6 +1007,15 @@ export default {
       ctx.waitUntil(
         drainMail(env).catch(() => console.error("mail_queue_unavailable")),
       );
+    if (
+      ctx &&
+      req.method === "POST" &&
+      response.ok &&
+      currentUrl.pathname === "/api/approve"
+    )
+      ctx.waitUntil(
+        drainSms(env).catch(() => console.error("sms_queue_unavailable")),
+      );
     return new Response(response.body, { status: response.status, headers });
   },
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
@@ -994,6 +1025,7 @@ export default {
         await drainMail(env, 10).catch(() =>
           console.error("mail_queue_unavailable"),
         );
+        await drainSms(env).catch(() => console.error("sms_queue_unavailable"));
         await expireProfileMedia(env).catch(() =>
           console.error("profile_cleanup_retry"),
         );

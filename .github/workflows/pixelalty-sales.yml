@@ -56,6 +56,8 @@ jobs:
         if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
       - run: npm run test:branding
         if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+      - run: npm run test:finance
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
       - run: npx wrangler deploy --dry-run --env staging
       - uses: actions/upload-artifact@v7
         if: always()

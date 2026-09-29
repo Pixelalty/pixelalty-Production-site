@@ -179,10 +179,20 @@ export function authEmail(
   });
 }
 export function onboardingEmail(
-  type: "activated" | "onboarding",
+  type: "activated" | "onboarding" | "payout_setup",
   appUrl: string,
 ) {
   const origin = new URL(appUrl).origin;
+  if (type === "payout_setup")
+    return brandedEmail({
+      subject: "Your secure payout setup has started | Pixelalty Sales",
+      title: "Check your email for Stripe’s setup invitation",
+      intro: "Pixelalty has initiated your secure Stripe payout setup.",
+      detail:
+        "Check your inbox and Spam/Junk folder for Stripe’s email and follow its secure instructions. Enter banking details only on Stripe’s page. Pixelalty does not collect or store your bank account or routing number. Your administrator will review readiness after you finish.",
+      action: "VIEW PAYOUT SETUP",
+      url: origin + "/onboarding?step=payout",
+    });
   return brandedEmail(
     type === "activated"
       ? {

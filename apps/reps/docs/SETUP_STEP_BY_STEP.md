@@ -1,5 +1,7 @@
 # Finish Pixelalty Sales setup
 
+For the September 29 manual V1, use [MANUAL_V1.md](MANUAL_V1.md). Do not repeat completed domain, email or infrastructure setup. Earlier Connect/transfer instructions below describe the prior architecture and are not the current payout workflow.
+
 This checklist continues from the existing staging installation. Do not recreate the database or Worker, rerun completed migrations, or bootstrap the owner again. It supersedes the original first-install checklist and the setup instructions in older status reports.
 
 - Repository: Pixelalty/pixelalty-Production-site

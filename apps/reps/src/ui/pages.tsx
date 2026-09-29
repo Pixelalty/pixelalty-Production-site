@@ -29,6 +29,7 @@ import {
 } from "./lib";
 import { money, label, type Row } from "../shared/core";
 import { BusinessDetails } from "./details";
+import { PayoutSetup, SalesCode } from "./payouts";
 const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 export function Dashboard() {
   const app = useApp(),
@@ -58,6 +59,7 @@ export function Dashboard() {
         title={`Hello, ${app.ctx.rep?.name.split(" ")[0] || "there"}.`}
         description="A clear view of today. One good conversation at a time."
       />
+      <SalesCode />
       <State {...state}>
         <div className="stats">
           {[
@@ -639,16 +641,14 @@ export function Money() {
     <>
       <Heading
         title="My money"
-        description="Your commissions, Connect transfers, and bank payouts—each tracked separately."
+        description="Verified sales, fixed commissions, and payouts confirmed by Pixelalty."
       />
       <State {...totals}>
         <div className="stats">
           {[
             ["hold", "Held commission"],
             ["payable", "Payable"],
-            ["queued", "Transfer queued"],
-            ["transferred", "Net transferred to Connect"],
-            ["bank_paid", "Confirmed bank payouts"],
+            ["paid", "Confirmed paid"],
             ["review", "Under review"],
           ].map(([k, t]) => (
             <Card key={k}>
@@ -658,18 +658,12 @@ export function Money() {
           ))}
         </div>
       </State>
-      <Card title="Your payout account">
-        <p>
-          {totals.data?.connect?.payouts_enabled
-            ? "Bank payouts are enabled."
-            : "Complete your payment setup or review the outstanding requirements."}
-        </p>
-        <LinkButton to="/onboarding">Manage payment setup</LinkButton>
-      </Card>
+      <SalesCode />
+      <PayoutSetup />
       <div className="notice">
-        Transfers move commission to your connected account. Your bank payout
-        status appears separately below. Holds, refunds, and disputes can affect
-        availability.
+        Pixelalty reviews eligible commissions and sends payouts manually
+        through Stripe. Paid means an authorized administrator confirmed the
+        actual payout. Holds, refunds, and disputes can affect availability.
       </div>
       <h2>Commission ledger</h2>
       <Listing
@@ -685,7 +679,17 @@ export function Money() {
           ["reversed_cents", "Reversed"],
         ]}
       />
-      <h2>Bank payouts</h2>
+      <h2>Confirmed payouts</h2>
+      <Listing
+        name="manual_payouts"
+        query="&own=true"
+        columns={[
+          ["amount_cents", "Amount"],
+          ["paid_at", "Payment date"],
+          ["stripe_reference", "Reference"],
+        ]}
+      />
+      <h2>Legacy payout history</h2>
       <Listing
         name="payouts"
         query="&own=true"

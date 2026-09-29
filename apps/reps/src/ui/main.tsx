@@ -445,7 +445,16 @@ function App() {
     );
   if (path.startsWith("/apply") || config.publicRecruitingHost)
     return <Apply siteKey={config.turnstileSiteKey} appUrl={config.appUrl} />;
-  if (path.startsWith("/payment-return"))
+  if (path.startsWith("/payment-return")) {
+    const params = new URLSearchParams(path.split("?")[1]);
+    const intake = (
+      {
+        launch: "Y52k1d",
+        growth: "EkpMON",
+        premium: "5BNMP6",
+        advanced: "VLrDKv",
+      } as Record<string, string>
+    )[params.get("package") || ""];
     return (
       <AuthShell>
         <ShieldCheck size={40} />
@@ -455,11 +464,23 @@ function App() {
             ? "We’re verifying your payment. Your Pixelalty contact can confirm the next steps once verification is complete."
             : "No payment is confirmed by this page. Contact your Pixelalty representative if you would like to continue."}
         </p>
+        {params.get("status") === "success" && intake && (
+          <>
+            <p>
+              If your payment completed, continue with your project details.
+              This page alone is not a payment receipt.
+            </p>
+            <a className="button primary" href={`https://tally.so/r/${intake}`}>
+              Continue to project intake
+            </a>
+          </>
+        )}
         <a className="button" href="https://pixelalty.com">
           Return to Pixelalty
         </a>
       </AuthShell>
     );
+  }
   if (!authReady)
     return (
       <AuthShell>
