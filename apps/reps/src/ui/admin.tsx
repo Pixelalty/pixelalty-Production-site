@@ -34,6 +34,8 @@ import { Pipeline } from "./pipeline";
 import { Imports } from "./imports";
 import { BusinessDetails } from "./details";
 import { OperationsQueue, RepOnboardingDetail, TaxReview } from "./onboarding";
+import { PayoutSetupAdmin } from "./payouts";
+import { ManualFinance } from "./manual-finance";
 const choices = (values: string[]) =>
   values.map((value) => ({ value, label: label(value) }));
 type Dialog = {
@@ -72,6 +74,7 @@ export function Admin() {
   )
     return <ManageAccount code={repCode} />;
   if (page === "/admin/tax") return <TaxReview />;
+  if (page === "/admin/finance/payout-setup") return <PayoutSetupAdmin />;
   if (page === "/admin/reps" && repCode)
     return <RepOnboardingDetail code={repCode} />;
   if (page === "/admin/pipeline") return <Pipeline admin />;
@@ -377,71 +380,10 @@ export function Admin() {
         <Heading
           eyebrow="FINANCE"
           title="Commissions & payouts"
-          description="Review payment health, release holds, and authorize eligible transfers."
+          description="Review verified sales, commissions, and payouts you confirm manually."
         />
         <StripeHealth />
-        <div className="notice">
-          A Connect transfer moves funds to a connected account. The bank payout
-          is a separate event. An uncertain transfer requires reconciliation
-          before retrying.
-        </div>
-        <Listing
-          name="commissions"
-          columns={[
-            ["amount_cents", "Commission"],
-            ["status", "Status"],
-            ["hold_until", "Hold until"],
-            ["reversed_cents", "Reversed"],
-            ["rep_name", "Rep"],
-          ]}
-          actions={(r) => (
-            <>
-              <button onClick={() => show("Place hold", "commission_hold", r)}>
-                Hold
-              </button>
-              <button
-                onClick={() =>
-                  show("Release manual hold", "commission_release", r)
-                }
-              >
-                Release hold
-              </button>
-              {!r.transfer_id && (
-                <button
-                  onClick={() =>
-                    show("Authorize transfer", "", r, [], "/transfer")
-                  }
-                >
-                  Transfer
-                </button>
-              )}
-              {r.transfer_id && (
-                <button
-                  onClick={() =>
-                    show(
-                      "Reverse transfer",
-                      "",
-                      { ...r, request_id: crypto.randomUUID() },
-                      [
-                        {
-                          name: "amount_cents",
-                          label: "Amount to reverse (cents)",
-                          type: "number",
-                          min: 1,
-                          max: r.amount_cents - r.reversed_cents,
-                          required: true,
-                        },
-                      ],
-                      "/reverse",
-                    )
-                  }
-                >
-                  Reverse
-                </button>
-              )}
-            </>
-          )}
-        />
+        <ManualFinance />
         <h2>Package versions</h2>
         <button
           onClick={() =>

@@ -543,7 +543,7 @@ test("real Postgres workflows, authorization, and payment ledger", async (t) => 
             id: onboarding,
             reason: "Premature activation",
           }),
-          /complete|agreement|profile/,
+          /Complete|complete|agreement|profile/,
         );
         await actor(db, onboarding);
         await assert.rejects(
@@ -630,6 +630,13 @@ test("real Postgres workflows, authorization, and payment ledger", async (t) => 
           reason: "Publish test agreement",
         });
         await actor(db, newRep);
+        await act("payout_submit", {
+          email: "new@example.test",
+          phone: "+12125550199",
+          legal_first_name: "New",
+          legal_last_name: "Rep",
+          acknowledged: true,
+        });
         await act("profile", { name: "New Rep", timezone: "America/New_York" });
         await act("agreement", {
           content_id: agreement.id,
@@ -647,6 +654,17 @@ test("real Postgres workflows, authorization, and payment ledger", async (t) => 
             ...(item.kind === "quiz" ? { answers: [1, 1, 0, 1, 0] } : {}),
           });
         await actor(db, owner, "aal2");
+        await act("payout_sent", {
+          id: newRep,
+          expected_status: "submitted",
+          confirmed: true,
+        });
+        await act("payout_ready", {
+          id: newRep,
+          expected_status: "stripe_setup_pending",
+          confirmed: true,
+        });
+        await act("sales_code_save", { id: newRep, code: "TESTREP2" });
         await act("rep_activate", {
           id: newRep,
           reason: "All test onboarding gates met",

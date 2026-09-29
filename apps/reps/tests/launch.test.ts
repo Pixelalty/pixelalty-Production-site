@@ -110,34 +110,47 @@ test("tax preflight distinguishes interactive forms and allows harmless printed 
   });
 });
 
-test("Connect retries create fresh links, status return reuses the account, and signed updates persist", async () => {
-  const f = await startIntegration();
+test("retired automated payout endpoints never call Stripe or alter legacy setup", async () => {
+  const f = await startIntegration({ connectError: true });
   try {
-    const first = await post(f, f.newRep, "/connect", {});
-    assert.equal(first.status, 200, await first.clone().text());
-    assert.equal((await post(f, f.newRep, "/connect", {})).status, 200);
-    assert.equal(
-      (await post(f, f.newRep, "/connect", { refresh: true })).status,
-      200,
+    await f.db.query(
+      "insert into px_connect(rep_id,account_id,payouts_enabled,transfers_enabled) values($1,'acct_isolated_onboarding',true,true)",
+      [f.newRep],
     );
+    for (const path of ["/connect", "/connect/recover", "/transfer"])
+      for (const user of [f.newRep, f.owner]) {
+        const response = await post(f, user, path, {
+          id: f.newRep,
+          reason: "Legacy operation must stay retired",
+        });
+        assert.equal(response.status, 410);
+        assert.match(((await response.json()) as any).error, /Payout setup/);
+      }
+    assert.equal(f.providerCalls.length, 0);
     assert.equal(
-      f.providerCalls.filter(
-        (x) => x.path === "/v1/accounts" && x.method === "POST",
-      ).length,
+      (await f.db.query<any>("select count(*) n from px_connect")).rows[0].n,
       1,
     );
-    assert.equal(
-      f.providerCalls.filter((x) => x.path === "/v1/account_links").length,
-      2,
+  } finally {
+    await f.close();
+  }
+});
+
+test("legacy signed account events update history, never manual payout readiness", async () => {
+  const f = await startIntegration();
+  try {
+    await f.db.query(
+      "insert into px_connect(rep_id,account_id) values($1,'acct_isolated_onboarding')",
+      [f.newRep],
     );
-    const s = new Stripe(f.env.STRIPE_SECRET_KEY),
-      payload = JSON.stringify({
-        id: "evt_connect_launch",
-        type: "account.updated",
-        livemode: false,
-        account: "acct_isolated_onboarding",
-        data: { object: { id: "acct_isolated_onboarding" } },
-      });
+    const s = new Stripe(f.env.STRIPE_SECRET_KEY);
+    const payload = JSON.stringify({
+      id: "evt_connect_history",
+      type: "account.updated",
+      livemode: false,
+      account: "acct_isolated_onboarding",
+      data: { object: { id: "acct_isolated_onboarding" } },
+    });
     for (let n = 0; n < 2; n++) {
       const response = await fetch(f.base + "/api/webhooks/connect", {
         method: "POST",
@@ -156,202 +169,15 @@ test("Connect retries create fresh links, status return reuses the account, and 
       1,
     );
     assert.equal(
-      (await f.db.query<any>("select payouts_enabled from px_connect")).rows[0]
-        .payouts_enabled,
-      true,
-    );
-    assert.equal(
-      (
-        await f.db.query<any>(
-          "select status from px_stripe_events where id='evt_connect_launch'",
-        )
-      ).rows[0].status,
-      "processed",
-    );
-  } finally {
-    await f.close();
-  }
-});
-
-test("provider setup failure is safely classified and visible to authorized diagnostics", async () => {
-  const f = await startIntegration({ connectError: true });
-  try {
-    const response = await post(f, f.newRep, "/connect", {});
-    assert.equal(response.status, 502);
-    const data = (await response.json()) as any;
-    assert.ok(data.requestId);
-    assert.match(data.error, /finish its payout provider setup/);
-    assert.equal(data.category, undefined);
-    assert.equal(data.diagnosticDetail, undefined);
-    const diag = (
-      await f.db.query<any>(
-        "select category,provider_request_id,provider_detail from px_diagnostics",
-      )
-    ).rows;
-    assert.equal(diag[0].category, "CONNECT_PLATFORM_PROFILE_REQUIRED");
-    assert.equal(diag[0].provider_request_id, "req_fixtureProfile");
-    assert.match(
-      diag[0].provider_detail,
-      /connect_account: Please review the responsibilities/,
-    );
-    const denied = await fetch(f.base + "/api/table?name=diagnostics", {
-      headers: auth(f, f.newRep),
-    });
-    assert.equal(((await denied.json()) as any).rows.length, 0);
-  } finally {
-    await f.close();
-  }
-});
-
-test("authorized sandbox recovery reconciles an expired attempt and prepares one reusable account", async () => {
-  const f = await startIntegration();
-  try {
-    await f.db.query(
-      "insert into px_connect_requests(rep_id,started_at) values($1,now()-interval '2 days')",
-      [f.newRep],
-    );
-    assert.equal((await post(f, f.newRep, "/connect", {})).status, 409);
-    const denied = await post(f, f.newRep, "/connect/recover", {
-      id: f.newRep,
-      reason: "Unauthorized recovery",
-    });
-    assert.equal(denied.status, 403);
-    const recovered = await post(f, f.owner, "/connect/recover", {
-      id: f.newRep,
-      reason: "Reconcile an expired sandbox setup attempt",
-    });
-    assert.equal(recovered.status, 200, await recovered.clone().text());
-    assert.equal(
-      f.providerCalls.filter((x) => x.path === "/v1/account_links").length,
+      (await f.db.query<any>("select count(*) n from px_payout_setup")).rows[0]
+        .n,
       0,
     );
-    assert.equal((await post(f, f.newRep, "/connect", {})).status, 200);
-    assert.equal(
-      f.providerCalls.filter(
-        (x) => x.path === "/v1/accounts" && x.method === "POST",
-      ).length,
-      1,
-    );
-    assert.equal(
-      f.providerCalls.filter((x) => x.path === "/v1/account_links").length,
-      1,
-    );
-    assert.equal(
-      (
-        await f.db.query<any>(
-          "select generation is not null rotated from px_connect_requests where rep_id=$1",
-          [f.newRep],
-        )
-      ).rows[0].rotated,
-      true,
-    );
+    assert.equal(f.providerCalls.filter((x) => x.method === "POST").length, 0);
   } finally {
     await f.close();
   }
 });
-
-test("authorized recovery replaces a cached rejected setup only after reconciliation", async () => {
-  const f = await startIntegration({
-    connectCachedFailure: { status: 400, replayed: true },
-  });
-  try {
-    await f.db.query(
-      "insert into px_connect_requests(rep_id,started_at) values($1,now()-interval '30 minutes')",
-      [f.newRep],
-    );
-    assert.equal((await post(f, f.newRep, "/connect", {})).status, 502);
-    const recovered = await post(f, f.owner, "/connect/recover", {
-      id: f.newRep,
-      reason: "Platform configuration corrected after a rejected setup",
-    });
-    assert.equal(recovered.status, 200, await recovered.clone().text());
-    const creates = f.providerCalls.filter(
-      (x) => x.path === "/v1/accounts" && x.method === "POST",
-    );
-    assert.equal(creates.length, 3);
-    assert.equal(creates[0].idempotencyKey, creates[1].idempotencyKey);
-    assert.notEqual(creates[1].idempotencyKey, creates[2].idempotencyKey);
-    assert.equal(
-      f.providerCalls.filter((x) => x.path === "/v1/account_links").length,
-      0,
-    );
-    assert.equal(
-      (
-        await post(f, f.owner, "/connect/recover", {
-          id: f.newRep,
-          reason: "Verify repeated recovery reuses the existing account",
-        })
-      ).status,
-      200,
-    );
-    assert.equal((await post(f, f.newRep, "/connect", {})).status, 200);
-    assert.equal(
-      f.providerCalls.filter(
-        (x) => x.path === "/v1/accounts" && x.method === "POST",
-      ).length,
-      3,
-    );
-    assert.equal(
-      (await f.db.query<any>("select count(*) n from px_connect")).rows[0].n,
-      1,
-    );
-    assert.equal(
-      (
-        await f.db.query<any>(
-          "select count(*) n from px_audit where action='connect_reset'",
-        )
-      ).rows[0].n,
-      1,
-    );
-  } finally {
-    await f.close();
-  }
-});
-
-for (const scenario of [
-  { name: "fresh rejection", status: 400, replayed: false, age: "30 minutes" },
-  {
-    name: "uncertain provider failure",
-    status: 500,
-    replayed: true,
-    age: "30 minutes",
-  },
-  { name: "recent attempt", status: 400, replayed: true, age: "1 minute" },
-])
-  test(`recovery preserves the setup identity for a ${scenario.name}`, async () => {
-    const f = await startIntegration({ connectCachedFailure: scenario });
-    try {
-      await f.db.query(
-        "insert into px_connect_requests(rep_id,started_at) values($1,now()-$2::interval)",
-        [f.newRep, scenario.age],
-      );
-      const response = await post(f, f.owner, "/connect/recover", {
-        id: f.newRep,
-        reason: "Verify unsafe retries keep their existing identity",
-      });
-      assert.ok(response.status >= 400);
-      const attempt = (
-        await f.db.query<any>(
-          "select generation,account_id from px_connect_requests where rep_id=$1",
-          [f.newRep],
-        )
-      ).rows[0];
-      assert.equal(attempt.generation, null);
-      assert.equal(attempt.account_id, null);
-      assert.equal(
-        (await f.db.query<any>("select count(*) n from px_connect")).rows[0].n,
-        0,
-      );
-      assert.equal(
-        f.providerCalls.filter(
-          (x) => x.path === "/v1/accounts" && x.method === "POST",
-        ).length,
-        1,
-      );
-    } finally {
-      await f.close();
-    }
-  });
 
 test("Owner delete removes Auth and disposable dependencies; normal admin is denied", async () => {
   const f = await startIntegration();

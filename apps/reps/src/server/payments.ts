@@ -58,6 +58,7 @@ export async function checkout(
     new Date(lead.expires_at).getTime() < Date.now()
   )
     throw new HttpError(403, "The lead is no longer available.");
+  const pkg = await one(db, "px_packages", "id", deal.package_id);
   const s = stripe(env);
   if (deal.checkout_id) {
     const session = await s.checkout.sessions.retrieve(deal.checkout_id);
@@ -81,6 +82,7 @@ export async function checkout(
   const session = await s.checkout.sessions.create(
     {
       mode: "payment",
+      allow_promotion_codes: true,
       payment_method_types: ["card"],
       customer_email: deal.customer_email,
       client_reference_id: deal.id,
@@ -96,7 +98,7 @@ export async function checkout(
           },
         },
       ],
-      success_url: `${env.APP_URL}/payment-return?status=success`,
+      success_url: `${env.APP_URL}/payment-return?status=success&package=${encodeURIComponent(pkg.code)}`,
       cancel_url: `${env.APP_URL}/payment-return?status=cancelled`,
     },
     { idempotencyKey: `checkout:${deal.id}` },
@@ -350,14 +352,21 @@ export async function reconcilePayment(
     payment_intent: pi.id,
     limit: 10,
   });
-  const session = sessions.data.find(
-    (x) => x.metadata?.deal_id === pi.metadata.deal_id,
-  );
-  if (!session || session.payment_status !== "paid" || !pi.metadata.deal_id)
-    throw new HttpError(
-      409,
-      "Payment has no verified Pixelalty Sales checkout attribution.",
-    );
+  const candidates = sessions.data.filter((x) => x.payment_status === "paid");
+  if (sessions.has_more || candidates.length !== 1)
+    throw new HttpError(409, "Payment needs checkout reconciliation.");
+  const session = await s.checkout.sessions.retrieve(candidates[0].id, {
+    expand: ["discounts.promotion_code"],
+  });
+  if (
+    session.livemode !== (env.STRIPE_MODE === "live") ||
+    session.mode !== "payment" ||
+    session.payment_status !== "paid" ||
+    id(session.payment_intent) !== pi.id ||
+    session.amount_total !== pi.amount_received ||
+    session.currency !== pi.currency
+  )
+    throw new HttpError(409, "Payment does not match the verified checkout.");
   const balance = charge.balance_transaction as Stripe.BalanceTransaction;
   const disputes = await s.disputes.list({ charge: charge.id, limit: 100 });
   if (disputes.has_more)
@@ -365,10 +374,10 @@ export async function reconcilePayment(
   const disputed = disputes.data.some(
     (x) => !["won", "warning_closed"].includes(x.status),
   );
-  return service(env, "payment", {
+  const snapshot = {
     event_id: eventId,
     event_type: eventType,
-    deal_id: pi.metadata.deal_id,
+    deal_id: session.metadata?.deal_id || null,
     rep_id: pi.metadata.rep_id,
     package_id: pi.metadata.package_id,
     checkout_id: session.id,
@@ -382,7 +391,114 @@ export async function reconcilePayment(
     available_at: balance?.available_on
       ? new Date(balance.available_on * 1000).toISOString()
       : null,
+  };
+  // Historic commissions retain their original immutable attribution. New
+  // purchases must use the actual Stripe promotion code, never rep metadata.
+  const existing = await client(env, undefined, true)
+    .from("px_payments")
+    .select("sale_id")
+    .eq("payment_intent", pi.id)
+    .maybeSingle();
+  if (existing.error)
+    throw new HttpError(502, "Payment history could not be read.");
+  if (existing.data && !existing.data.sale_id)
+    return service(env, "payment", snapshot);
+  const attribution = await verifiedCheckout(s, session);
+  return service(env, "verified_sale", {
+    ...snapshot,
+    ...attribution,
+    subtotal_cents: session.amount_subtotal,
+    discount_cents: session.total_details?.amount_discount || 0,
+    paid_at: new Date(charge.created * 1000).toISOString(),
   });
+}
+
+// All fields come from Stripe retrieval after signature/mode/payment checks.
+// The application never creates a coupon or promotion code.
+export async function verifiedCheckout(
+  s: Stripe,
+  session: Stripe.Checkout.Session,
+) {
+  const lines = await s.checkout.sessions.listLineItems(session.id, {
+    limit: 2,
+    expand: ["data.price.product"],
+  });
+  let packageCode: string | null = null;
+  if (
+    !lines.has_more &&
+    lines.data.length === 1 &&
+    lines.data[0].quantity === 1
+  ) {
+    const product = lines.data[0].price?.product;
+    const name =
+      typeof product === "object" && !product.deleted
+        ? product.name
+        : lines.data[0].description;
+    // Strict package identity, not amount-only matching. Unknown products stay
+    // recorded as unassigned purchases for Finance to review.
+    const normalized = String(name || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+    for (const [code, aliases] of Object.entries({
+      launch: [
+        "launch",
+        "launch website",
+        "pixelalty launch",
+        "pixelalty launch website",
+        "package 1 launch website",
+      ],
+      growth: [
+        "growth",
+        "growth website",
+        "pixelalty growth",
+        "pixelalty growth website",
+        "package 2 growth website",
+      ],
+      premium: [
+        "premium",
+        "premium website",
+        "pixelalty premium",
+        "pixelalty premium website",
+        "package 3 premium website",
+      ],
+      advanced: [
+        "advanced",
+        "advanced ecommerce",
+        "advanced ecommerce website",
+        "pixelalty advanced",
+        "pixelalty advanced ecommerce",
+        "package 4 advanced ecommerce",
+      ],
+    }))
+      if (aliases.includes(normalized)) packageCode = code;
+  }
+  const discounts = session.discounts || [];
+  if (discounts.length !== 1 || !discounts[0].promotion_code)
+    return {
+      package_code: packageCode,
+      promotion_code: null,
+      promotion_code_id: null,
+      discount_valid: false,
+    };
+  const promo = await s.promotionCodes.retrieve(
+    id(discounts[0].promotion_code),
+    { expand: ["promotion.coupon"] },
+  );
+  const coupon = promo.promotion.coupon;
+  const couponData =
+    typeof coupon === "string" ? await s.coupons.retrieve(coupon) : coupon;
+  const expected = Math.round((session.amount_subtotal || 0) * 0.02);
+  return {
+    package_code: packageCode,
+    promotion_code: promo.code.trim().toUpperCase(),
+    promotion_code_id: promo.id,
+    discount_valid:
+      promo.livemode === session.livemode &&
+      couponData?.percent_off === 2 &&
+      !couponData.amount_off &&
+      Math.abs((session.total_details?.amount_discount || 0) - expected) <= 1,
+  };
 }
 export async function webhook(
   env: Env,

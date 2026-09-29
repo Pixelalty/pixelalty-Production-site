@@ -219,13 +219,21 @@ export function Imports() {
             Use CSV, TSV or XLSX with one header row and one business per row.
             Business name and Phone are required. Each business also needs its
             verified timezone, either in a Timezone column or selected below.
+            CSV in UTF-8 is preferred. Files must be no larger than 8 MB and
+            contain 1–25,000 business rows. XLSX imports the first worksheet
+            only and may expand to at most 40 MB. Header names must be unique.
           </p>
           <p>
             Phone examples: (212) 555-0123, 2125550123 or +1 212 555 0123.
             International numbers need a + and country code. Do not map a
             row-number column such as # to Phone. Names must be between 1 and
             200 characters. Timezone examples: America/New_York and
-            America/Los_Angeles; avoid abbreviations such as EST.
+            America/Los_Angeles; avoid abbreviations such as EST. Main Phone and
+            Main Business Phone are recognized phone aliases; Ask For maps to
+            Contact. For a nationwide list, include a verified IANA timezone for
+            every row—do not apply one default zone across different regions.
+            Other examples include America/Chicago, America/Denver,
+            America/Phoenix, America/Anchorage, and Pacific/Honolulu.
           </p>
           <p>
             Optional columns include website, email, city, state, industry,
@@ -239,7 +247,10 @@ export function Imports() {
             customers, matching phone numbers or websites, possible duplicates
             and the do-not-contact list. Review exceptions, then choose Import
             clean records. Duplicate and DNC checks run again when saving.
-            Rejected rows remain in the downloadable report.
+            Rejected rows remain in the downloadable report. Invalid phones,
+            blank business names, missing timezones and formula cells are
+            rejected; they are not silently imported. Review and correct staged
+            rows before committing, or abandon/archive the batch.
           </p>
           <p>
             Committed leads enter the existing claim pool. Active reps choose

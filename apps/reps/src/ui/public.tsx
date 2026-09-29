@@ -373,6 +373,12 @@ export function Apply({
     { name: "internet", label: "I have stable internet.", type: "checkbox" },
     { name: "headset", label: "I have a headset or phone.", type: "checkbox" },
     {
+      name: "sms_opt_in",
+      label:
+        "I agree to receive optional transactional SMS messages from Pixelalty regarding my application and account status. Message and data rates may apply. Reply STOP to opt out. Consent is not required to apply.",
+      type: "checkbox",
+    },
+    {
       name: "age_confirmed",
       label: "I confirm that I am at least 18 years old.",
       type: "checkbox",
@@ -459,8 +465,12 @@ export function Apply({
               <Check size={38} />
               <h2>Application received</h2>
               <p>
-                Thank you for your interest. We’ll review your application and
-                contact you about next steps.
+                Thank you for applying to Pixelalty Sales. Please check your
+                email for updates regarding your application. If you do not see
+                an email from Pixelalty within a few minutes, check your Spam or
+                Junk folder. If you are selected to move forward, you may also
+                receive a text message at the mobile number you provided if you
+                opted in to SMS notifications.
               </p>
             </>
           ) : error ? (

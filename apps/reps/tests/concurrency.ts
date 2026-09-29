@@ -449,6 +449,158 @@ test("PostgreSQL contention preserves assignment and financial invariants", asyn
       },
     );
     await t.test(
+      "manual sales-code assignment cannot give one active code to two reps",
+      async () => {
+        await Promise.all(clients.map((c) => identity(c, owner)));
+        const results = await contend(
+          "lock table public.px_sales_codes in access exclusive mode",
+          [],
+          (c, i) =>
+            rpc(c, "px_action", "sales_code_save", {
+              id: i % 2 ? second : third,
+              code: "RACE2",
+            }),
+        );
+        assert.ok(results.some((r) => r.status === "fulfilled"));
+        for (const r of results)
+          if (r.status === "rejected")
+            assert.match(String(r.reason), /already assigned/);
+        assert.equal(
+          (
+            await control.query(
+              "select count(*)::int n from px_sales_codes where code='RACE2' and active",
+            )
+          ).rows[0].n,
+          1,
+        );
+      },
+    );
+    await t.test(
+      "simultaneous Payment Link events create one sale, fixed commission and XP",
+      async () => {
+        await identity(clients[0], owner);
+        await rpc(clients[0], "px_action", "sales_code_save", {
+          id: rep,
+          code: "CONCURRENT2",
+        });
+        await Promise.all(clients.map((c) => identity(c, null)));
+        const snapshot = {
+          payment_intent: "pi_manual_race",
+          checkout_id: "cs_manual_race",
+          charge_id: "ch_manual_race",
+          package_code: "launch",
+          promotion_code: "CONCURRENT2",
+          promotion_code_id: "promo_race",
+          discount_valid: true,
+          currency: "usd",
+          subtotal_cents: 79900,
+          discount_cents: 1598,
+          amount_cents: 78302,
+          paid_at: new Date().toISOString(),
+          settled: true,
+          available_at: new Date().toISOString(),
+          refunded_cents: 0,
+          disputed: false,
+          event_type: "checkout.session.completed",
+        };
+        const results = successful(
+          await contend(
+            "select pg_advisory_xact_lock(hashtextextended('pixelalty-payment:'||$1,0))",
+            [snapshot.payment_intent],
+            (c, i) =>
+              rpc(c, "px_service", "verified_sale", {
+                ...snapshot,
+                event_id: "evt_manual_race_" + i,
+              }),
+          ),
+        );
+        assert.equal(new Set(results.map((r) => r.sale_id)).size, 1);
+        const saleId = results[0].sale_id;
+        assert.equal(
+          (
+            await control.query(
+              "select count(*)::int n from px_commissions where sale_id=$1",
+              [saleId],
+            )
+          ).rows[0].n,
+          1,
+        );
+        assert.equal(
+          (
+            await control.query(
+              "select count(*)::int n from px_xp where source='sale' and source_id=$1",
+              [saleId],
+            )
+          ).rows[0].n,
+          1,
+        );
+        await control.query(
+          "update px_commissions set hold_until=now()-interval '1 day',status='payable' where sale_id=$1",
+          [saleId],
+        );
+        await control.query(
+          "insert into px_payout_setup(rep_id,email,phone,legal_first_name,legal_last_name,status) values($1,'race@example.test','+12125550198','Race','Rep','ready')",
+          [rep],
+        );
+        const commissionId = (
+          await control.query(
+            "select id from px_commissions where sale_id=$1",
+            [saleId],
+          )
+        ).rows[0].id;
+        await Promise.all(clients.map((c) => identity(c, owner)));
+        const paid = await contend(
+          "select id from px_payments where sale_id=$1 for update",
+          [saleId],
+          (c) =>
+            rpc(c, "px_action", "manual_mark_paid", {
+              commission_ids: [commissionId],
+              amount_cents: 12500,
+              paid_at: new Date().toISOString(),
+              confirmed: true,
+              request_id: crypto.randomUUID(),
+            }),
+        );
+        assert.equal(
+          paid.filter((r) => r.status === "fulfilled").length,
+          1,
+          "Only one actual-payout ledger record may claim this commission",
+        );
+        for (const r of paid)
+          if (r.status === "rejected")
+            assert.match(String(r.reason), /no longer payable/);
+        assert.equal(
+          (
+            await control.query(
+              "select count(*)::int n from px_manual_payout_items where commission_id=$1",
+              [commissionId],
+            )
+          ).rows[0].n,
+          1,
+        );
+        const recorded = (
+          paid.find(
+            (r) => r.status === "fulfilled",
+          ) as PromiseFulfilledResult<any>
+        ).value;
+        const retries = successful(
+          await contend(
+            "select pg_advisory_xact_lock(hashtextextended('pixelalty-manual-payout:'||$1,0))",
+            [recorded.id],
+            (c) =>
+              rpc(c, "px_action", "manual_mark_paid", {
+                commission_ids: [commissionId],
+                amount_cents: 12500,
+                paid_at: recorded.paid_at,
+                confirmed: true,
+                request_id: recorded.id,
+              }),
+          ),
+        );
+        assert.equal(new Set(retries.map((r) => r.id)).size, 1);
+      },
+    );
+    await t.test(
       "concurrent email workers acquire one lease for one notification",
       async () => {
         await control.query(

@@ -23,6 +23,7 @@ import {
 } from "./lib";
 import { OnboardingProgress } from "./details";
 import { label, type Row } from "../shared/core";
+import { PayoutSetup, SalesCode } from "./payouts";
 
 const taxLabels: Record<string, string> = {
   not_submitted: "Not submitted",
@@ -58,37 +59,21 @@ export function Onboarding() {
       60000,
     ),
     accepted = useData("/table?name=agreements&own=true"),
-    [item, setItem] = useState<Row | null>(null),
-    [payoutBusy, setPayoutBusy] = useState(false),
-    [payoutError, setPayoutError] = useState("");
+    [item, setItem] = useState<Row | null>(null);
   const d = readiness.data,
     classification = d?.classification;
-  const payout = async (refresh: boolean) => {
-    setPayoutBusy(true);
-    setPayoutError("");
-    try {
-      const result = await api("/connect", { refresh });
-      if (refresh) {
-        app.refresh();
-        app.notify("Payment setup status updated.");
-      } else location.assign(result.url);
-    } catch (e) {
-      setPayoutError(
-        e instanceof Error
-          ? e.message
-          : "Payment setup could not be opened. Please try again.",
-      );
-    } finally {
-      setPayoutBusy(false);
-    }
-  };
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const step = query.get("step");
     if (
-      ["agreement", "classification", "tax", "payout", "activation"].includes(
-        step || "",
-      )
+      [
+        "agreement",
+        "classification",
+        "tax",
+        "payout",
+        "sales-code",
+        "activation",
+      ].includes(step || "")
     ) {
       const node = document.getElementById("onboarding-" + step);
       node?.scrollIntoView({ block: "center" });
@@ -99,8 +84,7 @@ export function Onboarding() {
     const connectStep = new URLSearchParams(location.search).get("connect");
     if (connectStep === "refresh" || connectStep === "returned") {
       history.replaceState({}, "", "/onboarding?step=payout");
-      // Expired/used links must be replaced; the return only synchronizes readiness.
-      void payout(connectStep === "returned");
+      // Legacy bookmarks now lead only to Pixelalty's manual payout tracker.
     }
   }, []);
   useEffect(() => {
@@ -193,46 +177,8 @@ export function Onboarding() {
               </Waiting>
             )}
           </section>
-          <section id="onboarding-payout" tabIndex={-1} className="card">
-            <h2>Payment setup</h2>
-            {classification === "contractor" ? (
-              <>
-                <p>
-                  {d?.payout?.ready
-                    ? "Your payout account is ready."
-                    : d?.payout?.started
-                      ? "Your payout setup needs attention. Continue securely to review any outstanding information."
-                      : "Add your payout details through our secure payment partner. Pixelalty does not collect your banking credentials."}
-                </p>
-                <State error={payoutError} />
-                <div className="actions">
-                  <button
-                    className="primary"
-                    disabled={payoutBusy}
-                    onClick={() => void payout(false)}
-                  >
-                    {payoutBusy
-                      ? "Opening securely…"
-                      : d?.payout?.ready
-                        ? "Review payout details"
-                        : "Set Up Payouts Securely"}
-                  </button>
-                  <button
-                    disabled={payoutBusy}
-                    onClick={() => void payout(true)}
-                  >
-                    Check payment setup status
-                  </button>
-                </div>
-              </>
-            ) : (
-              <Waiting>
-                {classification === "employee"
-                  ? "Pixelalty Finance will verify your payroll setup."
-                  : "Pixelalty must review your worker classification before payout setup is available."}
-              </Waiting>
-            )}
-          </section>
+          <PayoutSetup />
+          <SalesCode />
           <Card title="Training & readiness quiz">
             <p>Complete the required lessons, then pass your readiness quiz.</p>
             <LinkButton to="/academy">Continue in the Academy</LinkButton>
@@ -659,6 +605,18 @@ function AdminRequirementAction({
   const app = useApp();
   if (step === "classification" && app.has("sales_admin"))
     return <button onClick={onClassification}>Review classification</button>;
+  if (step === "sales_code" && app.has("sales_admin"))
+    return (
+      <LinkButton to={"/admin/reps?rep_code=" + code + "&manage=1"}>
+        Assign sales code
+      </LinkButton>
+    );
+  if (step === "payout" && app.has("finance_admin"))
+    return (
+      <LinkButton to="/admin/finance/payout-setup">
+        Review payout setup
+      </LinkButton>
+    );
   if (step === "agreement" && !agreementAvailable && app.has("owner"))
     return (
       <LinkButton to="/admin/content?kind=agreement">
@@ -785,6 +743,7 @@ function TaxDocumentReview({ rep }: { rep: Row }) {
             <div className="actions">
               <button
                 className="primary"
+                disabled={doc.securely_archived}
                 onClick={() =>
                   app.run(async () => {
                     if (doc.status === "submitted")
@@ -811,7 +770,20 @@ function TaxDocumentReview({ rep }: { rep: Row }) {
               <button onClick={() => setAction("archive")}>
                 Archive document
               </button>
+              {doc.status === "verified" && !doc.securely_archived && (
+                <button onClick={() => setAction("confirm_secure_archive")}>
+                  Confirm securely archived
+                </button>
+              )}
             </div>
+            {doc.securely_archived && (
+              <p className="notice">
+                Securely archived on{" "}
+                {new Date(doc.securely_archived_at).toLocaleString()}. Portal
+                downloads are disabled. Verification and audit metadata are
+                retained.
+              </p>
+            )}
             {doc.correction_reason && (
               <p className="notice">{doc.correction_reason}</p>
             )}
@@ -820,63 +792,79 @@ function TaxDocumentReview({ rep }: { rep: Row }) {
         {action && (
           <Modal
             title={
-              action === "verify"
-                ? "Verify tax document"
-                : action === "archive"
-                  ? "Archive document"
-                  : "Request correction"
+              action === "confirm_secure_archive"
+                ? "Confirm securely archived"
+                : action === "verify"
+                  ? "Verify tax document"
+                  : action === "archive"
+                    ? "Archive document"
+                    : "Request correction"
             }
             onClose={() => setAction("")}
           >
             <p>
-              {action === "verify"
-                ? "Confirm you have reviewed this completed document under Pixelalty’s approved tax-document process. This records your review; it does not validate a taxpayer ID with the IRS."
-                : action === "archive"
-                  ? "This removes the current verification and keeps the PDF in restricted history. It does not permanently delete the document."
-                  : "Choose what the rep needs to correct. Tax IDs must never be included in a message."}
+              {action === "confirm_secure_archive"
+                ? "First download and store the accepted W-9 in an encrypted location for tax/accounting retention. This confirmation disables future portal downloads without removing verification or audit history. Downloading alone never marks it archived."
+                : action === "verify"
+                  ? "Confirm you have reviewed this completed document under Pixelalty’s approved tax-document process. This records your review; it does not validate a taxpayer ID with the IRS."
+                  : action === "archive"
+                    ? "This removes the current verification and keeps the PDF in restricted history. It does not permanently delete the document."
+                    : "Choose what the rep needs to correct. Tax IDs must never be included in a message."}
             </p>
             <Form
               fields={
-                action === "verify"
+                action === "confirm_secure_archive"
                   ? [
                       {
-                        name: "reviewed",
-                        label: "I have reviewed this submitted document",
+                        name: "confirmed",
+                        label:
+                          "I stored this accepted W-9 in encrypted storage for required retention.",
                         type: "checkbox",
                         required: true,
                       },
                     ]
-                  : [
-                      {
-                        name: "reason_code",
-                        label: "Reason",
-                        required: true,
-                        options:
-                          action === "archive"
-                            ? [
-                                {
-                                  value: "incorrect",
-                                  label: "Incorrect document",
-                                },
-                                {
-                                  value: "requested",
-                                  label: "Account holder requested archive",
-                                },
-                                {
-                                  value: "retention",
-                                  label: "Approved retention policy",
-                                },
-                              ]
-                            : reasons,
-                      },
-                    ]
+                  : action === "verify"
+                    ? [
+                        {
+                          name: "reviewed",
+                          label: "I have reviewed this submitted document",
+                          type: "checkbox",
+                          required: true,
+                        },
+                      ]
+                    : [
+                        {
+                          name: "reason_code",
+                          label: "Reason",
+                          required: true,
+                          options:
+                            action === "archive"
+                              ? [
+                                  {
+                                    value: "incorrect",
+                                    label: "Incorrect document",
+                                  },
+                                  {
+                                    value: "requested",
+                                    label: "Account holder requested archive",
+                                  },
+                                  {
+                                    value: "retention",
+                                    label: "Approved retention policy",
+                                  },
+                                ]
+                              : reasons,
+                        },
+                      ]
               }
               submit={
-                action === "verify"
-                  ? "Verify document"
-                  : action === "archive"
-                    ? "Archive document"
-                    : "Send correction request"
+                action === "confirm_secure_archive"
+                  ? "Confirm securely archived"
+                  : action === "verify"
+                    ? "Verify document"
+                    : action === "archive"
+                      ? "Archive document"
+                      : "Send correction request"
               }
               onSubmit={(p) => perform(action, p)}
             />
@@ -888,7 +876,7 @@ function TaxDocumentReview({ rep }: { rep: Row }) {
           <article key={h.id} className="activity">
             <strong>{taxLabels[h.status]}</strong>
             <p>{new Date(h.submitted_at).toLocaleString()}</p>
-            {!h.current && (
+            {!h.current && !h.securely_archived && (
               <button
                 onClick={() =>
                   app.run(async () => {
@@ -903,6 +891,11 @@ function TaxDocumentReview({ rep }: { rep: Row }) {
               >
                 Download archived PDF
               </button>
+            )}
+            {h.securely_archived && (
+              <p>
+                Secure external archive confirmed. Portal downloads disabled.
+              </p>
             )}
           </article>
         ))}

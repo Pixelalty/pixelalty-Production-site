@@ -12,6 +12,7 @@ export async function startIntegration(
     ownerMfa?: boolean;
     connectError?: boolean;
     connectCachedFailure?: { status: number; replayed: boolean };
+    paymentFixture?: { code: string; refund?: number };
   } = {},
 ) {
   const storedFiles = new Map<string, Uint8Array>();
@@ -92,6 +93,71 @@ export async function startIntegration(
         method: req.method,
         idempotencyKey: req.headers.get("idempotency-key"),
       });
+      if (options.paymentFixture) {
+        const charge = {
+          id: "ch_manual_http",
+          object: "charge",
+          payment_intent: "pi_manual_http",
+          paid: true,
+          captured: true,
+          created: Math.floor(Date.now() / 1000),
+          amount_refunded: options.paymentFixture.refund || 0,
+          balance_transaction: {
+            status: "available",
+            available_on: Math.floor(Date.now() / 1000),
+          },
+        };
+        const checkout = {
+          id: "cs_manual_http",
+          object: "checkout.session",
+          payment_status: "paid",
+          payment_intent: "pi_manual_http",
+          mode: "payment",
+          livemode: false,
+          amount_total: 78302,
+          amount_subtotal: 79900,
+          currency: "usd",
+          total_details: { amount_discount: 1598 },
+          discounts: [{ promotion_code: "promo_manualhttp" }],
+          metadata: {},
+        };
+        if (u.pathname === "/v1/payment_intents/pi_manual_http")
+          return Response.json({
+            id: "pi_manual_http",
+            status: "succeeded",
+            livemode: false,
+            amount_received: 78302,
+            currency: "usd",
+            latest_charge: charge,
+            metadata: { rep_id: "untrusted-inferred-rep-must-not-be-used" },
+          });
+        if (u.pathname === "/v1/charges/ch_manual_http")
+          return Response.json(charge);
+        if (u.pathname === "/v1/disputes")
+          return Response.json({ data: [], has_more: false });
+        if (u.pathname === "/v1/checkout/sessions" && req.method === "GET")
+          return Response.json({ data: [checkout], has_more: false });
+        if (u.pathname === "/v1/checkout/sessions/cs_manual_http")
+          return Response.json(checkout);
+        if (u.pathname === "/v1/checkout/sessions/cs_manual_http/line_items")
+          return Response.json({
+            data: [
+              {
+                quantity: 1,
+                description: "Launch Website",
+                price: { product: { name: "Launch Website" } },
+              },
+            ],
+            has_more: false,
+          });
+        if (u.pathname === "/v1/promotion_codes/promo_manualhttp")
+          return Response.json({
+            id: "promo_manualhttp",
+            code: options.paymentFixture.code,
+            livemode: false,
+            promotion: { coupon: { percent_off: 2, amount_off: null } },
+          });
+      }
       if (u.pathname === "/v1/account")
         return Response.json({ id: "acct_platform", object: "account" });
       if (u.pathname === "/v1/webhook_endpoints")
@@ -354,6 +420,7 @@ export async function startIntegration(
               "px_service",
               "px_public_config",
               "px_mail",
+              "px_sms",
               "px_tax",
               "px_tax_complete",
               "px_session_check",

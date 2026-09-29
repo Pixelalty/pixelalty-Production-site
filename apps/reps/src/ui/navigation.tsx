@@ -171,7 +171,14 @@ export function workspacePages(ctx: Row): WorkspacePage[] {
       "Finance",
       "Operations",
       Wallet,
-      "Packages, commission rules, holds, transfers and payouts",
+      "Verified sales, commission holds and manually confirmed payouts",
+    );
+    add(
+      "/admin/finance/payout-setup",
+      "Payout Setup",
+      "Operations",
+      Wallet,
+      "Review payout submissions and confirm manual Stripe setup",
     );
     add(
       "/admin/tax",
