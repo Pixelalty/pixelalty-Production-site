@@ -14,11 +14,6 @@ await f.db.query(
 const code = (
   await f.db.query<any>("select code from px_reps where id=$1", [f.newRep])
 ).rows[0].code;
-const training = (
-  await f.db.query<any>(
-    "select c.title,c.kind,c.body,k.answers from px_content c left join px_private.quiz_keys k on k.content_id=c.id where c.active and c.required and c.kind in ('lesson','quiz')",
-  )
-).rows;
 const browser = await chromium.launch({
   args: ["--no-sandbox", "--disable-dev-shm-usage"],
 });
@@ -286,31 +281,17 @@ try {
     });
   }
   await page.goto(f.base + "/academy");
-  for (const item of training) {
-    await page
-      .locator("section.card")
-      .filter({
-        has: page.getByRole("heading", { name: item.title, exact: true }),
-      })
-      .getByRole("button", { name: "Open", exact: true })
-      .click();
-    if (item.kind === "lesson") {
-      await page
-        .getByRole("button", { name: "Mark complete", exact: true })
-        .click();
-      await page.getByRole("dialog").waitFor({ state: "hidden" });
-    } else {
-      for (const [i, q] of JSON.parse(item.body).entries())
-        await page
-          .getByLabel(q.question, { exact: true })
-          .selectOption(String(item.answers[i]));
-      await page
-        .getByRole("button", { name: "Submit answers", exact: true })
-        .click();
-      await page.getByText("Score: 100% · Passed", { exact: true }).waitFor();
-      await page.keyboard.press("Escape");
-    }
-  }
+  await page.getByRole("heading", { name: "Pixelalty Essentials", exact: true }).waitFor();
+  await page.getByText("Launch", { exact: true }).first().waitFor();
+  await page
+    .getByLabel("I have read and understand Pixelalty Essentials.", { exact: true })
+    .check();
+  await page
+    .getByRole("button", { name: "Complete Getting Started", exact: false })
+    .click();
+  await page.getByText("Pixelalty Essentials completed", { exact: true }).waitFor();
+  await page.reload();
+  await page.getByText("Pixelalty Essentials completed", { exact: true }).waitFor();
   await logout();
   await login(true);
   await page.goto(f.base + "/admin/tax?rep_code=" + code);
@@ -434,7 +415,7 @@ try {
     .getByRole("heading", { name: "Hello, Alex.", exact: true })
     .waitFor();
   checks.push(
-    "PDF rejection, private submission, download audit, correction/replacement, secure archive, manual payout approval, sales-code assignment, training, activation and fresh-login persistence pass",
+    "PDF rejection, private submission, download audit, correction/replacement, secure archive, manual payout approval, sales-code assignment, Essentials, activation and fresh-login persistence pass",
   );
   await verifyAccounts(page, f, code, out, checks, login, logout);
   assert.deepEqual(errors, []);

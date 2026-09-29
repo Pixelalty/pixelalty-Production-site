@@ -347,7 +347,7 @@ test("V1 completion uses real SQL, authorization and persistent state", async (t
             },
           ]),
           answers: [1],
-          required: true,
+          required: false,
           reason: "Publish QA quiz",
         });
         await actor(db, rep);
@@ -365,25 +365,22 @@ test("V1 completion uses real SQL, authorization and persistent state", async (t
       },
     );
     await t.test(
-      "training awards XP once; notifications read state persists for admin-only users",
+      "Essentials completion is idempotent; notifications read state persists for admin-only users",
       async () => {
-        await actor(db, owner, "aal2");
-        const c = await act("content", {
-          kind: "lesson",
-          slug: "v1-qa-lesson",
-          title: "Practical lesson",
-          body: "Complete this lesson in the isolated QA database.",
-          required: true,
-          reason: "Publish lesson",
-        });
+        await db.exec("reset role");
+        const c = (
+          await db.query<any>(
+            "select id from public.px_content where kind='lesson' and slug='pixelalty-essentials' and active",
+          )
+        ).rows[0];
         await actor(db, rep);
-        await act("lesson", { content_id: c.id });
-        await act("lesson", { content_id: c.id });
+        await act("essentials_complete", { acknowledged: true });
+        await act("essentials_complete", { acknowledged: true });
         assert.equal(
           (
             await db.query<any>(
-              "select count(*)::int n from public.px_xp where source='training' and source_id=$1",
-              [c.id],
+              "select count(*)::int n from public.px_training where rep_id=$1 and content_id=$2 and passed",
+              [rep, c.id],
             )
           ).rows[0].n,
           1,

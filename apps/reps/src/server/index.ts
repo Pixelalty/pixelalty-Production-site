@@ -26,6 +26,7 @@ import {
   readProfileMedia,
   uploadProfileMedia,
 } from "./profile";
+import { deleteRecording, recordingUrl } from "./recordings";
 import {
   csv,
   header,
@@ -482,6 +483,18 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
         ip: req.headers.get("cf-connecting-ip") || null,
       });
     return json(result);
+  }
+  if (path === "/api/recordings/url" && post) {
+    const p = await body(req);
+    if (!z.uuid().safeParse(p.id).success)
+      throw new HttpError(404, "Recording not found.");
+    return json(await recordingUrl(env, db, p.id, p.download === true));
+  }
+  if (path === "/api/recordings/delete" && post) {
+    const p = await body(req);
+    if (!z.uuid().safeParse(p.id).success)
+      throw new HttpError(404, "Recording not found.");
+    return json(await deleteRecording(env, db, p));
   }
   if (path === "/api/tax" && !post)
     return json(
@@ -978,14 +991,14 @@ export default {
       );
     headers.set(
       "Permissions-Policy",
-      "camera=(), microphone=(), geolocation=()",
+      "camera=(), microphone=(self), geolocation=()",
     );
     headers.set("X-Request-ID", requestId);
     headers.set("Cache-Control", "no-store");
     if (!headers.has("Content-Security-Policy"))
       headers.set(
         "Content-Security-Policy",
-        "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+        "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self' https://*.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
       );
     const currentUrl = new URL(req.url);
     if (

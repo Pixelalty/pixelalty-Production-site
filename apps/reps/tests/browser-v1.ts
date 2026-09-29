@@ -12,7 +12,13 @@ const browser = await chromium.launch({
   executablePath: process.env.PIXELALTY_CHROMIUM_PATH || undefined,
   args: process.env.PIXELALTY_CHROMIUM_ARGS
     ? JSON.parse(process.env.PIXELALTY_CHROMIUM_ARGS)
-    : ["--no-sandbox", "--disable-dev-shm-usage"],
+    : [
+        "--no-sandbox",
+        "--disable-dev-shm-usage",
+        "--use-fake-ui-for-media-stream",
+        "--use-fake-device-for-media-stream",
+        "--autoplay-policy=no-user-gesture-required",
+      ],
 });
 const errors: string[] = [],
   failures: string[] = [],
@@ -136,6 +142,7 @@ try {
     "/admin/settings",
     "/admin/compliance",
     "/admin/fulfillment",
+    "/admin/recordings",
     "/admin/audit",
     "/admin/health",
     "/notifications",
@@ -399,24 +406,39 @@ try {
     "Persistent focus session, pause/reload/resume, actual call record and summary",
   );
   await go("/academy");
-  const lesson = page.locator("section").filter({
-    has: page.getByRole("heading", { name: "Browser verified training" }),
-  });
-  await lesson.getByRole("button", { name: "Open", exact: true }).click();
-  await page.getByRole("button", { name: "Mark complete" }).click();
-  await page.getByRole("dialog").waitFor({ state: "hidden" });
-  await lesson
-    .getByRole("button", { name: "Review completed lesson" })
-    .waitFor();
-  const quiz = page.locator("section").filter({
-    has: page.getByRole("heading", { name: "Browser readiness quiz" }),
-  });
-  await quiz.getByRole("button", { name: "Open", exact: true }).click();
-  await page.getByLabel("What verifies a sale?").selectOption("1");
-  await page.getByRole("button", { name: "Submit answers" }).click();
-  await page.getByText("Score: 100% · Passed").waitFor();
-  await page.keyboard.press("Escape");
-  checks.push("Lesson completion and server-graded quiz through rep UI");
+  await page.getByRole("heading", { name: "Pixelalty Essentials", exact: true }).waitFor();
+  assert.equal(await page.getByText("Browser verified training", { exact: true }).count(), 0);
+  assert.equal(await page.getByText("Browser readiness quiz", { exact: true }).count(), 0);
+  await page.getByLabel("I have read and understand Pixelalty Essentials.").check();
+  await page.getByRole("button", { name: "Complete Getting Started", exact: false }).click();
+  await page.getByText("Pixelalty Essentials completed", { exact: true }).waitFor();
+  await page.reload();
+  await page.getByText("Pixelalty Essentials completed", { exact: true }).waitFor();
+  checks.push("Pixelalty Essentials replaces old rep lessons and persists one completion");
+  await go("/support");
+  assert.equal(await page.getByRole("link", { name: "Open WhatsApp", exact: false }).getAttribute("href"), "https://wa.me/12392870299?s=p");
+  assert.equal(await page.getByRole("link", { name: "Open updates channel", exact: false }).getAttribute("href"), "https://whatsapp.com/channel/0029Vb9T6Y2DJ6GvZaXRnb2F");
+  assert.equal(await page.getByRole("link", { name: "Open @pixelalty", exact: false }).getAttribute("href"), "https://www.instagram.com/pixelalty/");
+  assert.equal(await page.getByAltText(/direct Pixelalty Support WhatsApp/).evaluate((image: HTMLImageElement) => image.naturalWidth), 640);
+  checks.push("Support hub exposes exact branded WhatsApp, updates, Instagram, email and QR entry points");
+  await go("/recordings");
+  await page.getByLabel("I have informed everyone and obtained any consent required to record this call.").check();
+  await page.getByRole("button", { name: "Start recording", exact: true }).click();
+  await page.getByText("Recording", { exact: true }).waitFor();
+  await page.waitForTimeout(1100);
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  await page.getByRole("button", { name: "Resume", exact: true }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole("button", { name: "Add marker", exact: true }).click();
+  await page.getByRole("button", { name: "Stop", exact: true }).click();
+  await page.getByRole("heading", { name: "Review before saving", exact: true }).waitFor();
+  await page.getByLabel("Title (optional)").fill("Browser room-audio test");
+  await page.getByRole("button", { name: "Save privately", exact: false }).click();
+  await page.getByText("Recording saved privately.", { exact: true }).waitFor();
+  await page.getByRole("heading", { name: "Browser room-audio test", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await page.getByLabel("Recording Browser room-audio test playback").waitFor();
+  checks.push("Fake-device browser flow records, pauses, resumes, marks, resumably uploads, persists and authorizes playback");
   for (const path of [
     "/",
     "/leads",
@@ -424,6 +446,7 @@ try {
     "/pipeline",
     "/money",
     "/academy",
+    "/recordings",
     "/leaderboard",
     "/notifications",
     "/support",

@@ -179,9 +179,13 @@ export function Onboarding() {
           </section>
           <PayoutSetup />
           <SalesCode />
-          <Card title="Training & readiness quiz">
-            <p>Complete the required lessons, then pass your readiness quiz.</p>
-            <LinkButton to="/academy">Continue in the Academy</LinkButton>
+          <Card title="Pixelalty Essentials">
+            {d?.essentials_completed ? (
+              <p><CheckCircle2 size={18} aria-hidden="true" /> Pixelalty Essentials completed.</p>
+            ) : (
+              <p>Read the two short getting-started sections and confirm your understanding.</p>
+            )}
+            <LinkButton to="/academy">{d?.essentials_completed ? "Review Essentials" : "Complete Getting Started"}</LinkButton>
           </Card>
           <section id="onboarding-activation" tabIndex={-1} className="card">
             <h2>Administrator activation</h2>

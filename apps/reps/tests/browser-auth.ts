@@ -62,27 +62,8 @@ const verify = async () => {
 };
 try {
   await fixture.db.query(
-    "insert into px_content(kind,slug,title,body,required) values('agreement','auth-agreement','Test agreement','Agreement for this isolated test. No real contract is created.',true),('lesson','auth-lesson','Getting started','Record truthful activity and respect contact preferences.',true)",
+    "insert into px_content(kind,slug,title,body,required) values('agreement','auth-agreement','Test agreement','Agreement for this isolated test. No real contract is created.',true)",
   );
-  const quiz = await fixture.db.query<{ id: string }>(
-    "insert into px_content(kind,slug,title,body,required) values('quiz','auth-quiz','Readiness check',$1,true) returning id",
-    [
-      JSON.stringify([
-        {
-          question: "What verifies a sale?",
-          options: ["A reported sale", "A verified payment"],
-        },
-      ]),
-    ],
-  );
-  await fixture.db.query("insert into px_private.quiz_keys values($1,'[1]')", [
-    quiz.rows[0].id,
-  ]);
-  const requiredTraining = (
-    await fixture.db.query<any>(
-      "select c.title,c.kind,c.body,k.answers from px_content c left join px_private.quiz_keys k on k.content_id=c.id where c.active and c.required and c.kind in ('lesson','quiz')",
-    )
-  ).rows;
   // Exercise the hosted failure: the Worker receives a workspace request
   // without a session header after the sign-in screen has already advanced.
   await page.route(
@@ -434,27 +415,20 @@ try {
     .click();
   await dialog.waitFor({ state: "hidden" });
   await page.goto(fixture.base + "/academy");
-  for (const item of requiredTraining) {
-    await page
-      .locator("section.card")
-      .filter({
-        has: page.getByRole("heading", { name: item.title, exact: true }),
-      })
-      .getByRole("button", { name: "Open", exact: true })
-      .click();
-    if (item.kind === "lesson") {
-      await page.getByRole("button", { name: "Mark complete" }).click();
-      await page.getByRole("dialog").waitFor({ state: "hidden" });
-    } else {
-      for (const [i, question] of JSON.parse(item.body).entries())
-        await page
-          .getByLabel(question.question, { exact: true })
-          .selectOption(String(item.answers[i]));
-      await page.getByRole("button", { name: "Submit answers" }).click();
-      await page.getByText("Score: 100% · Passed").waitFor();
-      await page.keyboard.press("Escape");
-    }
-  }
+  await page
+    .getByRole("heading", { name: "Pixelalty Essentials", exact: true })
+    .waitFor();
+  await page
+    .getByLabel("I have read and understand Pixelalty Essentials.", {
+      exact: true,
+    })
+    .check();
+  await page
+    .getByRole("button", { name: "Complete Getting Started", exact: false })
+    .click();
+  await page
+    .getByText("Pixelalty Essentials completed", { exact: true })
+    .waitFor();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await login("owner@example.test");
   await verify();
