@@ -417,6 +417,7 @@ try {
   await dialog.getByRole("button", { name: "Accept agreement" }).click();
   await dialog.waitFor({ state: "hidden" });
   await page
+    .locator("#onboarding-payout")
     .getByRole("button", { name: "Set Up Payouts", exact: true })
     .click();
   dialog = page.getByRole("dialog");
