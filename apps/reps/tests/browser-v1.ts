@@ -150,6 +150,16 @@ try {
     "/appearance",
   ])
     await go(path);
+  await go("/admin/recordings");
+  await page.getByLabel("Rep", { exact: true }).waitFor();
+  await page.getByLabel("Business", { exact: true }).waitFor();
+  await page.getByLabel("From", { exact: true }).waitFor();
+  await page.getByLabel("Through", { exact: true }).waitFor();
+  await page.getByLabel("Minimum seconds", { exact: true }).waitFor();
+  await page.getByLabel("Maximum seconds", { exact: true }).waitFor();
+  checks.push(
+    "Admin recording review exposes rep, business, date, duration, status and sort controls",
+  );
   await go("/admin/recruiting");
   const applicant = page
     .getByRole("row")
@@ -406,24 +416,76 @@ try {
     "Persistent focus session, pause/reload/resume, actual call record and summary",
   );
   await go("/academy");
-  await page.getByRole("heading", { name: "Pixelalty Essentials", exact: true }).waitFor();
-  assert.equal(await page.getByText("Browser verified training", { exact: true }).count(), 0);
-  assert.equal(await page.getByText("Browser readiness quiz", { exact: true }).count(), 0);
-  await page.getByLabel("I have read and understand Pixelalty Essentials.").check();
-  await page.getByRole("button", { name: "Complete Getting Started", exact: false }).click();
-  await page.getByText("Pixelalty Essentials completed", { exact: true }).waitFor();
+  await page
+    .getByRole("heading", { name: "Pixelalty Essentials", exact: true })
+    .waitFor();
+  assert.equal(
+    await page.getByText("Browser verified training", { exact: true }).count(),
+    0,
+  );
+  assert.equal(
+    await page.getByText("Browser readiness quiz", { exact: true }).count(),
+    0,
+  );
+  await page
+    .getByLabel("I have read and understand Pixelalty Essentials.")
+    .check();
+  await page
+    .getByRole("button", { name: "Complete Getting Started", exact: false })
+    .click();
+  await page
+    .getByText("Pixelalty Essentials completed", { exact: true })
+    .waitFor();
   await page.reload();
-  await page.getByText("Pixelalty Essentials completed", { exact: true }).waitFor();
-  checks.push("Pixelalty Essentials replaces old rep lessons and persists one completion");
+  await page
+    .getByText("Pixelalty Essentials completed", { exact: true })
+    .waitFor();
+  checks.push(
+    "Pixelalty Essentials replaces old rep lessons and persists one completion",
+  );
   await go("/support");
-  assert.equal(await page.getByRole("link", { name: "Open WhatsApp", exact: false }).getAttribute("href"), "https://wa.me/12392870299?s=p");
-  assert.equal(await page.getByRole("link", { name: "Open updates channel", exact: false }).getAttribute("href"), "https://whatsapp.com/channel/0029Vb9T6Y2DJ6GvZaXRnb2F");
-  assert.equal(await page.getByRole("link", { name: "Open @pixelalty", exact: false }).getAttribute("href"), "https://www.instagram.com/pixelalty/");
-  assert.equal(await page.getByAltText(/direct Pixelalty Support WhatsApp/).evaluate((image: HTMLImageElement) => image.naturalWidth), 640);
-  checks.push("Support hub exposes exact branded WhatsApp, updates, Instagram, email and QR entry points");
+  assert.equal(
+    await page
+      .getByRole("link", { name: "Message Pixelalty", exact: false })
+      .getAttribute("href"),
+    "https://wa.me/12392870299?s=p",
+  );
+  assert.equal(
+    await page
+      .getByRole("link", { name: "Follow Pixelalty Updates", exact: false })
+      .getAttribute("href"),
+    "https://whatsapp.com/channel/0029Vb9T6Y2DJ6GvZaXRnb2F",
+  );
+  assert.equal(
+    await page
+      .getByRole("link", { name: "Open Instagram", exact: false })
+      .getAttribute("href"),
+    "https://www.instagram.com/pixelalty/",
+  );
+  assert.equal(
+    await page
+      .getByAltText(/direct Pixelalty Support WhatsApp/)
+      .evaluate((image: HTMLImageElement) => image.naturalWidth),
+    640,
+  );
+  checks.push(
+    "Support hub exposes exact branded WhatsApp, updates, Instagram, email and QR entry points",
+  );
   await go("/recordings");
-  await page.getByLabel("I have informed everyone and obtained any consent required to record this call.").check();
-  await page.getByRole("button", { name: "Start recording", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Enable microphone", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Test microphone", exact: true })
+    .waitFor();
+  await page
+    .getByLabel(
+      "I confirm that all participants have been informed of and consent to this recording.",
+    )
+    .check();
+  await page
+    .getByRole("button", { name: "Start recording", exact: true })
+    .click();
   await page.getByText("Recording", { exact: true }).waitFor();
   await page.waitForTimeout(1100);
   await page.getByRole("button", { name: "Pause", exact: true }).click();
@@ -431,14 +493,22 @@ try {
   await page.waitForTimeout(500);
   await page.getByRole("button", { name: "Add marker", exact: true }).click();
   await page.getByRole("button", { name: "Stop", exact: true }).click();
-  await page.getByRole("heading", { name: "Review before saving", exact: true }).waitFor();
+  await page
+    .getByRole("heading", { name: "Review before saving", exact: true })
+    .waitFor();
   await page.getByLabel("Title (optional)").fill("Browser room-audio test");
-  await page.getByRole("button", { name: "Save privately", exact: false }).click();
+  await page
+    .getByRole("button", { name: "Save privately", exact: false })
+    .click();
   await page.getByText("Recording saved privately.", { exact: true }).waitFor();
-  await page.getByRole("heading", { name: "Browser room-audio test", exact: true }).waitFor();
+  await page
+    .getByRole("heading", { name: "Browser room-audio test", exact: true })
+    .waitFor();
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await page.getByLabel("Recording Browser room-audio test playback").waitFor();
-  checks.push("Fake-device browser flow records, pauses, resumes, marks, resumably uploads, persists and authorizes playback");
+  checks.push(
+    "Fake-device browser flow records, pauses, resumes, marks, resumably uploads, persists and authorizes playback",
+  );
   for (const path of [
     "/",
     "/leads",
@@ -462,6 +532,9 @@ try {
       "/focus",
       "/pipeline",
       "/money",
+      "/academy",
+      "/recordings",
+      "/support",
       "/onboarding",
     ]) {
       await go(path);
