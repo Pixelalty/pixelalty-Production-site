@@ -79,3 +79,11 @@ Approval sends only one consented transactional notice to check the invitation i
 Automated evidence is recorded in the pull request/CI, not assumed from this document. Local unit/SQL/Worker tests do not certify real inbox delivery, Stripe recipient setup, card payments, settlement or payout transfer. The staging migration must be applied once before the matching Worker release. Keep Stripe in TEST until owner-controlled hosted verification passes.
 
 Remaining hosted acceptance requires an owner-approved test recipient, actual sandbox promotion code, real sandbox payment using the code, actual platform webhook delivery, correct one-sale/commission/XP persistence, and manual payout-readiness confirmation. Mark Paid must never be used to pretend money moved. Do not rerun old migrations or recreate projects, domains, SMTP or existing Payment Links.
+
+## Staging migration receipt
+
+Applied once to `bqycqmiaacoeulotjyrv` on September 29, 2026. Repository file `20260929043114_sales_manual_payouts_and_codes.sql` corresponds to Supabase history version **20260929053846** (`sales_manual_payouts_and_codes`). SHA-256: `962f918cb684b8216c651b8937662e81883b5215a049be7c0f78fadd828dc7ee`. Preserve this mapping; do not reapply the file using its local timestamp.
+
+Readback confirmed all five new public tables have RLS, no anonymous reads and no direct authenticated writes. Baseline remained one rep, one legacy Connect row, zero payments/commissions and two protected tax documents/objects. New payout/code/sale/payment-confirmation tables remained empty; no recipient setup or money movement was fabricated. Production Supabase was untouched.
+
+Security/performance advisors reported no new warnings or errors. The existing **Leaked Password Protection Disabled** Auth warning remains an owner-controlled configuration item ([Supabase guidance](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)). Private tables intentionally deny direct access; new indexes are unused until real traffic arrives. Current CI, deployment and hosted acceptance evidence is maintained in [PR #7](https://github.com/Pixelalty/pixelalty-Production-site/pull/7).

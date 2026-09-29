@@ -382,8 +382,11 @@ export function Admin() {
           title="Commissions & payouts"
           description="Review verified sales, commissions, and payouts you confirm manually."
         />
-        <StripeHealth />
         <ManualFinance />
+        <details>
+          <summary>Payment connection status</summary>
+          <StripeHealth />
+        </details>
         <h2>Package versions</h2>
         <button
           onClick={() =>
