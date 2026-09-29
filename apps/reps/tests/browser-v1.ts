@@ -479,6 +479,32 @@ try {
     .getByRole("button", { name: "Test microphone", exact: true })
     .waitFor();
   await page
+    .getByRole("button", { name: "Test microphone", exact: true })
+    .click();
+  await page.waitForFunction(() => {
+    const label = document
+      .querySelector(".input-meter")
+      ?.getAttribute("aria-label");
+    return Boolean(label && !label.endsWith("0 percent"));
+  });
+  await page
+    .getByText(
+      "Microphone test complete. Play it below; this clip stays on this device and is never uploaded.",
+      { exact: true },
+    )
+    .waitFor();
+  const testPlayback = page.getByLabel("Local microphone test playback");
+  await testPlayback.waitFor();
+  await page
+    .getByRole("button", { name: "Discard test clip", exact: true })
+    .click();
+  await testPlayback.waitFor({ state: "hidden" });
+  await page
+    .getByText("Microphone test discarded. Nothing was uploaded.", {
+      exact: true,
+    })
+    .waitFor();
+  await page
     .getByLabel(
       "I confirm that all participants have been informed of and consent to this recording.",
     )
