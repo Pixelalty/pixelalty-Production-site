@@ -58,6 +58,11 @@ test("Essentials and private call recordings persist with real SQL and RLS", asy
     assert.equal(completions.rows[0].count, 1);
     const onboarding = await rpc(db, "px_report", "onboarding");
     assert.equal(onboarding.essentials_completed, true);
+    const trainingXp = await db.query<{ total: string }>(
+      "select coalesce(sum(amount),0)::text total from px_xp where rep_id=$1 and source='training'",
+      [rep],
+    );
+    assert.equal(trainingXp.rows[0].total, "25");
     assert.equal(
       onboarding.steps.filter((step: { key: string }) => step.key === "essentials")
         .length,

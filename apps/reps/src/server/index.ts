@@ -991,7 +991,7 @@ export default {
       );
     headers.set(
       "Permissions-Policy",
-      "camera=(), microphone=(), geolocation=()",
+      "camera=(), microphone=(self), geolocation=()",
     );
     headers.set("X-Request-ID", requestId);
     headers.set("Cache-Control", "no-store");

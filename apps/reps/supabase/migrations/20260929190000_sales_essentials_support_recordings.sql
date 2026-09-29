@@ -117,6 +117,11 @@ begin
   if essential_id is null then raise exception 'Pixelalty Essentials is not available right now.';end if;
   if not exists(select 1 from public.px_training t where t.rep_id=uid and t.content_id=essential_id and t.passed) then
    insert into public.px_training(rep_id,content_id,passed) values(uid,essential_id,true);
+   insert into public.px_xp(rep_id,source,source_id,amount)
+   select uid,'training',essential_id,coalesce((value->>'xp_training')::int,25)
+   from public.px_settings
+   limit 1
+   on conflict do nothing;
    perform px_private.audit(action,essential_id::text,'Rep confirmed Pixelalty Essentials');
   end if;
   return jsonb_build_object('completed',true,'content_id',essential_id);
