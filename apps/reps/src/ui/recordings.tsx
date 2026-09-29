@@ -576,7 +576,7 @@ function RecordingPlayer({ row }: { row: Row }) {
     <div className="recording-player">
       {!url ? <button onClick={() => void open()} disabled={loading}><Play size={15} /> {loading ? "Opening…" : "Play"}</button> : (
         <>
-          <audio ref={audio} controls src={url} preload="metadata" aria-label={`Recording ${row.title || row.business_name || "playback"}`} />
+          <audio ref={audio} controls src={url} preload="metadata" aria-label={`Recording ${row.title || row.business_name || "untitled"} playback`} />
           <div className="player-tools">
             <button aria-label="Back 10 seconds" onClick={() => audio.current && (audio.current.currentTime = Math.max(0, audio.current.currentTime - 10))}><RotateCcw size={15} /> 10s</button>
             <button aria-label="Forward 10 seconds" onClick={() => audio.current && (audio.current.currentTime = Math.min(audio.current.duration || Infinity, audio.current.currentTime + 10))}><RotateCw size={15} /> 10s</button>
