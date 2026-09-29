@@ -1135,9 +1135,10 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
               />
               {admin && (
                 <>
-                  <label>
+                  <label htmlFor="recording-filter-rep">
                     Rep
                     <select
+                      id="recording-filter-rep"
                       value={filterDraft.repId}
                       onChange={(e) =>
                         setFilterDraft((value) => ({
@@ -1154,9 +1155,10 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
                       ))}
                     </select>
                   </label>
-                  <label>
+                  <label htmlFor="recording-filter-business">
                     Business
                     <input
+                      id="recording-filter-business"
                       value={filterDraft.business}
                       onChange={(e) =>
                         setFilterDraft((value) => ({
@@ -1167,9 +1169,10 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
                       placeholder="Business name"
                     />
                   </label>
-                  <label>
+                  <label htmlFor="recording-filter-from">
                     From
                     <input
+                      id="recording-filter-from"
                       type="date"
                       value={filterDraft.dateFrom}
                       onChange={(e) =>
@@ -1180,9 +1183,10 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
                       }
                     />
                   </label>
-                  <label>
+                  <label htmlFor="recording-filter-through">
                     Through
                     <input
+                      id="recording-filter-through"
                       type="date"
                       value={filterDraft.dateTo}
                       onChange={(e) =>
@@ -1193,9 +1197,10 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
                       }
                     />
                   </label>
-                  <label>
+                  <label htmlFor="recording-filter-min-duration">
                     Minimum seconds
                     <input
+                      id="recording-filter-min-duration"
                       type="number"
                       min="0"
                       max={RECORDING_MAX_SECONDS}
@@ -1208,9 +1213,10 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
                       }
                     />
                   </label>
-                  <label>
+                  <label htmlFor="recording-filter-max-duration">
                     Maximum seconds
                     <input
+                      id="recording-filter-max-duration"
                       type="number"
                       min="0"
                       max={RECORDING_MAX_SECONDS}
