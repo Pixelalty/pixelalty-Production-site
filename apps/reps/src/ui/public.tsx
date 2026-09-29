@@ -285,7 +285,7 @@ export function Apply({
       body: "Help businesses take a confident next step online.",
       requirements: "",
     }),
-    [open, setOpen] = useState(false),
+    [open, setOpen] = useState<boolean | null>(null),
     [error, setError] = useState(""),
     [token, setToken] = useState("");
   useEffect(() => {
@@ -475,6 +475,8 @@ export function Apply({
             </>
           ) : error ? (
             <State error={error} />
+          ) : open === null ? (
+            <State loading />
           ) : !open || !siteKey ? (
             <div className="notice">
               Applications are not open yet. Please check back later.
