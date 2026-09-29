@@ -25,7 +25,7 @@ export function ManualFinance() {
     ),
     total = selected.reduce((sum, c) => sum + c.amount_cents, 0);
   return (
-    <>
+    <div className="manual-finance">
       <div className="actions">
         <LinkButton to="/admin/finance/payout-setup">
           Review payout setup
@@ -66,22 +66,24 @@ export function ManualFinance() {
           checks pass. Paid entries and refund/dispute adjustments retain their
           history.
         </p>
-        <label htmlFor="commission-filter">Status</label>
-        <select
-          id="commission-filter"
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setPage(0);
-            setSelected([]);
-          }}
-        >
-          <option value="all">All</option>
-          <option value="hold">Pending / Held</option>
-          <option value="payable">Payable</option>
-          <option value="paid">Paid</option>
-          <option value="recovery_review">Adjustment required</option>
-        </select>
+        <div className="field finance-filter">
+          <label htmlFor="commission-filter">Status</label>
+          <select
+            id="commission-filter"
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(0);
+              setSelected([]);
+            }}
+          >
+            <option value="all">All</option>
+            <option value="hold">Pending / Held</option>
+            <option value="payable">Payable</option>
+            <option value="paid">Paid</option>
+            <option value="recovery_review">Adjustment required</option>
+          </select>
+        </div>
         <State
           {...state}
           empty={!state.data?.rows?.length}
@@ -90,6 +92,7 @@ export function ManualFinance() {
           <Table
             rows={(state.data?.rows || []).map((r: Row) => ({
               ...r,
+              hold_until_at: r.hold_until,
               eligibility: r.eligible
                 ? "Ready for payment"
                 : r.status === "payable"
@@ -103,7 +106,7 @@ export function ManualFinance() {
               ["sale_cents", "Customer paid"],
               ["amount_cents", "Fixed commission"],
               ["status", "Status"],
-              ["hold_until", "Hold until"],
+              ["hold_until_at", "Hold until"],
               ["eligibility", "Eligibility"],
             ]}
             actions={(r) => (
@@ -292,6 +295,6 @@ export function ManualFinance() {
           />
         </Modal>
       )}
-    </>
+    </div>
   );
 }

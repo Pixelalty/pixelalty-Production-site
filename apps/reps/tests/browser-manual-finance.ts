@@ -98,6 +98,20 @@ try {
       nameLayout.height <= nameLayout.lineHeight * 2 + 1,
       `Rep name must stay readable at ${width}px, rather than wrapping letter by letter`,
     );
+    const ledgerName = await page
+      .getByRole("cell", { name: "Jordan", exact: true })
+      .evaluate((cell) => {
+        const text = document.createRange();
+        text.selectNodeContents(cell);
+        return {
+          height: text.getBoundingClientRect().height,
+          lineHeight: Number.parseFloat(getComputedStyle(cell).lineHeight),
+        };
+      });
+    assert.ok(
+      ledgerName.height <= ledgerName.lineHeight * 2 + 1,
+      `Ledger names must stay readable at ${width}px`,
+    );
     await page.screenshot({
       path: new URL(`finance-${width}.png`, out).pathname,
       fullPage: true,

@@ -710,6 +710,16 @@ form > .primary {
   overflow-x: auto;
   width: 100%;
 }
+.manual-finance > .actions {
+  margin-bottom: 20px;
+}
+.manual-finance td {
+  min-width: 100px;
+  overflow-wrap: break-word;
+}
+.finance-filter {
+  max-width: 280px;
+}
 table {
   width: 100%;
   border-collapse: collapse;
