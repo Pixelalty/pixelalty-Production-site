@@ -1114,6 +1114,15 @@ tbody tr:last-child td {
   max-width: 650px;
   margin: 10px 0;
 }
+.test-audio-review {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.test-audio-review .test-audio {
+  margin-bottom: 0;
+}
 .recorder-toggles {
   display: flex;
   gap: 10px 18px;

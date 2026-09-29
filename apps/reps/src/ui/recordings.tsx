@@ -556,12 +556,24 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
       </div>
       <InputMeter level={level} />
       {testUrl && (
-        <audio
-          className="test-audio"
-          controls
-          src={testUrl}
-          aria-label="Local microphone test playback"
-        />
+        <div className="test-audio-review">
+          <audio
+            className="test-audio"
+            controls
+            src={testUrl}
+            aria-label="Local microphone test playback"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              URL.revokeObjectURL(testUrl);
+              setTestUrl("");
+              setNotice("Microphone test discarded. Nothing was uploaded.");
+            }}
+          >
+            <Trash2 size={15} /> Discard test clip
+          </button>
+        </div>
       )}
       <div className="recorder-toggles" aria-label="Microphone processing">
         <label>
