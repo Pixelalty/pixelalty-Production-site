@@ -77,6 +77,11 @@ try {
     .waitFor();
   for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
+    await page.goto(f.base + "/admin/finance");
+    await page
+      .getByRole("heading", { name: "Commission ledger", exact: true })
+      .waitFor();
+    await page.waitForLoadState("networkidle");
     assert.ok(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth + 1,
@@ -85,6 +90,9 @@ try {
     await page.screenshot({
       path: new URL(`finance-${width}.png`, out).pathname,
       fullPage: true,
+    });
+    await page.screenshot({
+      path: new URL(`finance-viewport-${width}.png`, out).pathname,
     });
   }
   await page
@@ -119,7 +127,7 @@ try {
   paymentFixture.refund = 78302;
   await event("charge.refunded", "evt_browser_refund");
   await page.reload();
-  await page.getByText("Recovery review", { exact: true }).waitFor();
+  await page.getByText("Recovery Review", { exact: true }).waitFor();
   assert.equal(
     (await f.db.query("select * from px_manual_payouts")).rows.length,
     1,

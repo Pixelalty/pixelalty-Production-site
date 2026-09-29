@@ -517,7 +517,9 @@ export async function startIntegration(
                         ? "rep_id"
                         : target === "px_deals"
                           ? "deal_id"
-                          : "";
+                          : target === "px_verified_sales"
+                            ? "sale_id"
+                            : "";
                 if (!foreign) throw Error("Unsupported test join");
                 const nestedAlias = alias + "_" + key;
                 return `(select row_to_json(j) from (select ${selectExpr(inner, nestedAlias)} from ${identifier(target)} ${nestedAlias} where ${nestedAlias}.id=${alias}.${foreign}) j) as ${identifier(key)}`;

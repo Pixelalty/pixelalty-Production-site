@@ -10,7 +10,7 @@ export const smsConfigured = (env: Env) =>
 export async function drainSms(env: Env) {
   if (!smsConfigured(env)) return;
   const db = client(env, undefined, true);
-  for (let n = 0; n < 5; n++) {
+  for (let n = 0; n < 2; n++) {
     const job = await rpc(db, "px_sms", { action: "claim", p: {} });
     if (!job) return;
     try {

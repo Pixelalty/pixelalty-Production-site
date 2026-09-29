@@ -719,6 +719,7 @@ const tableFilters: Record<string, { key: string; values: string[] }[]> = {
       values: [
         "hold",
         "payable",
+        "paid",
         "queued",
         "transferred",
         "recovery_review",

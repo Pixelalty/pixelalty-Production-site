@@ -570,6 +570,21 @@ test("signed Checkout and refund webhooks exercise actual Worker retrieval, SQL 
     assert.equal(rows.length, 1);
     assert.equal(rows[0].rep_id, f.rep);
     assert.equal(rows[0].amount_cents, 12500);
+    const ledger = await fetch(
+      f.base + "/api/table?name=commissions&own=true",
+      {
+        headers: {
+          authorization:
+            "Bearer " +
+            f.session(f.users.find((u) => u.id === f.rep)).access_token,
+        },
+      },
+    );
+    assert.equal(ledger.status, 200);
+    const ledgerBody = (await ledger.json()) as any;
+    assert.equal(ledgerBody.rows.length, 1);
+    assert.equal(ledgerBody.rows[0].package_name, "Launch");
+    assert.equal(ledgerBody.rows[0].sale_cents, 78302);
     assert.equal(
       (await f.db.query("select * from px_xp where source='sale'")).rows.length,
       1,

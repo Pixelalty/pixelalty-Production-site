@@ -481,9 +481,14 @@ export function RepOnboardingDetail({ code }: { code: string }) {
                     </button>
                   )}
                 <p className="muted">
-                  Payout status updates from verified payment-provider events
-                  and the rep’s secure setup flow.
+                  Finance confirms payout readiness after reviewing the rep’s
+                  completed setup in Stripe.
                 </p>
+                {app.has("finance_admin") && (
+                  <LinkButton to="/admin/finance/payout-setup">
+                    Review payout setup
+                  </LinkButton>
+                )}
               </Card>
             </div>
             <Card title="Current requirements">

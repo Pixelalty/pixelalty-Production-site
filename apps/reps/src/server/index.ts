@@ -13,7 +13,6 @@ import { downloadTax, TAX_MAX_BYTES, uploadTax } from "./tax";
 import {
   checkout,
   webhook,
-  reverse,
   reconcile,
   reconcilePayment,
   stripe,
@@ -575,7 +574,14 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
     const p = await body(req);
     return json(await checkout(env, db, user.id, p.id));
   }
-  if (["/api/connect", "/api/connect/recover", "/api/transfer"].includes(path))
+  if (
+    [
+      "/api/connect",
+      "/api/connect/recover",
+      "/api/transfer",
+      "/api/reverse",
+    ].includes(path)
+  )
     throw new HttpError(
       410,
       "This legacy payout action has been retired. Open Payout setup in Pixelalty.",
@@ -586,8 +592,6 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
     return json(await resetAccountPassword(env, db, await body(req)));
   if (path === "/api/stripe/health" && !post)
     return json(await stripeHealth(env, db));
-  if (path === "/api/reverse" && post)
-    return json(await reverse(env, db, await body(req)));
   if (path === "/api/reconcile" && post)
     return json(await reconcile(env, db, await body(req)));
   if (path === "/api/import/preview" && post) {

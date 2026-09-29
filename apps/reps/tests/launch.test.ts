@@ -117,7 +117,12 @@ test("retired automated payout endpoints never call Stripe or alter legacy setup
       "insert into px_connect(rep_id,account_id,payouts_enabled,transfers_enabled) values($1,'acct_isolated_onboarding',true,true)",
       [f.newRep],
     );
-    for (const path of ["/connect", "/connect/recover", "/transfer"])
+    for (const path of [
+      "/connect",
+      "/connect/recover",
+      "/transfer",
+      "/reverse",
+    ])
       for (const user of [f.newRep, f.owner]) {
         const response = await post(f, user, path, {
           id: f.newRep,

@@ -406,7 +406,7 @@ try {
     .getByRole("heading", { name: "Hello, Alex.", exact: true })
     .waitFor();
   checks.push(
-    "PDF rejection, private submission, download audit, correction/replacement, Finance verification, Connect callback, training, activation and fresh-login persistence pass",
+    "PDF rejection, private submission, download audit, correction/replacement, secure archive, manual payout approval, sales-code assignment, training, activation and fresh-login persistence pass",
   );
   await verifyAccounts(page, f, code, out, checks, login, logout);
   assert.deepEqual(errors, []);

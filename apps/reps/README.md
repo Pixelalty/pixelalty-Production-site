@@ -1,5 +1,7 @@
 # Pixelalty Sales
 
+Current V1 payout/code workflow: [Manual V1 owner and rep guide](docs/MANUAL_V1.md). This supersedes earlier Connect onboarding and automated-transfer instructions. Older acceptance reports remain historical evidence, not the current setup checklist.
+
 CRM and rep portal intended for `reps.pixelalty.com`. This branch contains a staging candidate, not a production release. The original five migrations and the additive V1 completion/index migrations are applied to the dedicated staging project. See [staging status](docs/STAGING_STATUS.md) for the exact target, migration mapping and verified boundaries. No production database changes or live payments have been performed.
 
 Start with [the step-by-step account setup](docs/SETUP_STEP_BY_STEP.md). See [validation status](docs/QA.md) and [operations](docs/OPERATIONS.md) before launch.
@@ -12,7 +14,7 @@ The existing customer website stays at the repository root. This application has
 - Supabase authentication, administrator MFA, database roles, team scope and row-level security.
 - Lead import, validation, duplicate/DNC rejection, claim capacity, ownership expiry, focus calling, append-only call history and timezone-aware follow-ups.
 - Server-priced deals, Stripe Checkout, verified payment attribution, separate commission/transfer/bank payout ledgers, holds and refund/dispute recovery.
-- Contractor Connect onboarding, explicit finance transfers, persisted reversal requests and reconciliation controls.
+- Four-field payout intake, owner-managed Stripe recipient setup, manual sales-code assignment, verified promotion-code attribution, and audited manual payout records. Historical Connect/transfer records remain accessible without automated account or payout creation.
 - Academy, private quiz answer keys, versioned agreements, support, fulfillment, notifications, XP and leaderboard.
 - Administrative recruiting, rep access, finance, compliance, content, reporting, audit and health views.
 

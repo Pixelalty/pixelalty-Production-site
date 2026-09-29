@@ -204,7 +204,7 @@ export function SalesCode({
               Pixelalty will assign your customer promotion code before you
               begin calling.
             </p>
-            <p className="muted">Sales code assigned · Waiting for Pixelalty</p>
+            <p className="muted">Assignment pending · Pixelalty review</p>
           </>
         )}
         {manage && (
@@ -254,7 +254,10 @@ export function SalesCode({
                 maxLength: 106,
               },
             ]}
-            initial={{ code: code?.code || "" }}
+            initial={{
+              code: code?.code || "",
+              stripe_promotion_code_id: code?.stripe_promotion_code_id || "",
+            }}
             submit="Save Code"
             onSubmit={async (p) => {
               await app.mutate("sales_code_save", { ...p, id: repId });

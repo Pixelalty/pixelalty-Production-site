@@ -416,6 +416,22 @@ try {
   await dialog.getByLabel("I have read and agree to this version.").check();
   await dialog.getByRole("button", { name: "Accept agreement" }).click();
   await dialog.waitFor({ state: "hidden" });
+  await page
+    .getByRole("button", { name: "Set Up Payouts", exact: true })
+    .click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Phone number", { exact: true }).fill("+12125550198");
+  await dialog
+    .getByLabel("Legal first name (as it appears on your ID)")
+    .fill("Applicant");
+  await dialog
+    .getByLabel("Legal last name (as it appears on your ID)")
+    .fill("Auth");
+  await dialog.getByRole("checkbox").check();
+  await dialog
+    .getByRole("button", { name: "Submit payout setup", exact: true })
+    .click();
+  await dialog.waitFor({ state: "hidden" });
   await page.goto(fixture.base + "/academy");
   for (const item of requiredTraining) {
     await page
@@ -472,6 +488,37 @@ try {
     .getByRole("button", { name: "Verify employee tax & payroll", exact: true })
     .click();
   await dialog.waitFor({ state: "hidden" });
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Activate Rep", exact: true })
+      .isDisabled(),
+    true,
+  );
+  await page.goto(fixture.base + "/admin/finance/payout-setup");
+  for (const action of ["Mark Stripe setup sent", "Approve payout setup"]) {
+    await page
+      .getByRole("row")
+      .filter({ hasText: "Applicant Auth" })
+      .getByRole("button", { name: "View", exact: true })
+      .click();
+    dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: action, exact: true }).click();
+    await dialog.getByRole("checkbox").check();
+    await dialog.getByRole("button", { name: action, exact: true }).click();
+    await dialog.waitFor({ state: "hidden" });
+  }
+  await page.goto(fixture.base + "/admin/reps");
+  await repRow
+    .getByRole("button", { name: "Manage onboarding & readiness", exact: true })
+    .click();
+  const readinessUrl = page.url();
+  await page.getByRole("link", { name: "Manage account", exact: true }).click();
+  await page.getByRole("button", { name: "Add Code", exact: true }).click();
+  dialog = page.getByRole("dialog").last();
+  await dialog.getByLabel("Promotion code", { exact: true }).fill("APPLICANT2");
+  await dialog.getByRole("button", { name: "Save Code", exact: true }).click();
+  await dialog.waitFor({ state: "hidden" });
+  await page.goto(readinessUrl);
   await page.getByRole("button", { name: "Activate Rep", exact: true }).click();
   dialog = page.getByRole("dialog");
   await dialog

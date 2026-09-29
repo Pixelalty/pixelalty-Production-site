@@ -117,7 +117,13 @@ begin
    if code_value!~'^[A-Z0-9]{2,24}$' then raise exception 'Use 2–24 letters and numbers for the exact Stripe promotion code.';end if;
    perform pg_advisory_xact_lock(hashtextextended('pixelalty-sales-code:'||code_value,0));
    if exists(select 1 from public.px_sales_codes where code=code_value and active and rep_id<>rid) then raise exception 'This code is already assigned to another rep. Neither assignment was changed.';end if;
-   if sc.code=code_value then return to_jsonb(sc);end if;
+   if sc.code=code_value then
+    if p ? 'stripe_promotion_code_id' and nullif(trim(p->>'stripe_promotion_code_id'),'') is distinct from sc.stripe_promotion_code_id then
+     update public.px_sales_codes set stripe_promotion_code_id=nullif(trim(p->>'stripe_promotion_code_id'),'') where id=sc.id;
+     perform px_private.audit('sales_code_reference',rid::text,'Manual promotion reference corrected',jsonb_build_object('code',code_value));
+    end if;
+    return (select to_jsonb(t) from public.px_sales_codes t where id=sc.id);
+   end if;
   end if;
   update public.px_sales_codes set active=false,deactivated_at=now() where rep_id=rid and active;
   if action='sales_code_save' then

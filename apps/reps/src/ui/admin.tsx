@@ -490,7 +490,7 @@ export function Admin() {
             ["payment_intent", "Payment intent"],
           ]}
         />
-        <h2>Bank payouts</h2>
+        <h2>Legacy bank payout history</h2>
         <Listing
           name="payouts"
           columns={[
@@ -501,80 +501,84 @@ export function Admin() {
           ]}
         />
         <h2>Stripe event health</h2>
-        <Card title="Reconcile an interrupted provider operation">
-          <p>
-            Look up the original Stripe object and match it to the deal or
-            request below. This verifies an existing operation; it does not
-            create a new charge or transfer.
-          </p>
-          <button
-            onClick={() =>
-              show(
-                "Reconcile Stripe operation",
-                "",
-                {},
-                [
-                  {
-                    name: "kind",
-                    label: "Operation",
-                    required: true,
-                    options: choices([
-                      "checkout",
-                      "connect",
-                      "transfer",
-                      "reversal",
-                    ]),
-                  },
-                  {
-                    name: "id",
-                    label:
-                      "Deal ID for checkout, rep ID for Connect, or transfer/reversal request ID",
-                    required: true,
-                  },
-                  {
-                    name: "object_id",
-                    label: "Stripe Checkout, Account, Transfer, or Reversal ID",
-                    required: true,
-                  },
-                ],
-                "/reconcile",
-              )
-            }
-          >
-            Reconcile operation
-          </button>
-        </Card>
-        <h2>Connect setup attempts</h2>
-        <Listing
-          name="connect_requests"
-          columns={[
-            ["rep_id", "Rep ID"],
-            ["started_at", "Started"],
-            ["account_id", "Connected account"],
-          ]}
-        />
-        <h2>Transfer requests</h2>
-        <Listing
-          name="transfer_requests"
-          columns={[
-            ["id", "Request ID"],
-            ["commission_id", "Commission"],
-            ["status", "Status"],
-            ["transfer_id", "Stripe transfer"],
-            ["created_at", "Requested"],
-          ]}
-        />
-        <h2>Reversal requests</h2>
-        <Listing
-          name="reversal_requests"
-          columns={[
-            ["id", "Request ID"],
-            ["commission_id", "Commission"],
-            ["amount_cents", "Amount"],
-            ["status", "Status"],
-            ["reversal_id", "Stripe reversal"],
-          ]}
-        />
+        <details>
+          <summary>Historical Stripe reconciliation</summary>
+          <Card title="Reconcile an existing provider operation">
+            <p>
+              Look up the original Stripe object and match it to the deal or
+              request below. This verifies an existing operation; it does not
+              create a new charge or transfer.
+            </p>
+            <button
+              onClick={() =>
+                show(
+                  "Reconcile Stripe operation",
+                  "",
+                  {},
+                  [
+                    {
+                      name: "kind",
+                      label: "Operation",
+                      required: true,
+                      options: choices([
+                        "checkout",
+                        "connect",
+                        "transfer",
+                        "reversal",
+                      ]),
+                    },
+                    {
+                      name: "id",
+                      label:
+                        "Deal ID for checkout, rep ID for Connect, or transfer/reversal request ID",
+                      required: true,
+                    },
+                    {
+                      name: "object_id",
+                      label:
+                        "Stripe Checkout, Account, Transfer, or Reversal ID",
+                      required: true,
+                    },
+                  ],
+                  "/reconcile",
+                )
+              }
+            >
+              Reconcile operation
+            </button>
+          </Card>
+          <h2>Legacy Connect setup attempts</h2>
+          <Listing
+            name="connect_requests"
+            columns={[
+              ["rep_id", "Rep ID"],
+              ["started_at", "Started"],
+              ["account_id", "Connected account"],
+            ]}
+          />
+          <h2>Legacy transfer requests</h2>
+          <Listing
+            name="transfer_requests"
+            columns={[
+              ["id", "Request ID"],
+              ["commission_id", "Commission"],
+              ["status", "Status"],
+              ["transfer_id", "Stripe transfer"],
+              ["created_at", "Requested"],
+            ]}
+          />
+          <h2>Legacy reversal requests</h2>
+          <Listing
+            name="reversal_requests"
+            columns={[
+              ["id", "Request ID"],
+              ["commission_id", "Commission"],
+              ["amount_cents", "Amount"],
+              ["status", "Status"],
+              ["reversal_id", "Stripe reversal"],
+            ]}
+          />
+        </details>
         <Listing
           name="stripe_events"
           columns={[
