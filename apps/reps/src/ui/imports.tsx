@@ -14,8 +14,12 @@ import {
   download,
   ActionDialog,
 } from "./lib";
-import { header, label, type Row } from "../shared/core";
-import { importMappingError, inspectImport } from "../shared/imports";
+import { label, type Row } from "../shared/core";
+import {
+  importMappingError,
+  inspectImport,
+  suggestImportMapping,
+} from "../shared/imports";
 import { timezoneOptions } from "../shared/timezones";
 const fields = [
   "name",
@@ -39,31 +43,6 @@ const fields = [
   "review_count",
   "website_assessment",
 ];
-const aliases: Record<string, string[]> = {
-  name: ["business", "businessname", "company", "companyname", "name"],
-  phone: [
-    "phone",
-    "phonenumber",
-    "telephone",
-    "telephonenumber",
-    "businessphone",
-    "businessphonenumber",
-    "mobile",
-    "mobilephone",
-    "tel",
-  ],
-  website: ["website", "url", "domain"],
-  timezone: ["timezone", "tz"],
-  contact: ["contact", "contactname", "owner", "decisionmaker"],
-  external_id: ["externalid", "placeid", "googleplaceid"],
-  google_url: ["googleurl", "googlebusinessurl", "businessprofile"],
-  rating: ["rating", "googlerating"],
-  review_count: ["reviews", "reviewcount"],
-  zip: ["zip", "zipcode", "postalcode"],
-  source: ["source", "leadsource"],
-  tags: ["tags", "tag"],
-  website_assessment: ["websitenotes", "websiteassessment", "websitestatus"],
-};
 export function Imports() {
   const app = useApp(),
     templates = useData("/table?name=saved_views&kind=import_mapping");
@@ -85,14 +64,7 @@ export function Imports() {
   );
   const mappingError = importMappingError(mapping, zone);
   function autoMap(data: Row) {
-    return Object.fromEntries(
-      fields.map((k) => [
-        k,
-        data.headers.find((h: string) =>
-          (aliases[k] || [k]).includes(header(h)),
-        ) || "",
-      ]),
-    );
+    return suggestImportMapping(fields, data.headers);
   }
   async function upload(f: File) {
     setBusy(true);

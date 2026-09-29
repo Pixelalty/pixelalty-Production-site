@@ -1,6 +1,31 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { importMappingError, inspectImport } from "../src/shared/imports";
+import {
+  importMappingError,
+  inspectImport,
+  suggestImportMapping,
+} from "../src/shared/imports";
+
+test("the actual Pixelalty lead headers map Main Phone instead of the row number", () => {
+  const mapping = suggestImportMapping(
+    ["name", "phone", "contact", "timezone", "website_assessment"],
+    [
+      "#",
+      "Business Name",
+      "Main Phone",
+      "Ask For",
+      "Timezone",
+      "Website Status",
+    ],
+  );
+  assert.deepEqual(mapping, {
+    name: "Business Name",
+    phone: "Main Phone",
+    contact: "Ask For",
+    timezone: "Timezone",
+    website_assessment: "Website Status",
+  });
+});
 
 test("imports require explicit business, phone and timezone mapping before staging", () => {
   assert.match(importMappingError({}, ""), /business name/);
