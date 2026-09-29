@@ -14,12 +14,18 @@ const owner = "10000000-0000-4000-8000-000000000003";
 
 test("recording format selection and quota estimates are deterministic", () => {
   assert.equal(
-    supportedRecordingFormat((mime) => mime === "audio/webm;codecs=opus")?.codec,
+    supportedRecordingFormat((mime) => mime === "audio/webm;codecs=opus")
+      ?.codec,
     "opus",
   );
-  assert.equal(supportedRecordingFormat(() => false), null);
+  assert.equal(
+    supportedRecordingFormat(() => false),
+    null,
+  );
   assert.equal(estimatedRecordingBytes(60), 720_000);
-  assert.ok(estimatedRecordingBytes(RECORDING_MAX_SECONDS) < RECORDING_MAX_BYTES);
+  assert.ok(
+    estimatedRecordingBytes(RECORDING_MAX_SECONDS) < RECORDING_MAX_BYTES,
+  );
 });
 
 test("Essentials and private call recordings persist with real SQL and RLS", async () => {
@@ -64,8 +70,9 @@ test("Essentials and private call recordings persist with real SQL and RLS", asy
     );
     assert.equal(trainingXp.rows[0].total, "25");
     assert.equal(
-      onboarding.steps.filter((step: { key: string }) => step.key === "essentials")
-        .length,
+      onboarding.steps.filter(
+        (step: { key: string }) => step.key === "essentials",
+      ).length,
       1,
     );
     assert.equal(
@@ -82,6 +89,24 @@ test("Essentials and private call recordings persist with real SQL and RLS", asy
     ).rows[0].id;
     await actor(db, rep);
     const requestId = crypto.randomUUID();
+    await assert.rejects(
+      rpc(db, "px_action", "recording_begin", {
+        request_id: crypto.randomUUID(),
+        business_id: business,
+        call_id: null,
+        deal_id: null,
+        title: "Missing consent",
+        note: "",
+        markers: [],
+        mime_type: "audio/webm",
+        codec: "opus · 96 kbps mono",
+        size_bytes: 12_000,
+        duration_seconds: 1,
+        device_label: "Test microphone",
+        recorded_at: new Date().toISOString(),
+      }),
+      /consent/i,
+    );
     const reservation = await rpc(db, "px_action", "recording_begin", {
       request_id: requestId,
       business_id: business,
@@ -96,6 +121,7 @@ test("Essentials and private call recordings persist with real SQL and RLS", asy
       duration_seconds: 1,
       device_label: "Test microphone",
       recorded_at: new Date().toISOString(),
+      consent_confirmed: true,
     });
     await db.query(
       "insert into storage.objects(bucket_id,name,metadata) values('call-recordings',$1,$2::jsonb)",
@@ -118,6 +144,7 @@ test("Essentials and private call recordings persist with real SQL and RLS", asy
       duration_seconds: 1,
       device_label: "Test microphone",
       recorded_at: new Date().toISOString(),
+      consent_confirmed: true,
     });
     assert.equal(duplicate.id, reservation.id);
     assert.equal(duplicate.status, "ready");
@@ -128,6 +155,7 @@ test("Essentials and private call recordings persist with real SQL and RLS", asy
     const mine = await rpc(db, "px_report", "recordings", { admin: false });
     assert.equal(mine.rows.length, 1);
     assert.equal(mine.rows[0].business_name, "Audio Test");
+    assert.ok(mine.rows[0].consent_confirmed_at);
 
     await actor(db, other);
     assert.equal(
@@ -158,6 +186,19 @@ test("Essentials and private call recordings persist with real SQL and RLS", asy
     );
     const adminView = await rpc(db, "px_report", "recordings", { admin: true });
     assert.equal(adminView.rows.length, 1);
+    assert.ok(adminView.reps.some((row: { id: string }) => row.id === rep));
+    const filtered = await rpc(db, "px_report", "recordings", {
+      admin: true,
+      rep_id: rep,
+      business: "Audio",
+      date_from: new Date().toISOString().slice(0, 10),
+      date_to: new Date().toISOString().slice(0, 10),
+      min_duration: 1,
+      max_duration: 2,
+      sort: "duration",
+      direction: "asc",
+    });
+    assert.equal(filtered.rows.length, 1);
     await rpc(db, "px_action", "recording_quota", {
       quota_bytes: 800_000_000,
     });
