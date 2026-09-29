@@ -26,6 +26,7 @@ import {
   readProfileMedia,
   uploadProfileMedia,
 } from "./profile";
+import { deleteRecording, recordingUrl } from "./recordings";
 import {
   csv,
   header,
@@ -482,6 +483,18 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
         ip: req.headers.get("cf-connecting-ip") || null,
       });
     return json(result);
+  }
+  if (path === "/api/recordings/url" && post) {
+    const p = await body(req);
+    if (!z.uuid().safeParse(p.id).success)
+      throw new HttpError(404, "Recording not found.");
+    return json(await recordingUrl(env, db, p.id, p.download === true));
+  }
+  if (path === "/api/recordings/delete" && post) {
+    const p = await body(req);
+    if (!z.uuid().safeParse(p.id).success)
+      throw new HttpError(404, "Recording not found.");
+    return json(await deleteRecording(env, db, p));
   }
   if (path === "/api/tax" && !post)
     return json(

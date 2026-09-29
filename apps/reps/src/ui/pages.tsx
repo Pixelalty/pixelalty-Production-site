@@ -12,9 +12,12 @@ import {
   Check,
   BookOpen,
   Flame,
+  Copy,
+  ExternalLink,
+  Mail,
+  MessageCircle,
 } from "lucide-react";
 import {
-  api,
   useApp,
   useData,
   State,
@@ -60,6 +63,11 @@ export function Dashboard() {
         description="A clear view of today. One good conversation at a time."
       />
       <SalesCode />
+      <button className="support-callout" onClick={() => app.navigate("/support")}>
+        <MessageCircle size={19} aria-hidden="true" />
+        <span><strong>Need to instantly contact Pixelalty Support?</strong><small>Click here for WhatsApp, Instagram, email, or a support ticket.</small></span>
+        <ArrowRight size={17} aria-hidden="true" />
+      </button>
       <State {...state}>
         <div className="stats">
           {[
@@ -704,110 +712,65 @@ export function Money() {
   );
 }
 export function Academy() {
-  const state = useData("/table?name=content&active=true"),
+  const state = useData("/table?name=content&active=true&kind=lesson"),
     training = useData("/table?name=training&own=true"),
+    packages = useData("/table?name=packages&active=true"),
     app = useApp(),
-    [item, setItem] = useState<Row | null>(null),
-    [result, setResult] = useState<Row | null>(null);
+    [acknowledged, setAcknowledged] = useState(false);
+  const essential = state.data?.rows.find(
+    (row: Row) => row.slug === "pixelalty-essentials",
+  );
+  const completed = !!essential && training.data?.rows.some(
+    (row: Row) => row.content_id === essential.id && row.passed,
+  );
   return (
     <>
       <Heading
-        title="Pixelalty Academy"
-        description="Practical skills for your next conversation."
+        eyebrow="GETTING STARTED"
+        title="Pixelalty Essentials"
+        description="Two short sections covering what you sell and how the sales workspace works."
       />
       <State {...state}>
-        <div className="lesson-grid">
-          {state.data?.rows
-            .filter(
-              (r: Row) =>
-                r.active &&
-                ["lesson", "quiz", "knowledge", "announcement"].includes(
-                  r.kind,
-                ),
-            )
-            .map((r: Row) => (
-              <Card key={r.id}>
-                <span className="eyebrow">
-                  {label(r.kind)} · VERSION {r.version}
-                </span>
-                <h3>{r.title}</h3>
-                <p>
-                  {r.kind === "quiz"
-                    ? "Check your understanding before working with prospects."
-                    : r.body.slice(0, 125) + "…"}
-                </p>
-                <button
-                  onClick={() => {
-                    setItem(r);
-                    setResult(null);
-                  }}
-                >
-                  {training.data?.rows.some(
-                    (x: Row) => x.content_id === r.id && x.passed,
-                  )
-                    ? "Review completed lesson"
-                    : "Open"}{" "}
-                  <ArrowRight size={15} />
-                </button>
-              </Card>
-            ))}
-        </div>
-      </State>
-      {item && (
-        <Modal title={item.title} onClose={() => setItem(null)}>
-          {item.kind === "quiz" ? (
-            result ? (
+        {!essential ? (
+          <div className="notice error">Pixelalty Essentials is temporarily unavailable. Contact Support.</div>
+        ) : (
+          <div className="essentials-layout">
+            <Card title="1. What you’re selling" className="essential-section">
+              <p>Pixelalty sells clear website packages with fixed rep commissions.</p>
+              <State {...packages}>
+                <div className="package-list">
+                  {packages.data?.rows.map((pkg: Row) => (
+                    <article key={pkg.id}>
+                      <div><strong>{pkg.name}{pkg.code === "advanced" ? " / Ecommerce" : ""}</strong><small>{pkg.code === "advanced" ? "Starts at" : "Customer price"}</small></div>
+                      <span>{money(pkg.price_cents)}</span>
+                      <div><strong>{money(pkg.commission_cents)}</strong><small>Fixed commission</small></div>
+                    </article>
+                  ))}
+                </div>
+              </State>
               <div className="notice">
-                Score: {result.score}% ·{" "}
-                {result.passed ? "Passed" : "Review the lessons and try again."}
+                Your assigned code gives the customer 2% off when entered during Stripe checkout. Your fixed commission is unchanged. A commission is created only after Pixelalty verifies a successful payment using your assigned code.
               </div>
-            ) : (
-              <Form
-                fields={JSON.parse(item.body).map((q: Row, i: number) => ({
-                  name: "q" + i,
-                  label: q.question,
-                  required: true,
-                  options: q.options.map((o: string, j: number) => ({
-                    label: o,
-                    value: String(j),
-                  })),
-                }))}
-                submit="Submit answers"
-                onSubmit={async (p) => {
-                  const r = await api("/action", {
-                    action: "quiz",
-                    p: {
-                      content_id: item.id,
-                      answers: JSON.parse(item.body).map((_q: Row, i: number) =>
-                        Number(p["q" + i]),
-                      ),
-                    },
-                  });
-                  setResult(r);
-                  app.refresh();
-                }}
-              />
-            )
-          ) : (
-            <>
-              <div className="prose">{item.body}</div>
-              {item.kind === "lesson" && app.ctx.rep && (
-                <button
-                  className="primary"
-                  onClick={() =>
-                    app.run(async () => {
-                      await app.mutate("lesson", { content_id: item.id });
-                      setItem(null);
-                    })
-                  }
-                >
-                  Mark complete <Check size={16} />
-                </button>
+              <SalesCode />
+            </Card>
+            <Card title="2. How the CRM works" className="essential-section">
+              <ol className="crm-steps">
+                {["Claim an available lead.","Contact the business.","Record the factual outcome and useful notes.","Schedule a follow-up when needed.","Create or update the current deal and checkout.","Give the customer your assigned sales code.","The customer pays through Stripe.","A verified payment using your code creates the attributed sale and fixed commission."].map((step, index) => <li key={step}><span>{index + 1}</span><p>{step}</p></li>)}
+              </ol>
+            </Card>
+            <Card className="essential-completion">
+              {completed ? (
+                <div className="completion-success"><Check size={21} aria-hidden="true" /><div><strong>Pixelalty Essentials completed</strong><p>Your completion is saved to your account and remains available on every device.</p></div></div>
+              ) : (
+                <>
+                  <label className="consent-check"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} /> I have read and understand Pixelalty Essentials.</label>
+                  <button className="primary" disabled={!acknowledged} onClick={() => app.run(() => app.mutate("essentials_complete", { acknowledged: true }))}>Complete Getting Started <Check size={16} /></button>
+                </>
               )}
-            </>
-          )}
-        </Modal>
-      )}
+            </Card>
+          </div>
+        )}
+      </State>
     </>
   );
 }
@@ -897,12 +860,37 @@ export function Leaderboard() {
 }
 export function Support() {
   const app = useApp();
+  const copyEmail = async () => {
+    await navigator.clipboard.writeText("support@pixelalty.com");
+    app.notify("Support email copied.");
+  };
   return (
     <>
       <Heading
-        title="How can we help?"
-        description="Ask about your account, leads, onboarding, or payment status."
+        eyebrow="PIXELALTY SUPPORT"
+        title="Need help right now?"
+        description="Choose the fastest channel for your question, or open a ticket for account-specific help."
       />
+      <div className="support-grid">
+        <Card title="Direct WhatsApp" className="support-channel">
+          <p>Message Pixelalty Support directly for quick help.</p>
+          <img src="/support/whatsapp-direct.png" alt="QR code that opens the direct Pixelalty Support WhatsApp chat" />
+          <a className="button primary" href="https://wa.me/12392870299?s=p" target="_blank" rel="noopener noreferrer">Open WhatsApp <ExternalLink size={15} /></a>
+        </Card>
+        <Card title="Pixelalty updates" className="support-channel">
+          <p>Follow the official WhatsApp channel for platform updates.</p>
+          <img src="/support/whatsapp-updates.png" alt="QR code that opens the official Pixelalty WhatsApp updates channel" />
+          <a className="button primary" href="https://whatsapp.com/channel/0029Vb9T6Y2DJ6GvZaXRnb2F" target="_blank" rel="noopener noreferrer">Open updates channel <ExternalLink size={15} /></a>
+        </Card>
+        <Card title="Instagram" className="support-channel compact">
+          <p>Visit Pixelalty on Instagram for brand updates and announcements.</p>
+          <a className="button primary" href="https://www.instagram.com/pixelalty/" target="_blank" rel="noopener noreferrer">Open @pixelalty <ExternalLink size={15} /></a>
+        </Card>
+        <Card title="Email" className="support-channel compact">
+          <p><a href="mailto:support@pixelalty.com">support@pixelalty.com</a></p>
+          <div className="button-row"><a className="button primary" href="mailto:support@pixelalty.com"><Mail size={15} /> Email support</a><button onClick={() => void copyEmail()}><Copy size={15} /> Copy</button></div>
+        </Card>
+      </div>
       <Card title="Open a support ticket">
         <Form
           fields={[

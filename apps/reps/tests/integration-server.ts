@@ -16,6 +16,17 @@ export async function startIntegration(
   } = {},
 ) {
   const storedFiles = new Map<string, Uint8Array>();
+  const resumable = new Map<
+    string,
+    {
+      bucket: string;
+      name: string;
+      contentType: string;
+      length: number;
+      bytes: Uint8Array;
+    }
+  >();
+  const signedObjects = new Map<string, string>();
   let connectedReady = false;
   let createdAccountRep = "";
   const pendingEmails = new Map<string, string>();
@@ -362,6 +373,7 @@ export async function startIntegration(
                     ".css": "text/css",
                     ".woff2": "font/woff2",
                     ".svg": "image/svg+xml",
+                    ".png": "image/png",
                   } as any
                 )[extname(file)] || "application/octet-stream",
             },
@@ -595,7 +607,105 @@ export async function startIntegration(
       });
       const u = new URL(url);
       let response: Response;
-      if (u.pathname.startsWith("/storage/v1/object/")) {
+      if (u.pathname.startsWith("/storage/v1/upload/resumable")) {
+        const tusHeaders = {
+          "Tus-Resumable": "1.0.0",
+          "Access-Control-Expose-Headers": "Location,Upload-Offset,Tus-Resumable",
+        };
+        const id = u.pathname.split("/").at(-1);
+        if (req.method === "POST") {
+          const metadata = Object.fromEntries(
+            (req.headers.get("upload-metadata") || "")
+              .split(",")
+              .filter(Boolean)
+              .map((entry) => {
+                const [key, encoded = ""] = entry.trim().split(" ");
+                return [key, Buffer.from(encoded, "base64").toString()];
+              }),
+          );
+          const uploadId = crypto.randomUUID();
+          resumable.set(uploadId, {
+            bucket: metadata.bucketName,
+            name: metadata.objectName,
+            contentType: metadata.contentType || "application/octet-stream",
+            length: Number(req.headers.get("upload-length") || 0),
+            bytes: new Uint8Array(),
+          });
+          response = new Response(null, {
+            status: 201,
+            headers: {
+              ...tusHeaders,
+              Location: `${env.APP_URL}/storage/v1/upload/resumable/${uploadId}`,
+              "Upload-Offset": "0",
+            },
+          });
+        } else if (!id || !resumable.has(id)) {
+          response = Response.json({ message: "Upload not found" }, { status: 404 });
+        } else {
+          const upload = resumable.get(id)!;
+          if (req.method === "HEAD")
+            response = new Response(null, {
+              status: 200,
+              headers: {
+                ...tusHeaders,
+                "Upload-Offset": String(upload.bytes.length),
+                "Upload-Length": String(upload.length),
+              },
+            });
+          else if (req.method === "PATCH") {
+            if (Number(req.headers.get("upload-offset")) !== upload.bytes.length)
+              response = Response.json({ message: "Offset mismatch" }, { status: 409 });
+            else {
+              const incomingBytes = new Uint8Array(await req.arrayBuffer());
+              const combined = new Uint8Array(upload.bytes.length + incomingBytes.length);
+              combined.set(upload.bytes);
+              combined.set(incomingBytes, upload.bytes.length);
+              upload.bytes = combined;
+              if (combined.length === upload.length) {
+                storedFiles.set(upload.bucket + "/" + upload.name, combined);
+                await withDb(async () => {
+                  await db.exec("reset role");
+                  await db.query(
+                    "insert into storage.objects(bucket_id,name,metadata) values($1,$2,$3::jsonb) on conflict(bucket_id,name) do update set metadata=excluded.metadata",
+                    [
+                      upload.bucket,
+                      upload.name,
+                      JSON.stringify({
+                        size: combined.length,
+                        mimetype: upload.contentType,
+                      }),
+                    ],
+                  );
+                });
+              }
+              response = new Response(null, {
+                status: 204,
+                headers: {
+                  ...tusHeaders,
+                  "Upload-Offset": String(combined.length),
+                },
+              });
+            }
+          } else response = Response.json({ message: "Method not allowed" }, { status: 405 });
+        }
+      } else if (u.pathname.startsWith("/storage/v1/object/sign/public/")) {
+        const token = u.pathname.split("/").at(-1) || "";
+        const objectPath = signedObjects.get(token);
+        response = objectPath && storedFiles.has(objectPath)
+          ? new Response(storedFiles.get(objectPath) as Uint8Array<ArrayBuffer>, {
+              headers: { "Content-Type": "audio/webm", "Cache-Control": "private, no-store" },
+            })
+          : Response.json({ message: "Signed link expired" }, { status: 404 });
+      } else if (u.pathname.startsWith("/storage/v1/object/sign/")) {
+        const objectPath = decodeURIComponent(
+          u.pathname.replace(/^\/storage\/v1\/object\/sign\//, ""),
+        );
+        const token = crypto.randomUUID();
+        signedObjects.set(token, objectPath);
+        response = Response.json({
+          signedURL: `/object/sign/public/${token}?token=${token}`,
+        });
+      } else if (u.pathname.startsWith("/storage/v1/object/")) {
         const c = claims(req.headers.get("authorization")?.slice(7) || "");
         const objectPath = u.pathname.replace(
             /^\/storage\/v1\/object\/(?:authenticated\/)?/,

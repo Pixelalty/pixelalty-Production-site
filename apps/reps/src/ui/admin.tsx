@@ -36,6 +36,7 @@ import { BusinessDetails } from "./details";
 import { OperationsQueue, RepOnboardingDetail, TaxReview } from "./onboarding";
 import { PayoutSetupAdmin } from "./payouts";
 import { ManualFinance } from "./manual-finance";
+import { Recordings } from "./recordings";
 const choices = (values: string[]) =>
   values.map((value) => ({ value, label: label(value) }));
 type Dialog = {
@@ -78,6 +79,7 @@ export function Admin() {
   if (page === "/admin/reps" && repCode)
     return <RepOnboardingDetail code={repCode} />;
   if (page === "/admin/pipeline") return <Pipeline admin />;
+  if (page === "/admin/recordings") return <Recordings admin />;
   if (page === "/admin/imports") return <Imports />;
   if (page === "/admin/settings") return <Settings />;
   if (page === "/admin/content") return <ContentAdmin />;

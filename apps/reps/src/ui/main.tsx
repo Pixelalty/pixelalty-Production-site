@@ -53,6 +53,7 @@ import {
 import { workspacePages, WorkspaceNavigation, PageFinder } from "./navigation";
 import { XpHistory } from "./accounts";
 import { Appearance } from "./appearance";
+import { Recordings } from "./recordings";
 import { ProfileAvatar } from "./profile-identity";
 import { readAuthLink, authErrorMessage } from "../shared/auth";
 import { AuthShell } from "./auth-shell";
@@ -669,6 +670,7 @@ function App() {
         "/leads": <Leads />,
         "/followups": <Followups />,
         "/pipeline": <Pipeline />,
+        "/recordings": <Recordings />,
         "/money": <Money />,
         "/academy": <Academy />,
         "/onboarding": <Onboarding />,

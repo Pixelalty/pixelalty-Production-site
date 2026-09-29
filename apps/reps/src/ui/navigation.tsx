@@ -21,6 +21,7 @@ import {
   ChevronDown,
   ArrowUpRight,
   Pin,
+  Mic,
   type LucideIcon,
 } from "lucide-react";
 import type { Row } from "../shared/core";
@@ -89,6 +90,13 @@ export function workspacePages(ctx: Row): WorkspacePage[] {
         GitBranch,
         "Opportunities, deals and customer checkout",
       );
+      add(
+        "/recordings",
+        "Call recordings",
+        "My sales",
+        Mic,
+        "Record room audio and manage private call recordings",
+      );
     } else
       add(
         "/onboarding",
@@ -141,6 +149,13 @@ export function workspacePages(ctx: Row): WorkspacePage[] {
       "Sales",
       GitBranch,
       "Paid customer handoffs and delivery status",
+    );
+    add(
+      "/admin/recordings",
+      "Call recordings",
+      "Sales",
+      Mic,
+      "Review private room-audio recordings and storage usage",
     );
     add(
       "/admin/recruiting",
@@ -214,10 +229,10 @@ export function workspacePages(ctx: Row): WorkspacePage[] {
     );
   add(
     "/academy",
-    "Academy",
+    "Essentials",
     "Resources",
     BookOpen,
-    "Read training and complete quizzes",
+    "Learn packages, commissions and the CRM workflow",
   );
   if (ctx.access_options?.leaderboard !== false || has("sales_admin"))
     add(
