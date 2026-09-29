@@ -87,6 +87,17 @@ try {
         () => document.documentElement.scrollWidth <= innerWidth + 1,
       ),
     );
+    const nameLayout = await page
+      .locator(".table-wrap .shared-identity strong")
+      .first()
+      .evaluate((name) => ({
+        height: name.getBoundingClientRect().height,
+        lineHeight: Number.parseFloat(getComputedStyle(name).lineHeight),
+      }));
+    assert.ok(
+      nameLayout.height <= nameLayout.lineHeight * 2 + 1,
+      `Rep name must stay readable at ${width}px, rather than wrapping letter by letter`,
+    );
     await page.screenshot({
       path: new URL(`finance-${width}.png`, out).pathname,
       fullPage: true,
@@ -143,6 +154,7 @@ try {
           "Owner MFA",
           "verified sale and fixed commission",
           "responsive finance",
+          "readable rep names in narrow finance tables",
           "manual payment confirmation",
           "persistence and duplicate prevention",
           "refund preserves paid history",
