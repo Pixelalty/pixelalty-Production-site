@@ -63,9 +63,17 @@ export function Dashboard() {
         description="A clear view of today. One good conversation at a time."
       />
       <SalesCode />
-      <button className="support-callout" onClick={() => app.navigate("/support")}>
+      <button
+        className="support-callout"
+        onClick={() => app.navigate("/support")}
+      >
         <MessageCircle size={19} aria-hidden="true" />
-        <span><strong>Need to instantly contact Pixelalty Support?</strong><small>Click here for WhatsApp, Instagram, email, or a support ticket.</small></span>
+        <span>
+          <strong>Need to instantly contact Pixelalty Support?</strong>
+          <small>
+            Click here for WhatsApp, Instagram, email, or a support ticket.
+          </small>
+        </span>
         <ArrowRight size={17} aria-hidden="true" />
       </button>
       <State {...state}>
@@ -720,51 +728,135 @@ export function Academy() {
   const essential = state.data?.rows.find(
     (row: Row) => row.slug === "pixelalty-essentials",
   );
-  const completed = !!essential && training.data?.rows.some(
-    (row: Row) => row.content_id === essential.id && row.passed,
-  );
+  const completed =
+    !!essential &&
+    training.data?.rows.some(
+      (row: Row) => row.content_id === essential.id && row.passed,
+    );
   return (
     <>
       <Heading
         eyebrow="GETTING STARTED"
         title="Pixelalty Essentials"
-        description="Two short sections covering what you sell and how the sales workspace works."
+        description="Everything you need to know before you start calling."
       />
       <State {...state}>
         {!essential ? (
-          <div className="notice error">Pixelalty Essentials is temporarily unavailable. Contact Support.</div>
+          <div className="notice error">
+            Pixelalty Essentials is temporarily unavailable. Contact Support.
+          </div>
         ) : (
           <div className="essentials-layout">
             <Card title="1. What you’re selling" className="essential-section">
-              <p>Pixelalty sells clear website packages with fixed rep commissions.</p>
+              <p>
+                Pixelalty sells clear website packages with fixed rep
+                commissions.
+              </p>
               <State {...packages}>
                 <div className="package-list">
-                  {packages.data?.rows.map((pkg: Row) => (
-                    <article key={pkg.id}>
-                      <div><strong>{pkg.name}{pkg.code === "advanced" ? " / Ecommerce" : ""}</strong><small>{pkg.code === "advanced" ? "Starts at" : "Customer price"}</small></div>
-                      <span>{money(pkg.price_cents)}</span>
-                      <div><strong>{money(pkg.commission_cents)}</strong><small>Fixed commission</small></div>
-                    </article>
-                  ))}
+                  {packages.data?.rows
+                    .slice()
+                    .sort(
+                      (a: Row, b: Row) =>
+                        ["launch", "growth", "premium", "advanced"].indexOf(
+                          a.code,
+                        ) -
+                        ["launch", "growth", "premium", "advanced"].indexOf(
+                          b.code,
+                        ),
+                    )
+                    .map((pkg: Row) => (
+                      <article key={pkg.id}>
+                        <div>
+                          <strong>
+                            {pkg.name}
+                            {pkg.code === "advanced" ? " / Ecommerce" : ""}
+                          </strong>
+                          <small>
+                            {pkg.code === "advanced"
+                              ? "Starts at"
+                              : "Customer price"}
+                          </small>
+                        </div>
+                        <span>{money(pkg.price_cents)}</span>
+                        <div>
+                          <strong>{money(pkg.commission_cents)}</strong>
+                          <small>Fixed commission</small>
+                        </div>
+                      </article>
+                    ))}
                 </div>
               </State>
               <div className="notice">
-                Your assigned code gives the customer 2% off when entered during Stripe checkout. Your fixed commission is unchanged. A commission is created only after Pixelalty verifies a successful payment using your assigned code.
+                Your sales code is how Pixelalty knows a paid customer came from
+                you. Give your code to the customer and ask them to enter it in
+                the Promotion Code field during Stripe checkout. The customer
+                receives 2% off, and your fixed commission is unchanged. After
+                Stripe confirms a successful payment using your code, the sale
+                is automatically attributed to your account and your fixed
+                commission is recorded. If the customer does not enter your code
+                during checkout, the sale may not be automatically credited to
+                you.
               </div>
               <SalesCode />
             </Card>
             <Card title="2. How the CRM works" className="essential-section">
               <ol className="crm-steps">
-                {["Claim an available lead.","Contact the business.","Record the factual outcome and useful notes.","Schedule a follow-up when needed.","Create or update the current deal and checkout.","Give the customer your assigned sales code.","The customer pays through Stripe.","A verified payment using your code creates the attributed sale and fixed commission."].map((step, index) => <li key={step}><span>{index + 1}</span><p>{step}</p></li>)}
+                {[
+                  "Get or claim an available lead.",
+                  "Contact the business.",
+                  "Record what happened.",
+                  "Add useful factual notes.",
+                  "Schedule a follow-up when needed.",
+                  "If the customer wants to buy, use the current deal and checkout flow.",
+                  "Give the customer your assigned 2% sales code.",
+                  "The customer pays through Stripe.",
+                  "A verified successful payment using your code creates your sale and fixed commission.",
+                ].map((step, index) => (
+                  <li key={step}>
+                    <span>{index + 1}</span>
+                    <p>{step}</p>
+                  </li>
+                ))}
               </ol>
             </Card>
             <Card className="essential-completion">
               {completed ? (
-                <div className="completion-success"><Check size={21} aria-hidden="true" /><div><strong>Pixelalty Essentials completed</strong><p>Your completion is saved to your account and remains available on every device.</p></div></div>
+                <div className="completion-success">
+                  <Check size={21} aria-hidden="true" />
+                  <div>
+                    <strong>Pixelalty Essentials completed</strong>
+                    <p>
+                      Your completion is saved to your account and remains
+                      available on every device.
+                    </p>
+                  </div>
+                </div>
               ) : (
                 <>
-                  <label className="consent-check"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} /> I have read and understand Pixelalty Essentials.</label>
-                  <button className="primary" disabled={!acknowledged} onClick={() => app.run(() => app.mutate("essentials_complete", { acknowledged: true }))}>Complete Getting Started <Check size={16} /></button>
+                  <label className="consent-check">
+                    <input
+                      type="checkbox"
+                      checked={acknowledged}
+                      onChange={(event) =>
+                        setAcknowledged(event.target.checked)
+                      }
+                    />{" "}
+                    I have read and understand Pixelalty Essentials.
+                  </label>
+                  <button
+                    className="primary"
+                    disabled={!acknowledged}
+                    onClick={() =>
+                      app.run(() =>
+                        app.mutate("essentials_complete", {
+                          acknowledged: true,
+                        }),
+                      )
+                    }
+                  >
+                    Complete Getting Started <Check size={16} />
+                  </button>
                 </>
               )}
             </Card>
@@ -868,27 +960,74 @@ export function Support() {
     <>
       <Heading
         eyebrow="PIXELALTY SUPPORT"
-        title="Need help right now?"
-        description="Choose the fastest channel for your question, or open a ticket for account-specific help."
+        title="Pixelalty Support"
+        description="Need help, have a question, or want the latest CRM updates? Choose an option below."
       />
       <div className="support-grid">
-        <Card title="Direct WhatsApp" className="support-channel">
-          <p>Message Pixelalty Support directly for quick help.</p>
-          <img src="/support/whatsapp-direct.png" alt="QR code that opens the direct Pixelalty Support WhatsApp chat" />
-          <a className="button primary" href="https://wa.me/12392870299?s=p" target="_blank" rel="noopener noreferrer">Open WhatsApp <ExternalLink size={15} /></a>
+        <Card title="Message Pixelalty Support" className="support-channel">
+          <p>
+            For account questions, CRM issues, payout questions, or anything
+            else you need help with.
+          </p>
+          <img
+            src="/support/whatsapp-direct.png"
+            alt="QR code that opens the direct Pixelalty Support WhatsApp chat"
+          />
+          <a
+            className="button primary"
+            href="https://wa.me/12392870299?s=p"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Message Pixelalty <ExternalLink size={15} />
+          </a>
         </Card>
-        <Card title="Pixelalty updates" className="support-channel">
-          <p>Follow the official WhatsApp channel for platform updates.</p>
-          <img src="/support/whatsapp-updates.png" alt="QR code that opens the official Pixelalty WhatsApp updates channel" />
-          <a className="button primary" href="https://whatsapp.com/channel/0029Vb9T6Y2DJ6GvZaXRnb2F" target="_blank" rel="noopener noreferrer">Open updates channel <ExternalLink size={15} /></a>
+        <Card title="Pixelalty Updates" className="support-channel">
+          <p>
+            Follow the Pixelalty Updates WhatsApp channel for CRM changes,
+            fixes, new features, and important rep announcements.
+          </p>
+          <img
+            src="/support/whatsapp-updates.png"
+            alt="QR code that opens the official Pixelalty WhatsApp updates channel"
+          />
+          <a
+            className="button primary"
+            href="https://whatsapp.com/channel/0029Vb9T6Y2DJ6GvZaXRnb2F"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Follow Pixelalty Updates <ExternalLink size={15} />
+          </a>
         </Card>
-        <Card title="Instagram" className="support-channel compact">
-          <p>Visit Pixelalty on Instagram for brand updates and announcements.</p>
-          <a className="button primary" href="https://www.instagram.com/pixelalty/" target="_blank" rel="noopener noreferrer">Open @pixelalty <ExternalLink size={15} /></a>
+        <Card title="Pixelalty Instagram" className="support-channel compact">
+          <p>
+            Visit Pixelalty on Instagram for brand updates and announcements.
+          </p>
+          <a
+            className="button primary"
+            href="https://www.instagram.com/pixelalty/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open Instagram <ExternalLink size={15} />
+          </a>
         </Card>
-        <Card title="Email" className="support-channel compact">
-          <p><a href="mailto:support@pixelalty.com">support@pixelalty.com</a></p>
-          <div className="button-row"><a className="button primary" href="mailto:support@pixelalty.com"><Mail size={15} /> Email support</a><button onClick={() => void copyEmail()}><Copy size={15} /> Copy</button></div>
+        <Card
+          title="Email Pixelalty Support"
+          className="support-channel compact"
+        >
+          <p>
+            <a href="mailto:support@pixelalty.com">support@pixelalty.com</a>
+          </p>
+          <div className="button-row">
+            <a className="button primary" href="mailto:support@pixelalty.com">
+              <Mail size={15} /> Email Support
+            </a>
+            <button onClick={() => void copyEmail()}>
+              <Copy size={15} /> Copy Email
+            </button>
+          </div>
         </Card>
       </div>
       <Card title="Open a support ticket">
