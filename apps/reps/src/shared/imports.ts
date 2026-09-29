@@ -1,5 +1,52 @@
 import { normalizeLead, normalizePhone, timezone, type Row } from "./core";
 
+const importAliases: Record<string, string[]> = {
+  name: ["business", "businessname", "company", "companyname", "name"],
+  phone: [
+    "phone",
+    "phonenumber",
+    "telephone",
+    "telephonenumber",
+    "mainphone",
+    "mainbusinessphone",
+    "businessphone",
+    "businessphonenumber",
+    "mobile",
+    "mobilephone",
+    "tel",
+  ],
+  website: ["website", "url", "domain"],
+  timezone: ["timezone", "tz"],
+  contact: ["contact", "contactname", "askfor", "owner", "decisionmaker"],
+  external_id: ["externalid", "placeid", "googleplaceid"],
+  google_url: ["googleurl", "googlebusinessurl", "businessprofile"],
+  rating: ["rating", "googlerating"],
+  review_count: ["reviews", "reviewcount"],
+  zip: ["zip", "zipcode", "postalcode"],
+  source: ["source", "leadsource"],
+  tags: ["tags", "tag"],
+  website_assessment: [
+    "websitenotes",
+    "websiteassessment",
+    "websitestatus",
+  ],
+};
+
+export function suggestImportMapping(fields: string[], headers: string[]) {
+  const normalized = headers.map((value) => ({
+    value,
+    key: value.toLowerCase().replace(/[^a-z0-9]/g, ""),
+  }));
+  return Object.fromEntries(
+    fields.map((field) => [
+      field,
+      normalized.find((candidate) =>
+        (importAliases[field] || [field]).includes(candidate.key),
+      )?.value || "",
+    ]),
+  );
+}
+
 export function importMappingError(mapping: Record<string, string>, zone = "") {
   if (!mapping.name) return "Choose the column containing each business name.";
   if (!mapping.phone)
