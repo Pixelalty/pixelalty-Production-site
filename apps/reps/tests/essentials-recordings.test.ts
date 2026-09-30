@@ -123,6 +123,10 @@ test("Essentials and private call recordings persist with real SQL and RLS", asy
       recorded_at: new Date().toISOString(),
       consent_confirmed: true,
     });
+    await assert.rejects(
+      rpc(db, "px_action", "recording_finalize", { id: reservation.id }),
+      /uploaded recording could not be verified/i,
+    );
     await db.query(
       "insert into storage.objects(bucket_id,name,metadata) values('call-recordings',$1,$2::jsonb)",
       [
@@ -158,6 +162,16 @@ test("Essentials and private call recordings persist with real SQL and RLS", asy
     assert.ok(mine.rows[0].consent_confirmed_at);
 
     await actor(db, other);
+    for (const action of [
+      "recording_access",
+      "recording_finalize",
+      "recording_delete_begin",
+    ]) {
+      await assert.rejects(
+        rpc(db, "px_action", action, { id: reservation.id, confirmed: true }),
+      );
+    }
+    await assert.rejects(rpc(db, "px_report", "recordings", { admin: true }));
     assert.equal(
       (await db.query("select id from public.px_call_recordings")).rows.length,
       0,
@@ -172,6 +186,22 @@ test("Essentials and private call recordings persist with real SQL and RLS", asy
     );
 
     await actor(db, owner, "aal2");
+    await rpc(db, "px_action", "recording_access", {
+      id: reservation.id,
+      download: false,
+    });
+    await rpc(db, "px_action", "recording_access", {
+      id: reservation.id,
+      download: true,
+    });
+    const accessAudit = await db.query<{ action: string }>(
+      "select action from px_audit where target_id=$1 and actor_id=$2 order by action",
+      [reservation.id, owner],
+    );
+    assert.deepEqual(
+      accessAudit.rows.map((row) => row.action),
+      ["recording_download", "recording_playback"],
+    );
     await assert.rejects(
       rpc(db, "px_action", "content", {
         kind: "quiz",
@@ -205,17 +235,28 @@ test("Essentials and private call recordings persist with real SQL and RLS", asy
     const changed = await rpc(db, "px_report", "recordings", { admin: true });
     assert.equal(changed.usage.quota_bytes, 800_000_000);
 
-    await actor(db, rep);
+    await assert.rejects(
+      rpc(db, "px_action", "recording_delete_begin", {
+        id: reservation.id,
+        confirmed: true,
+      }),
+      /deletion reason/i,
+    );
     await rpc(db, "px_action", "recording_delete_begin", {
       id: reservation.id,
       confirmed: true,
+      reason: "Remove the disposable recording fixture",
     });
+    await assert.rejects(
+      rpc(db, "px_action", "recording_delete_complete", { id: reservation.id }),
+      /still in private storage/i,
+    );
     await service(db);
     await db.query(
       "delete from storage.objects where bucket_id='call-recordings' and name=$1",
       [reservation.object_key],
     );
-    await actor(db, rep);
+    await actor(db, owner, "aal2");
     await rpc(db, "px_action", "recording_delete_complete", {
       id: reservation.id,
     });
@@ -227,6 +268,14 @@ test("Essentials and private call recordings persist with real SQL and RLS", asy
         )
       ).rows[0].status,
       "deleted",
+    );
+    const deletionAudit = await db.query<{ action: string }>(
+      "select action from px_audit where target_id=$1 and actor_id=$2 and action like 'recording_delete%' order by action",
+      [reservation.id, owner],
+    );
+    assert.deepEqual(
+      deletionAudit.rows.map((row) => row.action),
+      ["recording_delete_begin", "recording_delete_complete"],
     );
   } finally {
     await db.close();

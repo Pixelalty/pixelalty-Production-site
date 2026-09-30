@@ -13,8 +13,18 @@ import {
   Trash2,
   Volume2,
 } from "lucide-react";
-import { api, Card, Heading, Modal, State, useApp, useData } from "./lib";
+import {
+  api,
+  ApiError,
+  Card,
+  Heading,
+  Modal,
+  State,
+  useApp,
+  useData,
+} from "./lib";
 import type { Row } from "../shared/core";
+import { BusinessDetails } from "./details";
 
 export const RECORDING_MAX_BYTES = 45_000_000;
 export const RECORDING_MAX_SECONDS = 3_000;
@@ -156,6 +166,7 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
   const [elapsed, setElapsed] = useState(0);
   const [bytes, setBytes] = useState(0);
   const [level, setLevel] = useState(0);
+  const [microphoneBusy, setMicrophoneBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [blob, setBlob] = useState<Blob | null>(null);
@@ -180,12 +191,15 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
   const [progress, setProgress] = useState(0);
   const [requestId, setRequestId] = useState(crypto.randomUUID());
   const [reservationId, setReservationId] = useState("");
+  const [saveFailed, setSaveFailed] = useState(false);
   const recorder = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const chunks = useRef<Blob[]>([]);
   const seconds = useRef(0);
   const animation = useRef(0);
   const audioContext = useRef<AudioContext | null>(null);
+  const microphoneOperation = useRef(false);
+  const mounted = useRef(true);
 
   const releaseStream = () => {
     cancelAnimationFrame(animation.current);
@@ -223,17 +237,25 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
         echoCancellation,
       ),
     });
+    if (!mounted.current) {
+      next.getTracks().forEach((track) => track.stop());
+      throw Error("Microphone request cancelled.");
+    }
     stream.current = next;
     attachMeter(next);
     return next;
   };
   const refreshDevices = async () => {
+    if (microphoneOperation.current) return;
+    microphoneOperation.current = true;
+    setMicrophoneBusy(true);
     setError("");
     try {
       const permissionStream = await navigator.mediaDevices.getUserMedia({
         audio: true,
       });
       permissionStream.getTracks().forEach((track) => track.stop());
+      if (!mounted.current) return;
       const inputs = (await navigator.mediaDevices.enumerateDevices()).filter(
         (device) => device.kind === "audioinput",
       );
@@ -249,20 +271,27 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
           "No microphone was found. Connect one, then refresh microphones.",
         );
     } catch (cause) {
+      if (!mounted.current) return;
       setPermission("denied");
       setError(
         cause instanceof DOMException && cause.name === "NotAllowedError"
           ? "Microphone access is blocked. Allow microphone access in your browser settings, then refresh microphones."
           : "The microphone could not be opened. Check the device and browser permission, then retry.",
       );
+    } finally {
+      microphoneOperation.current = false;
+      if (mounted.current) setMicrophoneBusy(false);
     }
   };
   const testMicrophone = async () => {
+    if (microphoneOperation.current || status !== "idle") return;
+    microphoneOperation.current = true;
+    setMicrophoneBusy(true);
     setError("");
     setNotice(
       "Recording a private three-second microphone test. It will not be uploaded.",
     );
-    if (testUrl) URL.revokeObjectURL(testUrl);
+    setTestUrl("");
     try {
       const selectedFormat = supportedRecordingFormat();
       if (!selectedFormat)
@@ -279,8 +308,11 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
         test.onerror = () => reject(Error("The microphone test failed."));
         test.onstop = () => resolve();
         test.start(500);
-        window.setTimeout(() => test.stop(), 3_000);
+        window.setTimeout(() => {
+          if (test.state !== "inactive") test.stop();
+        }, 3_000);
       });
+      if (!mounted.current) return;
       const clip = new Blob(parts, { type: selectedFormat.mime });
       if (!clip.size)
         throw Error(
@@ -291,14 +323,18 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
         "Microphone test complete. Play it below; this clip stays on this device and is never uploaded.",
       );
     } catch (cause) {
+      if (!mounted.current) return;
       setError(
         cause instanceof Error ? cause.message : "The microphone test failed.",
       );
     } finally {
       releaseStream();
+      microphoneOperation.current = false;
+      if (mounted.current) setMicrophoneBusy(false);
     }
   };
   const start = async () => {
+    if (microphoneOperation.current || status !== "idle") return;
     setError("");
     setNotice("");
     if (!consent)
@@ -310,6 +346,8 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
       return setError(
         "This browser does not support a compatible Opus or AAC recording format.",
       );
+    microphoneOperation.current = true;
+    setMicrophoneBusy(true);
     try {
       const input = await getStream();
       const next = new MediaRecorder(input, {
@@ -365,6 +403,7 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
       setStatus("recording");
     } catch (cause) {
       releaseStream();
+      if (!mounted.current) return;
       setError(
         cause instanceof DOMException && cause.name === "NotAllowedError"
           ? "Microphone access is blocked. Allow it in browser settings and try again."
@@ -372,6 +411,9 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
             ? cause.message
             : "Recording could not start.",
       );
+    } finally {
+      microphoneOperation.current = false;
+      if (mounted.current) setMicrophoneBusy(false);
     }
   };
   const stop = () => {
@@ -393,6 +435,7 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
     setBlob(null);
     setPreviewUrl("");
     setReservationId("");
+    setSaveFailed(false);
     setRequestId(crypto.randomUUID());
     setProgress(0);
     setStatus("idle");
@@ -412,7 +455,13 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
         action: "recording_begin",
         p: {
           request_id: requestId,
-          business_id: businessId || null,
+          business_id:
+            businessId ||
+            options.data?.calls?.find((row: Row) => row.id === callId)
+              ?.business_id ||
+            options.data?.deals?.find((row: Row) => row.id === dealId)
+              ?.business_id ||
+            null,
           call_id: callId || null,
           deal_id: dealId || null,
           title,
@@ -441,6 +490,7 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
       setBlob(null);
       setPreviewUrl("");
       setReservationId("");
+      setSaveFailed(false);
       setRequestId(crypto.randomUUID());
       setProgress(0);
       setStatus("idle");
@@ -453,8 +503,9 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
       onSaved();
     } catch (cause) {
       setStatus("review");
+      setSaveFailed(true);
       setError(
-        `The upload was not completed. Your audio is still here—use Retry save. ${cause instanceof Error ? cause.message : ""}`.trim(),
+        `${cause instanceof ApiError ? cause.message + " " : ""}The upload was not completed. Your audio is still here. Check your connection and use Retry save. Keep this page open until it is saved.`,
       );
     }
   };
@@ -489,13 +540,30 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [status]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      if (recorder.current) {
+        recorder.current.ondataavailable = null;
+        recorder.current.onstop = null;
+        recorder.current.onerror = null;
+        if (recorder.current.state !== "inactive") recorder.current.stop();
+      }
+      releaseStream();
+    };
+  }, []);
   useEffect(
     () => () => {
-      releaseStream();
       if (previewUrl) URL.revokeObjectURL(previewUrl);
+    },
+    [previewUrl],
+  );
+  useEffect(
+    () => () => {
       if (testUrl) URL.revokeObjectURL(testUrl);
     },
-    [previewUrl, testUrl],
+    [testUrl],
   );
 
   return (
@@ -520,7 +588,7 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
           <select
             value={deviceId}
             onChange={(event) => setDeviceId(event.target.value)}
-            disabled={status !== "idle"}
+            disabled={status !== "idle" || microphoneBusy}
           >
             {!devices.length && (
               <option value="">
@@ -539,7 +607,7 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
         <div className="button-row">
           <button
             onClick={() => void refreshDevices()}
-            disabled={!["idle", "review"].includes(status)}
+            disabled={microphoneBusy || !["idle", "review"].includes(status)}
           >
             <RefreshCw size={15} />{" "}
             {permission === "unknown"
@@ -548,7 +616,12 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
           </button>
           <button
             onClick={() => void testMicrophone()}
-            disabled={status !== "idle" || permission !== "ready" || !deviceId}
+            disabled={
+              microphoneBusy ||
+              status !== "idle" ||
+              permission !== "ready" ||
+              !deviceId
+            }
           >
             <Volume2 size={15} /> Test microphone
           </button>
@@ -581,7 +654,7 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
             type="checkbox"
             checked={noiseSuppression}
             onChange={(e) => setNoiseSuppression(e.target.checked)}
-            disabled={status !== "idle"}
+            disabled={status !== "idle" || microphoneBusy}
           />{" "}
           Noise suppression
         </label>
@@ -590,7 +663,7 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
             type="checkbox"
             checked={autoGainControl}
             onChange={(e) => setAutoGainControl(e.target.checked)}
-            disabled={status !== "idle"}
+            disabled={status !== "idle" || microphoneBusy}
           />{" "}
           Automatic gain
         </label>
@@ -599,7 +672,7 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
             type="checkbox"
             checked={echoCancellation}
             onChange={(e) => setEchoCancellation(e.target.checked)}
-            disabled={status !== "idle"}
+            disabled={status !== "idle" || microphoneBusy}
           />{" "}
           Echo cancellation
         </label>
@@ -617,7 +690,9 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
           </label>
           <button
             className="primary"
-            disabled={!consent || permission !== "ready" || !deviceId}
+            disabled={
+              microphoneBusy || !consent || permission !== "ready" || !deviceId
+            }
             onClick={() => void start()}
           >
             <Mic size={16} /> Start recording
@@ -781,7 +856,7 @@ function Recorder({ onSaved }: { onSaved: () => void }) {
               onClick={() => void save()}
             >
               <Save size={16} />{" "}
-              {reservationId ? "Retry save" : "Save privately"}
+              {saveFailed || reservationId ? "Retry save" : "Save privately"}
             </button>
             <button
               disabled={status === "saving"}
@@ -1059,6 +1134,7 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
   const [reason, setReason] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [relatedBusiness, setRelatedBusiness] = useState<string | null>(null);
   const filterQuery = admin
     ? `&rep_id=${encodeURIComponent(filters.repId)}&business=${encodeURIComponent(filters.business)}&date_from=${encodeURIComponent(filters.dateFrom)}&date_to=${encodeURIComponent(filters.dateTo)}&min_duration=${encodeURIComponent(filters.minDuration)}&max_duration=${encodeURIComponent(filters.maxDuration)}`
     : "";
@@ -1326,18 +1402,14 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
                     <div className="button-row">
                       {row.business_id && (
                         <button
-                          onClick={() =>
-                            app.navigate(`/leads?business=${row.business_id}`)
-                          }
+                          onClick={() => setRelatedBusiness(row.business_id)}
                         >
                           Open related lead
                         </button>
                       )}
                       {row.call_id && row.business_id && (
                         <button
-                          onClick={() =>
-                            app.navigate(`/leads?business=${row.business_id}`)
-                          }
+                          onClick={() => setRelatedBusiness(row.business_id)}
                         >
                           Open related call
                         </button>
@@ -1381,6 +1453,12 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
           </div>
         </Card>
       </State>
+      {relatedBusiness && (
+        <BusinessDetails
+          id={relatedBusiness}
+          onClose={() => setRelatedBusiness(null)}
+        />
+      )}
       {remove && (
         <Modal title="Delete recording" onClose={() => setRemove(null)}>
           <p>

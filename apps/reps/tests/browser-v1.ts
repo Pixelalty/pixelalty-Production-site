@@ -34,10 +34,10 @@ page.on("response", (r) => {
   if (r.url().includes("/api/") && r.status() >= 400)
     failures.push(r.status() + " " + r.url());
 });
-const login = async (email: string) => {
+const login = async (email: string, password = "Valid-password-123") => {
   await page.goto(fixture.base);
   await page.getByLabel("Email", { exact: true }).fill(email);
-  await page.getByLabel("Password", { exact: true }).fill("Valid-password-123");
+  await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.locator(".sidebar").waitFor();
 };
@@ -479,8 +479,24 @@ try {
     .getByRole("button", { name: "Test microphone", exact: true })
     .waitFor();
   await page
+    .getByLabel(
+      "I confirm that all participants have been informed of and consent to this recording.",
+    )
+    .check();
+  await page
     .getByRole("button", { name: "Test microphone", exact: true })
     .click();
+  for (const name of [
+    "Test microphone",
+    "Start recording",
+    "Refresh microphones",
+  ]) {
+    assert.equal(
+      await page.getByRole("button", { name, exact: true }).isEnabled(),
+      false,
+      `${name} must wait for the microphone test`,
+    );
+  }
   await page.waitForFunction(() => {
     const label = document
       .querySelector(".input-meter")
@@ -495,25 +511,35 @@ try {
     .waitFor();
   const testPlayback = page.getByLabel("Local microphone test playback");
   await testPlayback.waitFor();
-  await page
-    .getByRole("button", { name: "Discard test clip", exact: true })
-    .click();
-  await testPlayback.waitFor({ state: "hidden" });
-  await page
-    .getByText("Microphone test discarded. Nothing was uploaded.", {
-      exact: true,
-    })
-    .waitFor();
-  await page
-    .getByLabel(
-      "I confirm that all participants have been informed of and consent to this recording.",
-    )
-    .check();
+  await testPlayback.evaluate(async (audio: HTMLAudioElement) => {
+    await audio.play();
+  });
+  await page.waitForFunction(
+    () =>
+      (document.querySelector(".test-audio") as HTMLAudioElement)?.currentTime >
+      0,
+  );
+  await testPlayback.evaluate((audio: HTMLAudioElement) => audio.pause());
   await page
     .getByRole("button", { name: "Start recording", exact: true })
     .click();
   await page.getByText("Recording", { exact: true }).waitFor();
+  // Discarding the earlier test must never stop the separate call stream.
+  await page
+    .getByRole("button", { name: "Discard test clip", exact: true })
+    .click();
+  await testPlayback.waitFor({ state: "hidden" });
   await page.waitForTimeout(1100);
+  assert.equal(
+    await page.getByText("Recording", { exact: true }).isVisible(),
+    true,
+  );
+  await page.waitForFunction(() => {
+    const label = document
+      .querySelector(".input-meter")
+      ?.getAttribute("aria-label");
+    return Boolean(label && !label.endsWith("0 percent"));
+  });
   await page.getByRole("button", { name: "Pause", exact: true }).click();
   await page.getByRole("button", { name: "Resume", exact: true }).click();
   await page.waitForTimeout(500);
@@ -523,6 +549,16 @@ try {
     .getByRole("heading", { name: "Review before saving", exact: true })
     .waitFor();
   await page.getByLabel("Title (optional)").fill("Browser room-audio test");
+  const contextCall = (
+    await fixture.db.query<{ id: string; business_id: string }>(
+      "select id,business_id from px_calls where rep_id=$1 order by created_at desc limit 1",
+      [fixture.rep],
+    )
+  ).rows[0];
+  await page
+    .getByLabel("Business (optional)")
+    .selectOption(contextCall.business_id);
+  await page.getByLabel("Call (optional)").selectOption(contextCall.id);
   await page
     .getByRole("button", { name: "Save privately", exact: false })
     .click();
@@ -532,6 +568,10 @@ try {
     .waitFor();
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await page.getByLabel("Recording Browser room-audio test playback").waitFor();
+  assert.equal(
+    await page.getByRole("button", { name: "Download", exact: true }).count(),
+    0,
+  );
   checks.push(
     "Fake-device browser flow records, pauses, resumes, marks, resumably uploads, persists and authorizes playback",
   );
@@ -605,6 +645,99 @@ try {
     fullPage: true,
     timeout: 5000,
   });
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await login("new@example.test");
+  await go("/recordings");
+  assert.equal(
+    await page
+      .getByRole("heading", { name: "Browser room-audio test", exact: true })
+      .count(),
+    0,
+  );
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await login("owner@example.test", "Replacement-password-123");
+  await go("/admin/recordings");
+  await page
+    .getByRole("heading", { name: "Browser room-audio test", exact: true })
+    .waitFor();
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  const adminAudio = page.getByLabel(
+    "Recording Browser room-audio test playback",
+  );
+  await adminAudio.evaluate(async (audio: HTMLAudioElement) => {
+    await audio.play();
+  });
+  await page.waitForFunction(
+    () =>
+      (document.querySelector(".recording-player audio") as HTMLAudioElement)
+        ?.currentTime > 0,
+  );
+  await adminAudio.evaluate((audio: HTMLAudioElement) => audio.pause());
+  await page.getByLabel("Speed").selectOption("1.5");
+  assert.equal(
+    await adminAudio.evaluate((audio: HTMLAudioElement) => audio.playbackRate),
+    1.5,
+  );
+  await page
+    .getByRole("button", { name: "Back 10 seconds", exact: true })
+    .click();
+  assert.equal(
+    await adminAudio.evaluate((audio: HTMLAudioElement) => audio.currentTime),
+    0,
+  );
+  const downloaded = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download", exact: true }).click();
+  const recordingDownload = await downloaded;
+  assert.match(
+    recordingDownload.suggestedFilename(),
+    /^pixelalty-call-.*\.webm$/,
+  );
+  assert.equal(await recordingDownload.failure(), null);
+  await page
+    .getByRole("button", { name: "Open related call", exact: true })
+    .click();
+  await page.getByRole("dialog").waitFor();
+  await page.keyboard.press("Escape");
+  await go("/admin/recordings");
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  const deleteDialog = page.getByRole("dialog", { name: "Delete recording" });
+  assert.equal(
+    await deleteDialog
+      .getByRole("button", { name: "Delete recording", exact: true })
+      .isEnabled(),
+    false,
+  );
+  await deleteDialog
+    .getByLabel("Audit reason")
+    .fill("Delete disposable browser recording fixture");
+  await deleteDialog
+    .getByLabel("I understand this recording will be permanently deleted.")
+    .check();
+  await deleteDialog
+    .getByRole("button", { name: "Delete recording", exact: true })
+    .click();
+  await deleteDialog.waitFor({ state: "hidden" });
+  await page
+    .getByText("Recording deleted from private storage.", { exact: true })
+    .waitFor();
+  assert.equal(
+    fixture.storedFiles.size > 0 &&
+      [...fixture.storedFiles.keys()].some((key) =>
+        key.startsWith("call-recordings/"),
+      ),
+    false,
+  );
+  const recordingAudit = await fixture.db.query<{ action: string }>(
+    "select action from px_audit where actor_id=$1 and action in ('recording_playback','recording_download','recording_delete_complete') order by action",
+    [fixture.owner],
+  );
+  assert.deepEqual(
+    recordingAudit.rows.map((row) => row.action),
+    ["recording_delete_complete", "recording_download", "recording_playback"],
+  );
+  checks.push(
+    "Admin plays real recorded bytes, changes speed, seeks, downloads, opens CRM context and deletes with an audit; another rep sees no recording",
+  );
   assert.deepEqual(failures, []);
   assert.deepEqual(errors, []);
   await writeFile(

@@ -719,6 +719,81 @@ test("PostgreSQL contention preserves assignment and financial invariants", asyn
         );
       },
     );
+    await t.test(
+      "recording reservations count pending bytes and retry once under contention",
+      async () => {
+        await control.query(
+          "update px_settings set value=jsonb_set(value,'{recording_quota_bytes}','100000000') where id",
+        );
+        await Promise.all(clients.map((c) => identity(c, rep)));
+        const recording = (request_id: string) => ({
+          request_id,
+          title: "Concurrency recording fixture",
+          note: "",
+          markers: [],
+          mime_type: "audio/webm",
+          codec: "opus",
+          size_bytes: 45_000_000,
+          duration_seconds: 3000,
+          device_label: "Test microphone",
+          recorded_at: new Date().toISOString(),
+          consent_confirmed: true,
+        });
+        const reservations = await contend(
+          "select id from px_settings where id for update",
+          [],
+          (c) =>
+            rpc(
+              c,
+              "px_action",
+              "recording_begin",
+              recording(crypto.randomUUID()),
+            ),
+        );
+        assert.equal(
+          reservations.filter((r) => r.status === "fulfilled").length,
+          2,
+        );
+        for (const result of reservations)
+          if (result.status === "rejected")
+            assert.match(String(result.reason), /storage is full/);
+        assert.equal(
+          Number(
+            (
+              await control.query(
+                "select sum(size_bytes) n from px_call_recordings where status='uploading'",
+              )
+            ).rows[0].n,
+          ),
+          90_000_000,
+        );
+        const first = reservations.find(
+          (r) => r.status === "fulfilled",
+        ) as PromiseFulfilledResult<any>;
+        const retries = successful(
+          await contend(
+            "select id from px_settings where id for update",
+            [],
+            (c) =>
+              rpc(
+                c,
+                "px_action",
+                "recording_begin",
+                recording(first.value.request_id),
+              ),
+          ),
+        );
+        assert.ok(retries.every((r) => r.id === first.value.id));
+        assert.equal(
+          (
+            await control.query(
+              "select count(*)::int n from px_call_recordings",
+            )
+          ).rows[0].n,
+          2,
+        );
+      },
+    );
   } finally {
     await Promise.allSettled(clients.map((c) => c.end()));
     await control.end();
