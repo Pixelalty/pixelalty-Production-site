@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { diagnosticError } from "./diagnostics";
 import { type Env, HttpError } from "./types";
 import type { Row } from "../shared/core";
 export function client(env: Env, token?: string, admin = false) {
@@ -59,6 +60,12 @@ export async function rpc(db: SupabaseClient, name: string, args: Row = {}) {
       "This change could not be saved. Please try again or contact Pixelalty support.",
       "DATABASE_" +
         (/^[A-Z0-9]{5}$/.test(error.code) ? error.code : "UNAVAILABLE"),
+      undefined,
+      diagnosticError(
+        new Error(
+          error.message.replace(/Failing row contains.*/is, "[row redacted]"),
+        ),
+      ).detail,
     );
   }
   return data;

@@ -71,10 +71,10 @@ export function workspacePages(ctx: Row): WorkspacePage[] {
       );
       add(
         "/leads",
-        "My leads",
+        "Leads",
         "My sales",
         Users,
-        "Assigned businesses, search and notes",
+        "Browse available businesses, claim leads and follow up",
       );
       add(
         "/followups",
@@ -172,13 +172,13 @@ export function workspacePages(ctx: Row): WorkspacePage[] {
       "Rep accounts, onboarding readiness and activation",
     );
   }
-  if (has("manager"))
+  if (!has("sales_admin") && ["finance_admin", "support", "manager"].some(has))
     add(
-      "/team",
-      "My team",
+      "/admin/reps",
+      "Reps",
       "People",
-      Users,
-      "Your assigned reps and businesses",
+      UserCircle,
+      "Rep accounts available to your role",
     );
   if (has("finance_admin")) {
     add(
@@ -211,7 +211,7 @@ export function workspacePages(ctx: Row): WorkspacePage[] {
       ShieldCheck,
       "Do-not-call suppression and compliance records",
     );
-  if (has("support"))
+  if (has("support") || has("sales_admin"))
     add(
       "/admin/support",
       "Support inbox",
@@ -219,13 +219,13 @@ export function workspacePages(ctx: Row): WorkspacePage[] {
       HelpCircle,
       "Answer rep support requests",
     );
-  if (has("content_admin"))
+  if (has("sales_admin") || has("finance_admin"))
     add(
-      "/admin/content",
-      "Training & content",
-      "Resources",
-      BookOpen,
-      "Publish lessons, quizzes, scripts and agreements",
+      "/admin/sales-settings",
+      "Sales settings",
+      "Settings & account",
+      Settings,
+      "Packages, prices and prospective commissions",
     );
   add(
     "/academy",
@@ -483,7 +483,7 @@ export function PageFinder({
       </ul>
       {!matches.length && (
         <div className="state">
-          No matching pages. Try “leads”, “settings” or “training”.
+          No matching pages. Try “leads”, “settings” or “Essentials”.
         </div>
       )}
     </Modal>

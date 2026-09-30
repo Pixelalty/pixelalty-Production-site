@@ -21,6 +21,7 @@ import {
   Modal,
   State,
   useApp,
+  PersonLink,
   useData,
 } from "./lib";
 import type { Row } from "../shared/core";
@@ -938,6 +939,13 @@ function RecordingPlayer({ row, admin }: { row: Row; admin: boolean }) {
           <audio
             ref={audio}
             controls
+            autoPlay
+            onError={() =>
+              setError(
+                "Playback could not start or the link expired. Refresh playback and try again.",
+              )
+            }
+            onPlaying={() => setError("")}
             src={url}
             preload="metadata"
             aria-label={`Recording ${row.title || row.business_name || "untitled"} playback`}
@@ -1001,12 +1009,15 @@ function RecordingPlayer({ row, admin }: { row: Row; admin: boolean }) {
       )}
       {admin && (
         <button onClick={() => void download()} disabled={loading}>
-          <Download size={15} /> Download
+          <Download size={15} /> Download recording
         </button>
       )}
       {error && (
         <div className="notice error" role="alert">
           {error}
+          <button disabled={loading} onClick={() => void open()}>
+            Refresh playback
+          </button>
         </div>
       )}
     </div>
@@ -1372,7 +1383,11 @@ export function Recordings({ admin = false }: { admin?: boolean }) {
                         {row.title || row.business_name || "Call recording"}
                       </h3>
                       <p>
-                        {admin && `${row.rep_name} · `}
+                        {admin && (
+                          <>
+                            <PersonLink row={row} /> ·{" "}
+                          </>
+                        )}
                         {row.business_name ? `${row.business_name} · ` : ""}
                         {new Date(row.recorded_at).toLocaleString()}
                       </p>

@@ -176,3 +176,16 @@ test("a valid signed unsupported event is logged only through the service bounda
     globalThis.fetch = original;
   }
 });
+
+test("the production media policy permits the configured private recording origin", async () => {
+  const response = await worker.fetch(request("/recordings"), env);
+  const policy = response.headers.get("content-security-policy") || "";
+  const media = policy
+    .split(";")
+    .find((directive) => directive.trim().startsWith("media-src"));
+  assert.equal(
+    media?.trim(),
+    "media-src 'self' blob: https://database.example.test",
+  );
+  assert.ok(!media?.includes("*"));
+});

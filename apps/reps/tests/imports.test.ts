@@ -27,13 +27,10 @@ test("the actual Pixelalty lead headers map Main Phone instead of the row number
   });
 });
 
-test("imports require explicit business, phone and timezone mapping before staging", () => {
+test("imports require business and phone mapping; location lookup replaces a mandatory timezone", () => {
   assert.match(importMappingError({}, ""), /business name/);
   assert.match(importMappingError({ name: "Business" }), /telephone/);
-  assert.match(
-    importMappingError({ name: "Business", phone: "Phone" }),
-    /timezone/,
-  );
+  assert.equal(importMappingError({ name: "Business", phone: "Phone" }), "");
   assert.match(
     importMappingError({ name: "Business", phone: "Business" }, "UTC"),
     /mapped once/,
@@ -80,7 +77,7 @@ test("row-number phone mapping and missing timezone produce actionable preview e
   assert.equal(corrected.valid, 50);
   assert.equal(corrected.preview[0].phone, "+12125550123");
   assert.equal(corrected.preview[0].row, 2);
-  assert.equal(corrected.preview.length, 5);
+  assert.equal(corrected.preview.length, 50);
 });
 
 test("mixed imports preserve valid rows and flag formulas and invalid optional data", () => {

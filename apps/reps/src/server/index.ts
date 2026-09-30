@@ -27,6 +27,14 @@ import {
   uploadProfileMedia,
 } from "./profile";
 import { deleteRecording, recordingUrl } from "./recordings";
+import { diagnosticError } from "./diagnostics";
+import {
+  readSupportImage,
+  uploadSupportImage,
+  removeSupportImage,
+  requireSupportAdmin,
+  cleanupSupportMedia,
+} from "./support";
 import {
   csv,
   header,
@@ -143,7 +151,11 @@ const application = z.object({
   token: z.string().min(1),
   website: z.string().optional(),
 });
-async function api(req: Request, env: Env, trace: { userId?: string }) {
+async function api(
+  req: Request,
+  env: Env,
+  trace: { userId?: string; action?: string; context?: Row },
+) {
   const u = new URL(req.url),
     path = u.pathname,
     post = req.method === "POST";
@@ -328,20 +340,32 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
       Math.max(0, Math.min(10000, Number(u.searchParams.get("page")) || 0)),
     );
     const joins: Record<string, string> = {
-      applicants: "*,rep:px_reps(id,name,code,status)",
+      applicants: "*,rep:px_reps(id,name,code,status,deleted_at)",
+      reps: "*,private:px_rep_private(email)",
+      support: "*,rep:px_reps(id,name,code,deleted_at)",
+      payouts: "*,rep:px_reps(id,name,code,deleted_at)",
+      manual_payouts: "*,rep:px_reps(id,name,code,deleted_at)",
+      verified_sales: "*,rep:px_reps(id,name,code,deleted_at)",
       followups: "*,business:px_businesses(name,code)",
       calls: "*,business:px_businesses(name,code)",
-      deals: "*,business:px_businesses(name,code)",
+      deals:
+        "*,business:px_businesses(name,code),rep:px_reps(id,name,code,deleted_at)",
       quote_requests:
         "*,business:px_businesses(name,code),rep:px_reps(name,code)",
       commissions:
-        "*,deal:px_deals(code,package_name,price_cents,business:px_businesses(name)),sale:px_verified_sales(package_name,amount_cents)",
+        "*,rep:px_reps(id,name,code,deleted_at),deal:px_deals(code,package_name,price_cents,business:px_businesses(name)),sale:px_verified_sales(package_name,amount_cents)",
       fulfillment:
         "*,deal:px_deals(code,package_name,business:px_businesses(name))",
     };
     let q = db
       .from("px_" + table)
       .select(joins[table] || "*", { count: "exact" });
+    if (table === "reps") q = q.is("deleted_at", null);
+    if (table === "businesses") q = q.is("deleted_at", null);
+    if (table === "import_rows")
+      q = q.or("error.is.null,error.neq.Business permanently removed");
+    if (table === "packages" && u.searchParams.get("active") === "true")
+      q = q.eq("visible", true);
     const order = [
       "roles",
       "settings",
@@ -406,6 +430,8 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
     if (u.searchParams.has("active"))
       q = q.eq("active", u.searchParams.get("active") === "true");
     if (table === "businesses") {
+      if (u.searchParams.has("archived"))
+        q = q.eq("archived", u.searchParams.get("archived") === "true");
       if (u.searchParams.get("available") === "true")
         q = q
           .is("owner_id", null)
@@ -451,6 +477,7 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
       .slice(0, 100);
     if (search && ["businesses", "reps", "applicants"].includes(table))
       q = q.or(`name.ilike.%${search}%,code.ilike.%${search}%`);
+    if (search && table === "diagnostics") q = q.eq("id", search);
     if (search && table === "content")
       q = q.or(`title.ilike.%${search}%,body.ilike.%${search}%`);
     if (search && table === "deals") q = q.ilike("code", `%${search}%`);
@@ -463,6 +490,8 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
       rep_name: r.rep?.name,
       rep_code: r.rep?.code,
       rep_status: r.rep?.status,
+      rep_deleted_at: r.rep?.deleted_at,
+      email: r.email || r.private?.email,
       deal_code: r.deal?.code,
       package_name:
         r.package_name || r.sale?.package_name || r.deal?.package_name,
@@ -472,6 +501,8 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
   }
   if (path === "/api/action" && post) {
     const p = await body(req, 256 * 1024);
+    trace.action =
+      typeof p.action === "string" ? p.action.slice(0, 80) : undefined;
     const result = await rpc(db, "px_action", {
       action: p.action,
       p: p.p || {},
@@ -483,6 +514,43 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
         ip: req.headers.get("cf-connecting-ip") || null,
       });
     return json(result);
+  }
+  if (path === "/api/support/image" && post) {
+    await requireSupportAdmin(db);
+    const raw = await bytes(req, 2 * 1024 * 1024 + 16384);
+    const form = await new Request(req.url, {
+      method: "POST",
+      headers: req.headers,
+      body: raw,
+    }).formData();
+    return json(await uploadSupportImage(env, db, form));
+  }
+  if (path === "/api/support/image/remove" && post) {
+    const p = await body(req);
+    await removeSupportImage(env, db, String(p.path || ""));
+    return json({ removed: true });
+  }
+  if (path.startsWith("/api/support/image/") && !post)
+    return readSupportImage(
+      env,
+      db,
+      decodeURIComponent(path.slice("/api/support/image/".length)),
+    );
+  if (path === "/api/support/save" && post) {
+    const p = await body(req);
+    if (!["support_card_save", "support_card_delete"].includes(p.action))
+      throw new HttpError(400, "Choose a support setting to update.");
+    const result = await rpc(db, "px_action", {
+      action: p.action,
+      p: p.p || {},
+    });
+    let cleanup_pending = false;
+    try {
+      await removeSupportImage(env, db, result.previous_qr || "");
+    } catch {
+      cleanup_pending = true;
+    }
+    return json({ ...result, cleanup_pending });
   }
   if (path === "/api/recordings/url" && post) {
     const p = await body(req);
@@ -624,6 +692,11 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
     if (!file || typeof file === "string")
       throw new HttpError(400, "Choose a file.");
     const fileBytes = await file.arrayBuffer();
+    trace.action = "import_preview";
+    trace.context = {
+      extension: file.name.split(".").pop()?.toLowerCase().slice(0, 8),
+      bytes: fileBytes.byteLength,
+    };
     const parsed = await parseUpload(file.name, new Uint8Array(fileBytes));
     const digest = await crypto.subtle.digest("SHA-256", fileBytes);
     const fingerprint = Array.from(new Uint8Array(digest), (v) =>
@@ -754,7 +827,11 @@ async function api(req: Request, env: Env, trace: { userId?: string }) {
       } catch (e) {
         return {
           row_num: p.offset + j + 1,
-          data: {},
+          data: {
+            name: String(r[batch.mapping.name] ?? ""),
+            phone: String(r[batch.mapping.phone] ?? ""),
+            raw: r,
+          },
           error: (e as Error).message,
         };
       }
@@ -894,7 +971,7 @@ export default {
   ): Promise<Response> {
     let response: Response;
     const requestId = crypto.randomUUID();
-    const trace: { userId?: string } = {};
+    const trace: { userId?: string; action?: string; context?: Row } = {};
     try {
       const u = new URL(req.url),
         urls = deploymentUrls(env, req.url);
@@ -941,6 +1018,7 @@ export default {
     } catch (e) {
       const status = e instanceof HttpError ? e.status : 500;
       const category = e instanceof HttpError ? e.category : "UNEXPECTED_ERROR";
+      const diagnostic = diagnosticError(e);
       console.error(
         JSON.stringify({
           event: "request_failed",
@@ -962,9 +1040,14 @@ export default {
           provider_request_id:
             e instanceof HttpError ? e.providerRequestId : null,
           provider_detail:
-            env.STRIPE_MODE === "test" && e instanceof HttpError
-              ? e.diagnosticDetail
+            env.STRIPE_MODE === "test"
+              ? e instanceof HttpError && e.diagnosticDetail
+                ? e.diagnosticDetail
+                : diagnostic.detail
               : undefined,
+          action: trace.action,
+          error_type: diagnostic.error_type,
+          safe_context: trace.context || {},
         }).catch(() => console.error("diagnostic_record_failed", requestId));
         if (ctx) ctx.waitUntil(record);
         else await record;
@@ -998,7 +1081,7 @@ export default {
     if (!headers.has("Content-Security-Policy"))
       headers.set(
         "Content-Security-Policy",
-        "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self' https://*.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+        `default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: ${URL.canParse(env.SUPABASE_URL || "") ? new URL(env.SUPABASE_URL).origin : ""}; font-src 'self'; connect-src 'self' https://*.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'`,
       );
     const currentUrl = new URL(req.url);
     if (
@@ -1039,6 +1122,9 @@ export default {
           console.error("mail_queue_unavailable"),
         );
         await drainSms(env).catch(() => console.error("sms_queue_unavailable"));
+        await cleanupSupportMedia(env).catch(() =>
+          console.error("support_cleanup_retry"),
+        );
         await expireProfileMedia(env).catch(() =>
           console.error("profile_cleanup_retry"),
         );

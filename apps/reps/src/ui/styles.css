@@ -2189,3 +2189,62 @@ input[type="file"]::file-selector-button {
     justify-self: start;
   }
 }
+
+/* Operational controls share the current workspace typography and surfaces. */
+.person-link {
+  color: inherit;
+  text-decoration: none;
+  border-radius: 0.35rem;
+}
+.person-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.person-link:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+}
+.bulk-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.8rem 0;
+}
+.bulk-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.bulk-toolbar input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+.import-mapping {
+  margin: 1rem 0;
+}
+.import-mapping summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.6rem 0;
+}
+.recording-player audio {
+  width: min(100%, 34rem);
+  min-width: 0;
+}
+.detail-grid dd {
+  margin: 0.35rem 0 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .bulk-toolbar > button {
+    flex: 1 1 45%;
+  }
+  .bulk-toolbar > label,
+  .bulk-toolbar > strong {
+    flex: 1 1 100%;
+  }
+  .import-mapping .mapping-grid {
+    grid-template-columns: 1fr;
+  }
+}

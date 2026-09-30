@@ -12,9 +12,6 @@ import {
   Check,
   BookOpen,
   Flame,
-  Copy,
-  ExternalLink,
-  Mail,
   MessageCircle,
 } from "lucide-react";
 import {
@@ -32,6 +29,8 @@ import {
 } from "./lib";
 import { money, label, type Row } from "../shared/core";
 import { BusinessDetails } from "./details";
+import { AvailableLeads } from "./lead-management";
+import { SupportChannels } from "./operations-settings";
 import { PayoutSetup, SalesCode } from "./payouts";
 const zone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 export function Dashboard() {
@@ -291,16 +290,16 @@ function Streak({ summary: s }: { summary: Row }) {
   );
 }
 export function Leads() {
-  const { mutate, run, notify, ctx } = useApp();
   const [detail, setDetail] = useState<string | null>(
       new URLSearchParams(location.search).get("business"),
     ),
+    [pool, setPool] = useState(true),
     [favorites, setFavorites] = useState(false),
     [view, setView] = useState("all");
   return (
     <>
       <Heading
-        title="Your leads"
+        title="Leads"
         description="The right context for your next conversation."
       >
         <select
@@ -323,40 +322,35 @@ export function Leads() {
         <button onClick={() => setFavorites(!favorites)}>
           {favorites ? "Show all leads" : "Favorites"}
         </button>
-        <button
-          className="primary"
-          onClick={() =>
-            run(async () => {
-              const r = await mutate("claim", {
-                count: ctx.settings.claim_count || 10,
-              });
-              notify(
-                r.claimed
-                  ? `${r.claimed} leads assigned to you.`
-                  : "No leads were available within your capacity.",
-              );
-            })
-          }
-        >
-          Get leads
+        <button className="primary" onClick={() => setPool(!pool)}>
+          {pool ? "My claimed leads" : "Browse available leads"}
         </button>
       </Heading>
-      <Listing
-        name="businesses"
-        query={"&own=true&view=" + view + (favorites ? "&favorite=true" : "")}
-        columns={[
-          ["name", "Business"],
-          ["phone", "Phone"],
-          ["city", "City"],
-          ["stage", "Stage"],
-          ["expires_at", "Assigned until"],
-        ]}
-        actions={(r) => (
-          <button onClick={() => setDetail(r.id)}>
-            Open business <ArrowRight size={15} />
-          </button>
-        )}
-      />
+      {pool ? (
+        <AvailableLeads
+          onClaim={(id) => {
+            setPool(false);
+            setDetail(id);
+          }}
+        />
+      ) : (
+        <Listing
+          name="businesses"
+          query={"&own=true&view=" + view + (favorites ? "&favorite=true" : "")}
+          columns={[
+            ["name", "Business"],
+            ["phone", "Phone"],
+            ["city", "City"],
+            ["stage", "Stage"],
+            ["expires_at", "Assigned until"],
+          ]}
+          actions={(r) => (
+            <button onClick={() => setDetail(r.id)}>
+              Open business <ArrowRight size={15} />
+            </button>
+          )}
+        />
+      )}
       {detail && (
         <BusinessDetails id={detail} onClose={() => setDetail(null)} />
       )}
@@ -452,7 +446,7 @@ export function DealDialog({
   onClose: () => void;
 }) {
   const app = useApp(),
-    packages = useData("/table?name=packages&active=true"),
+    packages = useData("/table?name=packages&active=true", 60000),
     [quote, setQuote] = useState(false);
   return (
     <Modal title={"Create deal · " + lead.name} onClose={onClose}>
@@ -722,7 +716,7 @@ export function Money() {
 export function Academy() {
   const state = useData("/table?name=content&active=true&kind=lesson"),
     training = useData("/table?name=training&own=true"),
-    packages = useData("/table?name=packages&active=true"),
+    packages = useData("/table?name=packages&active=true", 60000),
     app = useApp(),
     [acknowledged, setAcknowledged] = useState(false);
   const essential = state.data?.rows.find(
@@ -773,9 +767,7 @@ export function Academy() {
                             {pkg.code === "advanced" ? " / Ecommerce" : ""}
                           </strong>
                           <small>
-                            {pkg.code === "advanced"
-                              ? "Starts at"
-                              : "Customer price"}
+                            {pkg.starts_at ? "Starts at" : "Customer price"}
                           </small>
                         </div>
                         <span>{money(pkg.price_cents)}</span>
@@ -952,10 +944,6 @@ export function Leaderboard() {
 }
 export function Support() {
   const app = useApp();
-  const copyEmail = async () => {
-    await navigator.clipboard.writeText("support@pixelalty.com");
-    app.notify("Support email copied.");
-  };
   return (
     <>
       <Heading
@@ -963,73 +951,7 @@ export function Support() {
         title="Pixelalty Support"
         description="Need help, have a question, or want the latest CRM updates? Choose an option below."
       />
-      <div className="support-grid">
-        <Card title="Message Pixelalty Support" className="support-channel">
-          <p>
-            For account questions, CRM issues, payout questions, or anything
-            else you need help with.
-          </p>
-          <img
-            src="/support/whatsapp-direct.png"
-            alt="QR code that opens the direct Pixelalty Support WhatsApp chat"
-          />
-          <a
-            className="button primary"
-            href="https://wa.me/12392870299?s=p"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Message Pixelalty <ExternalLink size={15} />
-          </a>
-        </Card>
-        <Card title="Pixelalty Updates" className="support-channel">
-          <p>
-            Follow the Pixelalty Updates WhatsApp channel for CRM changes,
-            fixes, new features, and important rep announcements.
-          </p>
-          <img
-            src="/support/whatsapp-updates.png"
-            alt="QR code that opens the official Pixelalty WhatsApp updates channel"
-          />
-          <a
-            className="button primary"
-            href="https://whatsapp.com/channel/0029Vb9T6Y2DJ6GvZaXRnb2F"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Follow Pixelalty Updates <ExternalLink size={15} />
-          </a>
-        </Card>
-        <Card title="Pixelalty Instagram" className="support-channel compact">
-          <p>
-            Visit Pixelalty on Instagram for brand updates and announcements.
-          </p>
-          <a
-            className="button primary"
-            href="https://www.instagram.com/pixelalty/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Open Instagram <ExternalLink size={15} />
-          </a>
-        </Card>
-        <Card
-          title="Email Pixelalty Support"
-          className="support-channel compact"
-        >
-          <p>
-            <a href="mailto:support@pixelalty.com">support@pixelalty.com</a>
-          </p>
-          <div className="button-row">
-            <a className="button primary" href="mailto:support@pixelalty.com">
-              <Mail size={15} /> Email Support
-            </a>
-            <button onClick={() => void copyEmail()}>
-              <Copy size={15} /> Copy Email
-            </button>
-          </div>
-        </Card>
-      </div>
+      <SupportChannels />
       <Card title="Open a support ticket">
         <Form
           fields={[

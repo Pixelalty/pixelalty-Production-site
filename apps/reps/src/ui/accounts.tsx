@@ -268,6 +268,9 @@ export function ManageAccount({ code }: { code: string }) {
             </div>
             {r.deleted_at && (
               <Card title="ACCOUNT DELETED">
+                <LinkButton to={`/admin/reps/deleted?id=${r.id}`}>
+                  View protected historical records
+                </LinkButton>
                 <p>
                   {d.deletion?.status === "complete"
                     ? "Protected historical records retained for accounting/audit integrity."

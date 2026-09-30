@@ -5,6 +5,10 @@ import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { startIntegration } from "./integration-server";
 import { verifyWorkspace } from "./workspace-browser";
+import {
+  verifyOperationsAdmin,
+  verifyOperationsRep,
+} from "./operations-browser";
 const out = new URL("../test-results/v1/", import.meta.url);
 await mkdir(out, { recursive: true });
 const fixture = await startIntegration();
@@ -194,50 +198,19 @@ try {
   checks.push("Validated workspace settings persist on reload");
   await go("/admin/content");
   await page
-    .getByRole("button", { name: "Publish content", exact: true })
-    .click();
+    .getByRole("heading", { name: "Pixelalty Essentials", exact: true })
+    .waitFor();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Publish content", exact: true })
+      .count(),
+    0,
+  );
+  checks.push(
+    "Retired training route redirects to Essentials without curriculum management",
+  );
+  await verifyOperationsAdmin(page, fixture, out, checks);
   let dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Content type").selectOption("lesson");
-  await dialog.getByLabel("Reference name").fill("browser-lesson");
-  await dialog
-    .getByLabel("Title", { exact: true })
-    .fill("Browser verified training");
-  await dialog
-    .getByLabel("Content", { exact: true })
-    .fill(
-      "Practice clear introductions and record truthful outcomes for every conversation.",
-    );
-  await dialog
-    .getByLabel("Publication reason")
-    .fill("Publish acceptance test lesson");
-  await dialog.getByRole("button", { name: "Publish version" }).click();
-  await dialog.waitFor({ state: "hidden" });
-  await page.getByText("Browser verified training", { exact: true }).waitFor();
-  checks.push("Admin publishes versioned content");
-  await page
-    .getByRole("button", { name: "Publish content", exact: true })
-    .click();
-  dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Content type").selectOption("quiz");
-  await dialog
-    .getByLabel("Question", { exact: true })
-    .fill("What verifies a sale?");
-  await dialog.getByLabel("Answer 1", { exact: true }).fill("A reported sale");
-  await dialog
-    .getByLabel("Answer 2", { exact: true })
-    .fill("A verified payment");
-  await dialog
-    .getByLabel("Correct answer 1", { exact: true })
-    .selectOption("1");
-  await dialog.getByLabel("Reference name").fill("browser-quiz");
-  await dialog
-    .getByLabel("Title", { exact: true })
-    .fill("Browser readiness quiz");
-  await dialog.getByLabel("Publication reason").fill("Publish a reviewed quiz");
-  await dialog.getByRole("button", { name: "Publish version" }).click();
-  await dialog.waitFor({ state: "hidden" });
-  checks.push("Quiz builder publishes questions and a private answer key");
-
   await go("/admin/imports");
   await page.locator("input[type=file]").setInputFiles({
     name: "missing-timezone.csv",
@@ -248,7 +221,7 @@ try {
   await page.getByRole("button", { name: "Validate & stage import" }).click();
   await page
     .getByText(
-      "Choose a default timezone or map a Timezone column before staging. Use the businesses’ timezone, not your own.",
+      "No rows can be imported with these settings. Review the row errors below, then validate again.",
     )
     .first()
     .waitFor();
@@ -280,13 +253,16 @@ try {
     });
   }
   await page
+    .getByText("Review column mapping and optional overrides", { exact: true })
+    .click();
+  await page
     .getByLabel("Default timezone for rows without one")
     .selectOption("America/New_York");
   await page.getByLabel("Phone *", { exact: true }).selectOption("#");
   await page.getByRole("button", { name: "Validate & stage import" }).click();
   await page
     .getByText(
-      "No rows can be imported with these settings. Check the phone column and timezone, then validate again.",
+      "No rows can be imported with these settings. Review the row errors below, then validate again.",
     )
     .waitFor();
   assert.equal(
@@ -379,7 +355,11 @@ try {
     "2500.75",
   );
   checks.push("Profile, decimal money inputs and personal goals persist");
+  await verifyOperationsRep(page, fixture, out, checks);
   await go("/leads");
+  await page
+    .getByRole("button", { name: "My claimed leads", exact: true })
+    .click();
   const beacon = page.getByRole("row").filter({ hasText: "Beacon Services" });
   await beacon.getByRole("button", { name: "Open business" }).click();
   dialog = page.getByRole("dialog");
@@ -569,7 +549,9 @@ try {
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await page.getByLabel("Recording Browser room-audio test playback").waitFor();
   assert.equal(
-    await page.getByRole("button", { name: "Download", exact: true }).count(),
+    await page
+      .getByRole("button", { name: "Download recording", exact: true })
+      .count(),
     0,
   );
   checks.push(
@@ -678,7 +660,19 @@ try {
       (document.querySelector(".recording-player audio") as HTMLAudioElement)
         ?.currentTime > 0,
   );
-  await adminAudio.evaluate((audio: HTMLAudioElement) => audio.pause());
+  await adminAudio.evaluate((audio: HTMLAudioElement) => {
+    audio.pause();
+    audio.volume = 0.4;
+    audio.muted = true;
+  });
+  assert.deepEqual(
+    await adminAudio.evaluate((audio: HTMLAudioElement) => ({
+      paused: audio.paused,
+      volume: audio.volume,
+      muted: audio.muted,
+    })),
+    { paused: true, volume: 0.4, muted: true },
+  );
   await page.getByLabel("Speed").selectOption("1.5");
   assert.equal(
     await adminAudio.evaluate((audio: HTMLAudioElement) => audio.playbackRate),
@@ -692,7 +686,9 @@ try {
     0,
   );
   const downloaded = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Download recording", exact: true })
+    .click();
   const recordingDownload = await downloaded;
   assert.match(
     recordingDownload.suggestedFilename(),
@@ -743,6 +739,57 @@ try {
   );
   checks.push(
     "Admin plays real recorded bytes, changes speed, seeks, downloads, opens CRM context and deletes with an audit; another rep sees no recording",
+  );
+  const deletedRep = (
+    await fixture.db.query<any>(
+      "select id,name,code from px_reps where id=$1",
+      [fixture.newRep],
+    )
+  ).rows[0];
+  await go("/admin/reps?rep_code=" + deletedRep.code + "&manage=1");
+  await page
+    .getByRole("button", { name: "Delete account", exact: true })
+    .click();
+  const accountDialog = page.getByRole("dialog", {
+    name: "Delete account",
+    exact: true,
+  });
+  await accountDialog
+    .getByLabel("Type DELETE " + deletedRep.code, { exact: true })
+    .fill("DELETE " + deletedRep.code);
+  await accountDialog
+    .getByLabel("Reason for deletion")
+    .fill("Remove disposable browser acceptance rep");
+  await accountDialog
+    .getByRole("button", { name: "Delete account permanently", exact: true })
+    .click();
+  await accountDialog.waitFor({ state: "hidden" });
+  await go("/admin/reps");
+  assert.equal(
+    await page.getByRole("row").filter({ hasText: deletedRep.code }).count(),
+    0,
+  );
+  await page
+    .getByRole("link", {
+      name: "Deleted accounts / historical records",
+      exact: true,
+    })
+    .click();
+  const history = page.getByRole("row").filter({ hasText: deletedRep.code });
+  await history.getByRole("link", { name: "Historical records" }).click();
+  await page
+    .getByRole("heading", { name: "Historical account record", exact: true })
+    .waitFor();
+  assert.equal(
+    (
+      await fixture.db.query("select id from auth.users where id=$1", [
+        fixture.newRep,
+      ])
+    ).rows.length,
+    0,
+  );
+  checks.push(
+    "Deleting a disposable rep removes login and operational lists and preserves a separate historical account record",
   );
   assert.deepEqual(failures, []);
   assert.deepEqual(errors, []);

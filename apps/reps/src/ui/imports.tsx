@@ -19,30 +19,10 @@ import {
   importMappingError,
   inspectImport,
   suggestImportMapping,
+  importFields,
 } from "../shared/imports";
 import { timezoneOptions } from "../shared/timezones";
-const fields = [
-  "name",
-  "phone",
-  "website",
-  "email",
-  "timezone",
-  "city",
-  "state",
-  "industry",
-  "contact",
-  "notes",
-  "source",
-  "tags",
-  "address",
-  "zip",
-  "country",
-  "external_id",
-  "google_url",
-  "rating",
-  "review_count",
-  "website_assessment",
-];
+const fields = importFields;
 export function Imports() {
   const app = useApp(),
     templates = useData("/table?name=saved_views&kind=import_mapping");
@@ -94,7 +74,7 @@ export function Imports() {
     }
     if (!existing && !inspection?.valid) {
       setError(
-        "No rows can be imported with these settings. Check the phone column and timezone, then validate again.",
+        "No rows can be imported with these settings. Review the row errors below, then validate again.",
       );
       return;
     }
@@ -207,7 +187,7 @@ export function Imports() {
         <span className={!file ? "active" : "done"}>1 · Upload</span>
         <ArrowRight />
         <span className={file && !batch ? "active" : ""}>
-          2 · Map & validate
+          2 · Preview & validate
         </span>
         <ArrowRight />
         <span className={batch ? "active" : ""}>3 · Review & import</span>
@@ -217,11 +197,12 @@ export function Imports() {
           <summary>Spreadsheet requirements and how importing works</summary>
           <p>
             Use CSV, TSV or XLSX with one header row and one business per row.
-            Business name and Phone are required. Each business also needs its
-            verified timezone, either in a Timezone column or selected below.
-            CSV in UTF-8 is preferred. Files must be no larger than 8 MB and
-            contain 1–25,000 business rows. XLSX imports the first worksheet
-            only and may expand to at most 40 MB. Header names must be unique.
+            Business name and Phone are required. ZIP, city/state, and address
+            are used to find each business’s timezone automatically. Only
+            ambiguous locations need review. CSV in UTF-8 is preferred. Files
+            must be no larger than 8 MB and contain 1–25,000 business rows. XLSX
+            imports the first worksheet only and may expand to at most 40 MB.
+            Header names must be unique.
           </p>
           <p>
             Phone examples: (212) 555-0123, 2125550123 or +1 212 555 0123.
@@ -230,10 +211,11 @@ export function Imports() {
             200 characters. Timezone examples: America/New_York and
             America/Los_Angeles; avoid abbreviations such as EST. Main Phone and
             Main Business Phone are recognized phone aliases; Ask For maps to
-            Contact. For a nationwide list, include a verified IANA timezone for
-            every row—do not apply one default zone across different regions.
-            Other examples include America/Chicago, America/Denver,
-            America/Phoenix, America/Anchorage, and Pacific/Honolulu.
+            Contact. Nationwide lists are supported. A supplied IANA timezone
+            overrides the location lookup; an optional default is only for
+            locations you have personally verified. Other examples include
+            America/Chicago, America/Denver, America/Phoenix, America/Anchorage,
+            and Pacific/Honolulu.
           </p>
           <p>
             Optional columns include website, email, city, state, industry,
@@ -253,12 +235,13 @@ export function Imports() {
             rows before committing, or abandon/archive the batch.
           </p>
           <p>
-            Committed leads enter the existing claim pool. Active reps choose
-            Get leads on their Leads page, up to their remaining capacity. Calls
-            must follow the approved calling hours. Admins can correct a
-            business in All leads. Archive unused leads removes only untouched,
-            unowned imported leads from the pool and preserves history; it does
-            not undo calls, customer records or sales.
+            Committed leads enter the existing claim pool. Active reps choose an
+            available business and Claim on their Leads page, up to their
+            remaining capacity. Calls must follow the approved calling hours.
+            Admins can correct a business in All leads. Archive unused leads
+            removes only untouched, unowned imported leads from the pool and
+            preserves history; it does not undo calls, customer records or
+            sales.
           </p>
           <p>
             The current workspace claim size is {app.ctx.settings.claim_count}{" "}
@@ -334,94 +317,106 @@ export function Imports() {
               <h2>{file.filename}</h2>
               <strong>{file.rows.length.toLocaleString()} rows</strong>
             </div>
-            <div className="toolbar">
-              <button onClick={() => setMapping(autoMap(file))}>
-                Auto map
-              </button>
-              <select
-                aria-label="Mapping template"
-                defaultValue=""
-                onChange={(e) => {
-                  const t = templates.data?.rows.find(
-                    (r: Row) => r.id === e.target.value,
-                  );
-                  if (t) {
-                    setMapping(t.config.mapping);
-                    setZone(t.config.zone || "");
-                  }
-                }}
-              >
-                <option value="">Saved mapping templates</option>
-                {templates.data?.rows.map((t: Row) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-              <button onClick={() => setSaveTemplate(true)}>
-                Save mapping template
-              </button>
-            </div>
-            <div className="mapping-grid">
-              {fields.map((k) => (
-                <label className="field" key={k}>
-                  <span id={`import-${k}-label`}>
-                    {k === "name" ? "Business name" : label(k)}
-                    {["name", "phone"].includes(k) ? " *" : ""}
-                  </span>
-                  <select
-                    aria-labelledby={`import-${k}-label`}
-                    aria-required={["name", "phone"].includes(k)}
-                    disabled={busy}
-                    value={mapping[k] || ""}
-                    onChange={(e) =>
-                      setMapping({ ...mapping, [k]: e.target.value })
+            <p>
+              Columns were matched automatically. Review the preview, then
+              validate and stage. Advanced mapping is optional.
+            </p>
+            <details className="import-mapping">
+              <summary>Review column mapping and optional overrides</summary>
+              <div className="toolbar">
+                <button onClick={() => setMapping(autoMap(file))}>
+                  Auto map
+                </button>
+                <select
+                  aria-label="Mapping template"
+                  defaultValue=""
+                  onChange={(e) => {
+                    const t = templates.data?.rows.find(
+                      (r: Row) => r.id === e.target.value,
+                    );
+                    if (t) {
+                      setMapping(t.config.mapping);
+                      setZone(t.config.zone || "");
                     }
-                  >
-                    <option value="">Skip / not mapped</option>
-                    {file.headers.map((h: string) => (
-                      <option key={h}>{h}</option>
-                    ))}
-                  </select>
-                </label>
-              ))}
-            </div>
-            <label className="field">
-              <span>Default timezone for rows without one</span>
-              <select
-                value={zone}
-                disabled={busy}
-                onChange={(e) => setZone(e.target.value)}
-              >
-                <option value="">Choose a verified timezone</option>
-                {timezoneOptions(zone).map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
+                  }}
+                >
+                  <option value="">Saved mapping templates</option>
+                  {templates.data?.rows.map((t: Row) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+                <button onClick={() => setSaveTemplate(true)}>
+                  Save mapping template
+                </button>
+              </div>
+              <div className="mapping-grid">
+                {fields.map((k) => (
+                  <label className="field" key={k}>
+                    <span id={`import-${k}-label`}>
+                      {k === "name" ? "Business name" : label(k)}
+                      {["name", "phone"].includes(k) ? " *" : ""}
+                    </span>
+                    <select
+                      aria-labelledby={`import-${k}-label`}
+                      aria-required={["name", "phone"].includes(k)}
+                      disabled={busy}
+                      value={mapping[k] || ""}
+                      onChange={(e) =>
+                        setMapping({ ...mapping, [k]: e.target.value })
+                      }
+                    >
+                      <option value="">Skip / not mapped</option>
+                      {file.headers.map((h: string) => (
+                        <option key={h}>{h}</option>
+                      ))}
+                    </select>
+                  </label>
                 ))}
-              </select>
-              <small>
-                Use a default only when you have verified that these businesses
-                share this timezone.
-              </small>
-            </label>
-            <label className="field">
-              Tag every business in this import
-              <input
-                value={batchTag}
-                onChange={(e) => setBatchTag(e.target.value)}
-                maxLength={100}
-                placeholder="Optional campaign or source tag"
-              />
-            </label>
-            <h3>Mapped preview — first five rows</h3>
+              </div>
+              <label className="field">
+                <span>Default timezone for rows without one</span>
+                <select
+                  value={zone}
+                  disabled={busy}
+                  onChange={(e) => setZone(e.target.value)}
+                >
+                  <option value="">Automatic from ZIP / city / state</option>
+                  {timezoneOptions(zone).map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+                <small>
+                  Use a default only when you have verified that these
+                  businesses share this timezone.
+                </small>
+              </label>
+              <label className="field">
+                Tag every business in this import
+                <input
+                  value={batchTag}
+                  onChange={(e) => setBatchTag(e.target.value)}
+                  maxLength={100}
+                  placeholder="Optional campaign or source tag"
+                />
+              </label>
+            </details>
+            <h3>
+              Lead preview{file.rows.length > 100 ? " — first 100 rows" : ""}
+            </h3>
             <Table
               rows={inspection?.preview || []}
               columns={[
                 ["row", "Spreadsheet row"],
                 ["name", "Business"],
                 ["phone", "Phone"],
+                ["city", "City"],
+                ["state", "State"],
                 ["timezone", "Timezone"],
+                ["timezone_source", "Detected from"],
                 ["result", "Validation result"],
               ]}
             />

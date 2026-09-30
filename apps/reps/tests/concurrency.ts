@@ -794,6 +794,74 @@ test("PostgreSQL contention preserves assignment and financial invariants", asyn
         );
       },
     );
+    await t.test(
+      "simultaneous selected-lead claims have exactly one winner",
+      async () => {
+        const reps = [crypto.randomUUID(), crypto.randomUUID()];
+        for (const id of reps) {
+          await control.query("insert into auth.users values($1,$2,now())", [
+            id,
+            id + "@example.test",
+          ]);
+          await control.query(
+            "insert into px_reps(id,name,status,capacity) values($1,'Selected claim test','active',1)",
+            [id],
+          );
+        }
+        const lead = (
+          await control.query(
+            "insert into px_businesses(name,phone,timezone) values('Selected contention','+16465559001','America/New_York') returning id",
+          )
+        ).rows[0].id;
+        await Promise.all(clients.map((c, i) => identity(c, reps[i % 2])));
+        const results = await contend(
+          "select id from px_businesses where id=$1 for update",
+          [lead],
+          (c) => rpc(c, "px_action", "claim_selected", { id: lead }),
+        );
+        assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+        for (const result of results)
+          if (result.status === "rejected")
+            assert.match(result.reason.message, /just claimed/);
+        const saved = (
+          await control.query(
+            "select owner_id,(select count(*)::int from px_assignments where business_id=$1) assignments from px_businesses where id=$1",
+            [lead],
+          )
+        ).rows[0];
+        assert.ok(reps.includes(saved.owner_id));
+        assert.equal(saved.assignments, 1);
+        const capacityRep = reps.find((id) => id !== saved.owner_id)!;
+        const candidates = (
+          await control.query(
+            "insert into px_businesses(name,phone,timezone) select 'Capacity selection '||n,'+16465559'||lpad(n::text,3,'0'),'America/New_York' from generate_series(2,13)n returning id",
+          )
+        ).rows;
+        await Promise.all(clients.map((c) => identity(c, capacityRep)));
+        const capacity = await contend(
+          "select id from px_reps where id=$1 for update",
+          [capacityRep],
+          (c, i) =>
+            rpc(c, "px_action", "claim_selected", { id: candidates[i].id }),
+        );
+        assert.equal(
+          capacity.filter((r) => r.status === "fulfilled").length,
+          1,
+        );
+        for (const result of capacity)
+          if (result.status === "rejected")
+            assert.match(result.reason.message, /capacity/);
+        assert.equal(
+          (
+            await control.query(
+              "select count(*)::int n from px_businesses where owner_id=$1",
+              [capacityRep],
+            )
+          ).rows[0].n,
+          1,
+        );
+      },
+    );
   } finally {
     await Promise.allSettled(clients.map((c) => c.end()));
     await control.end();
