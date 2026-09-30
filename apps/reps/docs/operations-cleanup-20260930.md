@@ -66,9 +66,20 @@ unit/integration/RLS tests, PostgreSQL concurrency, six browser suites, producti
 build and staging Worker dry run. Browser suites exercise the real UI/Worker/SQL
 with explicitly simulated external providers; they do not count as hosted acceptance.
 
-Migration: `20260930030650_operations_cleanup.sql`. No applied migration was edited.
-At preparation time the migration is local only; staging application and deployment
-are gated on the final regression results.
+Migrations:
+
+- `20260930030650_operations_cleanup.sql`, applied only to staging as remote
+  version `20260930041239` after the full passing regression.
+- `20260930041804_consolidate_rep_read_policy.sql`, a follow-up preserving the
+  existing self/team/Admin/Finance read access in a single permissive policy.
+  Session and MFA restrictions remain separate and unchanged. This removes the
+  new multiple-permissive-policies advisor warning without changing permissions.
+  Applied only to staging as remote version `20260930042017`; the subsequent
+  performance advisor has no warnings. The targeted database/operations run
+  passed all 32 tests, including direct rep isolation and Finance directory reads.
+
+No previously applied migration was edited. The private deletion-receipt table
+intentionally has no user policies or user grants (deny by default).
 
 Hosted acceptance still requires the authorized Admin and ordinary rep sessions.
 Do not use chat-supplied passwords or bypass MFA/bot checks. Preserve recording
@@ -86,3 +97,19 @@ opening deleted-account history; the onboarding suite caught the removed agreeme
 publishing link. Both root causes were corrected, along with a deleted-profile
 request, catalog ordering and mobile lead-table readability found in visual review.
 The required gate is rerun on the corrected commit before deployment.
+
+Full corrected regression: commit `072a5845646a636f363f9958167c616a5ee2e25c`,
+Actions run `36667245680`, job `109734499491`, all successful:
+
+- Lint, TypeScript and production build.
+- 128 unit/integration/SQL/RLS tests.
+- 14 PostgreSQL 17 concurrency tests, including simultaneous selected-lead
+  claims, one-rep capacity races and financial retry/idempotency checks.
+- All six browser suites: V1, Auth, Profile, Onboarding, Branding, Manual Finance.
+- Staging Worker packaging/dry run.
+
+Visual review includes the exact-workbook preview, rep claim detail, mobile lead
+table at 390px, tablet/desktop layouts and light/dark MFA screens. The disposable
+browser fixture imported 25 demo rows, deleted three, archived one and retained
+22. These are fixture results, not hosted staging data. Staging had zero business
+rows immediately after migration and the preserved recording was still ready.

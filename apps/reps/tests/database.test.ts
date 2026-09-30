@@ -69,6 +69,10 @@ test("real Postgres workflows, authorization, and payment ledger", async (t) => 
       "a rep sees only assigned leads and cannot read another commission or call their lead",
       async () => {
         await actor(db, rep);
+        assert.deepEqual(
+          (await db.query<{ id: string }>("select id from public.px_reps")).rows,
+          [{ id: rep }],
+        );
         assert.equal(
           (await db.query("select * from public.px_businesses")).rows.length,
           1,
@@ -107,6 +111,10 @@ test("real Postgres workflows, authorization, and payment ledger", async (t) => 
           /MFA/,
         );
         await actor(db, finance, "aal2");
+        assert.equal(
+          (await db.query("select id from public.px_reps")).rows.length,
+          ids.length,
+        );
         assert.equal(
           (await db.query("select * from public.px_rep_private")).rows.length,
           1,
