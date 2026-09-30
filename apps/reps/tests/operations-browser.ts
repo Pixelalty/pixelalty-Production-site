@@ -169,6 +169,15 @@ export async function verifyOperationsAdmin(
   );
 
   await page.goto(fixture.base + "/admin/leads");
+  const businessSearch = page.getByRole("searchbox", {
+    name: "Search businesses",
+  });
+  await businessSearch.fill("Example Towing & Recovery");
+  await page.getByText("Example Towing & Recovery", { exact: true }).waitFor();
+  await page
+    .getByRole("checkbox", { name: "Select all 1 on this page", exact: true })
+    .waitFor();
+  await businessSearch.fill("");
   const selectAll = page.getByRole("checkbox", { name: /^Select all/ });
   await selectAll.check();
   assert.equal((await page.getByRole("checkbox").count()) > 1, true);
