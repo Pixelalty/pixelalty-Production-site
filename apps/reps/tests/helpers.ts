@@ -11,6 +11,9 @@ grant select,insert,update,delete on storage.objects to anon,authenticated,servi
 grant all on storage.buckets to service_role;`;
 export async function database() {
   const db = new PGlite();
+  // Match hosted Supabase's UTC session instead of inheriting the runner's
+  // timezone (which can move a UTC date fixture across midnight).
+  await db.exec("set timezone='UTC'");
   await db.exec(
     `create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz);create function auth.uid() returns uuid language sql stable as $$select (nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'sub')::uuid $$;`,
   );
