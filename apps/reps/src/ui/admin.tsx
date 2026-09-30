@@ -15,7 +15,6 @@ import {
   ExternalLink,
 } from "lucide-react";
 import {
-  download,
   useApp,
   useData,
   Heading,
@@ -30,6 +29,10 @@ import {
 } from "./lib";
 import { label, money, type Row } from "../shared/core";
 import { ContentAdmin } from "./content-admin";
+import { SalesSettings, SupportHubSettings } from "./operations-settings";
+import { LeadManagement } from "./lead-management";
+import { DeletedAccounts, RepSummary } from "./deleted-accounts";
+import { ApplicantDetail } from "./applicant-detail";
 import { Pipeline } from "./pipeline";
 import { Imports } from "./imports";
 import { BusinessDetails } from "./details";
@@ -49,6 +52,7 @@ type Dialog = {
 export function Admin() {
   const app = useApp(),
     [dialog, setDialog] = useState<Dialog | null>(null),
+    [supportTab, setSupportTab] = useState("inbox"),
     [detail, setDetail] = useState<Row | null>(null),
     [businessId, setBusinessId] = useState<string | null>(null),
     page = app.path.split("?")[0];
@@ -68,6 +72,25 @@ export function Admin() {
     </>
   );
   const repCode = new URLSearchParams(app.path.split("?")[1]).get("rep_code");
+  if (page === "/admin/reps" && repCode && !app.has("sales_admin"))
+    return <RepSummary code={repCode} />;
+  if (page === "/admin/reps" && !app.has("sales_admin"))
+    return (
+      <>
+        <Heading
+          title="Rep management"
+          description="Rep accounts available to your role."
+        />
+        <Listing
+          name="reps"
+          columns={[
+            ["name", "Rep"],
+            ["code", "Rep ID"],
+            ["status", "Status"],
+          ]}
+        />
+      </>
+    );
   if (
     page === "/admin/reps" &&
     repCode &&
@@ -82,7 +105,23 @@ export function Admin() {
   if (page === "/admin/recordings") return <Recordings admin />;
   if (page === "/admin/imports") return <Imports />;
   if (page === "/admin/settings") return <Settings />;
-  if (page === "/admin/content") return <ContentAdmin />;
+  if (page === "/admin/agreements") return <ContentAdmin agreementsOnly />;
+  if (page === "/admin/sales-settings") return <SalesSettings />;
+  if (page === "/admin/reps/deleted")
+    return (
+      <DeletedAccounts
+        id={new URLSearchParams(app.path.split("?")[1]).get("id")}
+      />
+    );
+  if (
+    page === "/admin/recruiting" &&
+    new URLSearchParams(app.path.split("?")[1]).has("applicant")
+  )
+    return (
+      <ApplicantDetail
+        id={new URLSearchParams(app.path.split("?")[1]).get("applicant")!}
+      />
+    );
   if (page === "/admin/health") return <Health />;
   if (page === "/admin/recruiting")
     return (
@@ -195,8 +234,12 @@ export function Admin() {
         <Heading
           eyebrow="ADMINISTRATION"
           title="Rep management"
-          description="Verify requirements before activation. Financial history remains available after suspension."
-        />
+          description="Manage active, onboarding and suspended reps. Deleted accounts are kept separately."
+        >
+          <LinkButton to="/admin/reps/deleted">
+            Deleted accounts / historical records
+          </LinkButton>
+        </Heading>
         <OperationsQueue />
         <Listing
           name="reps"
@@ -204,8 +247,8 @@ export function Admin() {
             ["code", "Rep"],
             ["name", "Name"],
             ["status", "Status"],
-            ["timezone", "Timezone"],
-            ["capacity", "Capacity"],
+            ["email", "Email"],
+            ["capacity", "Lead capacity"],
           ]}
           actions={(r) => (
             <>
@@ -318,64 +361,7 @@ export function Admin() {
         {view}
       </>
     );
-  if (page === "/admin/leads")
-    return (
-      <>
-        <Heading
-          eyebrow="ADMINISTRATION"
-          title="Business database"
-          description="Review ownership, contact restrictions, and lead assignment."
-        >
-          <button
-            onClick={() =>
-              app.run(() =>
-                download("/export/businesses", "pixelalty-businesses.csv"),
-              )
-            }
-          >
-            Export businesses
-          </button>
-        </Heading>
-        <Listing
-          name="businesses"
-          columns={[
-            ["code", "Business ID"],
-            ["name", "Business"],
-            ["phone", "Phone"],
-            ["stage", "Stage"],
-            ["source", "Source"],
-          ]}
-          actions={(r) => (
-            <>
-              <button onClick={() => setBusinessId(r.id)}>Details</button>
-              <button
-                onClick={() =>
-                  show("Assign business", "assign", r, [
-                    {
-                      name: "rep_id",
-                      label: "Active rep",
-                      required: true,
-                      searchTable: "reps",
-                      searchQuery: "&status=active",
-                    },
-                  ])
-                }
-              >
-                Assign
-              </button>
-              {r.owner_id && !r.customer && (
-                <button
-                  onClick={() => show("Release business", "lead_release", r)}
-                >
-                  Release
-                </button>
-              )}
-            </>
-          )}
-        />
-        {view}
-      </>
-    );
+  if (page === "/admin/leads") return <LeadManagement />;
   if (page === "/admin/finance")
     return (
       <>
@@ -389,101 +375,9 @@ export function Admin() {
           <summary>Payment connection status</summary>
           <StripeHealth />
         </details>
-        <h2>Package versions</h2>
-        <button
-          onClick={() =>
-            show("Create package", "package_create", {}, [
-              {
-                name: "code",
-                label: "Package reference",
-                required: true,
-                hint: "Lowercase words separated by hyphens.",
-              },
-              { name: "name", label: "Package name", required: true },
-              {
-                name: "description",
-                label: "Public description",
-                type: "textarea",
-              },
-              {
-                name: "price_cents",
-                label: "Customer price ($)",
-                type: "currency",
-                required: true,
-              },
-              {
-                name: "commission_cents",
-                label: "Commission ($)",
-                type: "currency",
-                required: true,
-              },
-              {
-                name: "sale_xp",
-                label: "Verified sale XP",
-                type: "number",
-                required: true,
-                min: 0,
-                max: 10000,
-              },
-            ])
-          }
-        >
-          Create package
-        </button>
-        <Listing
-          name="packages"
-          columns={[
-            ["name", "Package"],
-            ["version", "Version"],
-            ["price_cents", "Sale"],
-            ["commission_cents", "Commission"],
-          ]}
-          actions={(r) =>
-            r.active && (
-              <>
-                <button
-                  onClick={() =>
-                    show("Publish prospective pricing", "package", r, [
-                      { name: "name", label: "Package name", required: true },
-                      {
-                        name: "description",
-                        label: "Public description",
-                        type: "textarea",
-                      },
-                      {
-                        name: "sale_xp",
-                        label: "Verified sale XP",
-                        type: "number",
-                        required: true,
-                        min: 0,
-                        max: 10000,
-                      },
-                      {
-                        name: "price_cents",
-                        label: "Customer price ($)",
-                        type: "currency",
-                        required: true,
-                      },
-                      {
-                        name: "commission_cents",
-                        label: "Rep commission ($)",
-                        type: "currency",
-                        required: true,
-                      },
-                    ])
-                  }
-                >
-                  New version
-                </button>
-                <button
-                  onClick={() => show("Archive package", "package_archive", r)}
-                >
-                  Archive
-                </button>
-              </>
-            )
-          }
-        />
+        <LinkButton to="/admin/sales-settings">
+          Packages & commissions
+        </LinkButton>
         <h2>Customer payments</h2>
         <Listing
           name="payments"
@@ -643,38 +537,56 @@ export function Admin() {
   if (page === "/admin/support")
     return (
       <>
-        <Heading title="Support inbox" />
-        <Listing
-          name="support"
-          columns={[
-            ["subject", "Subject"],
-            ["body", "Message"],
-            ["status", "Status"],
-            ["rep_name", "Rep"],
-          ]}
-          actions={(r) => (
-            <button
-              onClick={() =>
-                show("Reply to ticket", "support_reply", r, [
-                  {
-                    name: "reply",
-                    label: "Response",
-                    type: "textarea",
-                    required: true,
-                  },
-                  {
-                    name: "status",
-                    label: "Status",
-                    required: true,
-                    options: choices(["open", "pending", "resolved"]),
-                  },
-                ])
-              }
-            >
-              Respond
-            </button>
-          )}
-        />
+        <Heading title="Support" />
+        <div className="tabs" aria-label="Support administration">
+          <button
+            aria-pressed={supportTab === "inbox"}
+            onClick={() => setSupportTab("inbox")}
+          >
+            Support inbox
+          </button>
+          <button
+            aria-pressed={supportTab === "settings"}
+            onClick={() => setSupportTab("settings")}
+          >
+            Support hub settings
+          </button>
+        </div>
+        {supportTab === "settings" ? (
+          <SupportHubSettings />
+        ) : (
+          <Listing
+            name="support"
+            columns={[
+              ["subject", "Subject"],
+              ["body", "Message"],
+              ["status", "Status"],
+              ["rep_name", "Rep"],
+            ]}
+            actions={(r) => (
+              <button
+                onClick={() =>
+                  show("Reply to ticket", "support_reply", r, [
+                    {
+                      name: "reply",
+                      label: "Response",
+                      type: "textarea",
+                      required: true,
+                    },
+                    {
+                      name: "status",
+                      label: "Status",
+                      required: true,
+                      options: choices(["open", "pending", "resolved"]),
+                    },
+                  ])
+                }
+              >
+                Respond
+              </button>
+            )}
+          />
+        )}
         {view}
       </>
     );
@@ -876,13 +788,13 @@ function AdminHome() {
                 icon: SettingsIcon,
               },
               {
-                to: "/admin/content",
-                title: "Publish training & agreements",
-                detail: "Lessons, quizzes, scripts and versioned documents",
+                to: "/admin/agreements",
+                title: "Manage agreements",
+                detail: "Approved documents and preserved acceptance history",
                 icon: BookOpen,
               },
               {
-                to: "/admin/finance",
+                to: "/admin/sales-settings",
                 title: "Configure packages & commissions",
                 detail:
                   "Create prospective versions without changing past deals",
@@ -921,8 +833,8 @@ function AdminHome() {
                   d.required_agreements > 0
                     ? "An active agreement is published."
                     : "Publish your approved agreement before activating reps.",
-                to: "/admin/content",
-                permission: "/admin/content",
+                to: "/admin/agreements",
+                permission: "/admin/agreements",
               },
               {
                 done: !!app.ctx.settings.calling_enabled,
@@ -1258,7 +1170,11 @@ function Health() {
           columns={[
             ["id", "Request reference"],
             ["category", "Category"],
-            ["route", "Action"],
+            ["route", "Route"],
+            ["action", "Action"],
+            ["user_id", "User reference"],
+            ["error_type", "Error type"],
+            ["safe_context", "Context"],
             ["status", "Response"],
             ["provider_request_id", "Provider reference"],
             ["provider_detail", "Staging detail"],

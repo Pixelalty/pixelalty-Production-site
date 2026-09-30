@@ -560,39 +560,36 @@ function App() {
     (p) => p.to.startsWith("/admin") || p.to === "/team",
   );
   const allowed = new Set(pages.map((p) => p.to));
-  if (has("sales_admin")) allowed.add("/admin");
+  if (has("sales_admin")) {
+    allowed.add("/admin");
+    allowed.add("/admin/reps/deleted");
+    allowed.add("/team");
+    allowed.add("/admin/content");
+  }
+  if (has("manager")) allowed.add("/team");
+  if (has("content_admin")) allowed.add("/admin/content");
   if (ctx.rep) allowed.add("/onboarding");
   let screen: React.ReactNode;
   if (!allowed.has(root))
     screen = (
       <div className="notice">This page is not available for your role.</div>
     );
-  else if (root.startsWith("/admin")) screen = <Admin />;
-  else if (root === "/team")
+  else if (root === "/team" || root === "/admin/content")
     screen = (
-      <>
-        <Heading
-          title="My team"
-          description="Only the reps and businesses in your assigned teams appear here."
-        />
-        <Listing
-          name="reps"
-          columns={[
-            ["name", "Rep"],
-            ["code", "Rep ID"],
-            ["status", "Status"],
-          ]}
-        />
-        <Listing
-          name="businesses"
-          columns={[
-            ["name", "Business"],
-            ["stage", "Stage"],
-            ["owner_id", "Rep"],
-          ]}
-        />
-      </>
+      <LegacyRedirect
+        to={
+          root === "/team"
+            ? "/admin/reps"
+            : has("owner") &&
+                new URLSearchParams(path.split("?")[1]).get("kind") ===
+                  "agreement"
+              ? "/admin/agreements"
+              : "/academy"
+        }
+        navigate={navigate}
+      />
     );
+  else if (root.startsWith("/admin")) screen = <Admin />;
   else if (root === "/notifications")
     screen = (
       <>
@@ -931,3 +928,16 @@ function App() {
   );
 }
 createRoot(document.getElementById("root")!).render(<App />);
+
+function LegacyRedirect({
+  to,
+  navigate,
+}: {
+  to: string;
+  navigate: (path: string) => void;
+}) {
+  useEffect(() => {
+    navigate(to);
+  }, [to, navigate]);
+  return <State loading />;
+}

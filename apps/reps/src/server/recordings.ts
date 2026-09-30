@@ -24,9 +24,13 @@ export async function recordingUrl(
         : "webm";
   const result = await client(env, undefined, true)
     .storage.from(RECORDINGS_BUCKET)
-    .createSignedUrl(access.object_key, 300, {
-      download: download ? `pixelalty-call-recording.${extension}` : false,
-    });
+    .createSignedUrl(
+      access.object_key,
+      download ? 300 : 3600,
+      download
+        ? { download: `pixelalty-call-recording.${extension}` }
+        : undefined,
+    );
   if (result.error || !result.data?.signedUrl)
     throw new HttpError(
       502,
@@ -35,7 +39,7 @@ export async function recordingUrl(
     );
   return {
     url: result.data.signedUrl,
-    expires_in: 300,
+    expires_in: download ? 300 : 3600,
     mime_type: access.mime_type,
   };
 }

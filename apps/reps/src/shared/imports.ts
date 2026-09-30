@@ -15,9 +15,28 @@ const importAliases: Record<string, string[]> = {
     "mobilephone",
     "tel",
   ],
-  website: ["website", "url", "domain"],
+  website: ["website", "url", "domain", "websiteurl", "websiteurlifany"],
+  email: ["email", "businessemail", "businessemailiftheyhaveone"],
+  city_state: ["citystate", "cityandstate"],
+  decision_maker: ["decisionmakerowner", "ownername"],
+  decision_maker_title: ["decisionmakertitle"],
+  decision_maker_email: ["decisionmakerbusinessemail", "decisionmakeremail"],
+  years_in_business: ["yearsinbusiness"],
+  founded_year: ["foundedyear", "yearfounded"],
+  business_description: ["businessdescription", "description"],
+  areas_served: ["areasserved"],
+  other_decision_makers: ["otherdecisionmakers"],
+  website_status: ["websitestatus"],
+  website_age: ["websiteage"],
   timezone: ["timezone", "tz"],
-  contact: ["contact", "contactname", "askfor", "owner", "decisionmaker"],
+  contact: [
+    "contact",
+    "contactname",
+    "askfor",
+    "persontoaskfor",
+    "owner",
+    "decisionmaker",
+  ],
   external_id: ["externalid", "placeid", "googleplaceid"],
   google_url: ["googleurl", "googlebusinessurl", "businessprofile"],
   rating: ["rating", "googlerating"],
@@ -28,6 +47,7 @@ const importAliases: Record<string, string[]> = {
   website_assessment: [
     "websitenotes",
     "websiteassessment",
+    "websiteproblemsopportunity",
     "websitestatus",
   ],
 };
@@ -37,13 +57,19 @@ export function suggestImportMapping(fields: string[], headers: string[]) {
     value,
     key: value.toLowerCase().replace(/[^a-z0-9]/g, ""),
   }));
+  const used = new Set<string>();
   return Object.fromEntries(
-    fields.map((field) => [
-      field,
-      normalized.find((candidate) =>
-        (importAliases[field] || [field]).includes(candidate.key),
-      )?.value || "",
-    ]),
+    fields.map((field) => {
+      const match = normalized.find(
+        (candidate) =>
+          !used.has(candidate.value) &&
+          (importAliases[field] || [field.replace(/[^a-z0-9]/g, "")]).includes(
+            candidate.key,
+          ),
+      );
+      if (match) used.add(match.value);
+      return [field, match?.value || ""];
+    }),
   );
 }
 
@@ -58,8 +84,6 @@ export function importMappingError(mapping: Record<string, string>, zone = "") {
     return "Each spreadsheet column can be mapped once. Remove the duplicate mapping.";
   if (zone && !timezone(zone))
     return "Choose a valid default timezone, such as America/New_York.";
-  if (!mapping.timezone && !zone)
-    return "Choose a default timezone or map a Timezone column before staging. Use the businesses’ timezone, not your own.";
   return "";
 }
 
@@ -93,11 +117,14 @@ export function inspectImport(
       error = e instanceof Error ? e.message : "Invalid row";
       issues.set(error, (issues.get(error) || 0) + 1);
     }
-    if (index < 5)
+    if (index < 100)
       preview.push({
         row: index + 2,
         name: data.name || String(row[mapping.name] ?? ""),
         phone: data.phone || String(row[mapping.phone] ?? ""),
+        city: data.city || "",
+        state: data.state || "",
+        timezone_source: data.metadata?.timezone_source || "",
         timezone: data.timezone || String(row[mapping.timezone] ?? zone),
         result: error || "Ready for duplicate and DNC checks",
       });
@@ -110,3 +137,40 @@ export function inspectImport(
     issues: [...issues].map(([message, count]) => ({ message, count })),
   };
 }
+
+export const importFields = [
+  "name",
+  "phone",
+  "contact",
+  "industry",
+  "category",
+  "city_state",
+  "city",
+  "state",
+  "zip",
+  "address",
+  "decision_maker",
+  "decision_maker_title",
+  "years_in_business",
+  "founded_year",
+  "business_description",
+  "services",
+  "areas_served",
+  "locations",
+  "other_decision_makers",
+  "email",
+  "decision_maker_email",
+  "website",
+  "website_status",
+  "website_age",
+  "website_assessment",
+  "timezone",
+  "notes",
+  "source",
+  "tags",
+  "country",
+  "external_id",
+  "google_url",
+  "rating",
+  "review_count",
+];

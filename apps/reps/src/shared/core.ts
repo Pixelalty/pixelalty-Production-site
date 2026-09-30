@@ -1,3 +1,4 @@
+import { leadLocation } from "./lead-location";
 export type Row = Record<string, any>;
 export const PACKAGES = [
   { code: "launch", name: "Launch", price: 79900, commission: 12500, xp: 100 },
@@ -139,12 +140,37 @@ export function normalizeLead(
   defaultZone = "",
 ) {
   const get = (key: string) => String(raw[mapping[key]] ?? "").trim();
-  const name = get("name"),
-    zone = get("timezone") || defaultZone;
+  const name = get("name");
+  const optional = (key: string) =>
+    /^(?:not found|n\/?a|none|null|-)$/i.test(get(key)) ? "" : get(key);
+  const location = leadLocation({
+    zip: get("zip"),
+    city: get("city"),
+    state: get("state"),
+    cityState: get("city_state"),
+    address: get("address"),
+    timezone: get("timezone"),
+    defaultZone,
+  });
+  const zone = location.timezone;
   if (!name || name.length > 200)
     throw Error("Business name is required (maximum 200 characters).");
   if (!timezone(zone)) throw Error("A verified IANA timezone is required.");
-  const email = get("email").toLowerCase();
+  const email = optional("email").toLowerCase();
+  const ownerEmail = optional("decision_maker_email").toLowerCase();
+  if (ownerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail))
+    throw Error("Invalid decision-maker email.");
+  const integer = (key: string, max: number) => {
+    const value = optional(key);
+    if (!value) return null;
+    if (
+      !Number.isInteger(Number(value)) ||
+      Number(value) < 0 ||
+      Number(value) > max
+    )
+      throw Error(label(key) + " must be a valid non-negative whole number.");
+    return Number(value);
+  };
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     throw Error("Invalid email.");
   const rating = get("rating"),
@@ -164,11 +190,11 @@ export function normalizeLead(
   return {
     name,
     phone: normalizePhone(get("phone")),
-    domain: normalizeDomain(get("website")),
+    domain: normalizeDomain(optional("website")),
     email,
     timezone: zone,
-    city: get("city"),
-    state: get("state").toUpperCase(),
+    city: location.city,
+    state: location.state,
     industry: get("industry"),
     contact: get("contact"),
     notes: get("notes").slice(0, 3000),
@@ -182,7 +208,21 @@ export function normalizeLead(
       .slice(0, 20),
     metadata: {
       address: get("address").slice(0, 500),
-      zip: get("zip").slice(0, 40),
+      zip: location.zip,
+      timezone_source: location.source,
+      category: get("category"),
+      decision_maker: get("decision_maker"),
+      decision_maker_title: get("decision_maker_title"),
+      decision_maker_email: ownerEmail,
+      years_in_business: integer("years_in_business", 1000),
+      founded_year: integer("founded_year", new Date().getFullYear()),
+      business_description: get("business_description").slice(0, 5000),
+      services: get("services").slice(0, 5000),
+      areas_served: get("areas_served").slice(0, 3000),
+      locations: get("locations").slice(0, 3000),
+      other_decision_makers: get("other_decision_makers").slice(0, 3000),
+      website_status: get("website_status"),
+      website_age: optional("website_age"),
       country: get("country").slice(0, 100),
       google_url: google.slice(0, 2000),
       rating: rating ? Number(rating) : null,

@@ -114,3 +114,20 @@ export async function paymentOperation<T>(
     throw paymentError(error, operation);
   }
 }
+
+export function diagnosticError(error: unknown) {
+  const name = error instanceof Error ? error.name : "UnknownError";
+  const detail = error instanceof Error ? error.message : "Non-error exception";
+  return {
+    error_type: name.replace(/[^a-zA-Z0-9_]/g, "").slice(0, 80),
+    detail: redactPaymentDetail(
+      detail
+        .replace(/Bearer\s+\S+/gi, "[authorization]")
+        .replace(/[A-Za-z0-9_+/=-]{60,}/g, "[redacted]")
+        .replace(
+          /(?:password|token|secret|authorization|cookie)\s*[=:]\s*[^\s,;]+/gi,
+          "[credential]",
+        ),
+    ),
+  };
+}

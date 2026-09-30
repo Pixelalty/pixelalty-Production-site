@@ -181,11 +181,21 @@ export function Onboarding() {
           <SalesCode />
           <Card title="Pixelalty Essentials">
             {d?.essentials_completed ? (
-              <p><CheckCircle2 size={18} aria-hidden="true" /> Pixelalty Essentials completed.</p>
+              <p>
+                <CheckCircle2 size={18} aria-hidden="true" /> Pixelalty
+                Essentials completed.
+              </p>
             ) : (
-              <p>Read the two short getting-started sections and confirm your understanding.</p>
+              <p>
+                Read the two short getting-started sections and confirm your
+                understanding.
+              </p>
             )}
-            <LinkButton to="/academy">{d?.essentials_completed ? "Review Essentials" : "Complete Getting Started"}</LinkButton>
+            <LinkButton to="/academy">
+              {d?.essentials_completed
+                ? "Review Essentials"
+                : "Complete Getting Started"}
+            </LinkButton>
           </Card>
           <section id="onboarding-activation" tabIndex={-1} className="card">
             <h2>Administrator activation</h2>
@@ -628,9 +638,7 @@ function AdminRequirementAction({
     );
   if (step === "agreement" && !agreementAvailable && app.has("owner"))
     return (
-      <LinkButton to="/admin/content?kind=agreement">
-        Publish required agreement
-      </LinkButton>
+      <LinkButton to="/admin/agreements">Publish required agreement</LinkButton>
     );
   if (
     (step === "tax" || step === "payout") &&

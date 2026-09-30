@@ -82,6 +82,14 @@ export async function uploadPdf(file: File, requestId: string) {
     );
   return out;
 }
+export async function mediaBlob(path: string) {
+  const session = await auth.auth.getSession();
+  const response = await fetch("/api" + path, {
+    headers: { Authorization: "Bearer " + session.data.session?.access_token },
+  });
+  if (!response.ok) throw Error("The image is unavailable.");
+  return response.blob();
+}
 export async function profileImageBlob(id: string, still: boolean) {
   const session = await auth.auth.getSession();
   const response = await fetch(
@@ -594,12 +602,57 @@ export function ActionDialog({
     </Modal>
   );
 }
+export function PersonLink({
+  row,
+  applicant = false,
+  children,
+}: {
+  row: Row;
+  applicant?: boolean;
+  children?: ReactNode;
+}) {
+  const app = useApp();
+  const code = row.rep_code || (row.code?.startsWith("PXL-") ? row.code : "");
+  const deleted = row.rep_deleted_at || row.deleted_at;
+  const id = row.rep_id || row.id;
+  const to = code
+    ? deleted && app.has("sales_admin")
+      ? `/admin/reps/deleted?id=${encodeURIComponent(id)}`
+      : `/admin/reps?rep_code=${encodeURIComponent(code)}&manage=1`
+    : applicant
+      ? `/admin/recruiting?applicant=${encodeURIComponent(row.id)}`
+      : "";
+  const content = children || row.rep_name || row.name || code || "Account";
+  if (
+    !to ||
+    !["sales_admin", "finance_admin", "support", "manager"].some((role) =>
+      app.has(role),
+    )
+  )
+    return <>{content}</>;
+  return (
+    <a
+      className="person-link"
+      href={to}
+      onClick={(e) => {
+        if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+          return;
+        e.preventDefault();
+        app.navigate(to);
+      }}
+    >
+      {content}
+    </a>
+  );
+}
 export function Table({
   rows,
   columns,
   actions,
+  render = {},
 }: {
   rows: Row[];
+  render?: Record<string, (row: Row) => ReactNode>;
   columns: [string, string][];
   actions?: (row: Row) => ReactNode;
 }) {
@@ -619,12 +672,24 @@ export function Table({
             <tr key={r.id || i}>
               {columns.map(([k]) => (
                 <td key={k}>
-                  {k === "name" &&
-                  (r.code?.startsWith("PXL-") ||
-                    r.rep?.code?.startsWith("PXL-")) ? (
-                    <SharedIdentity
-                      rep={r.rep?.code ? { id: r.rep_id, ...r.rep } : r}
-                    />
+                  {render[k] ? (
+                    render[k](r)
+                  ) : k === "rep_name" && r.rep_code ? (
+                    <PersonLink row={r} />
+                  ) : k === "name" && r.code?.startsWith("APP-") ? (
+                    <PersonLink row={r} applicant />
+                  ) : k === "name" &&
+                    (r.code?.startsWith("PXL-") ||
+                      r.rep?.code?.startsWith("PXL-")) ? (
+                    <PersonLink row={r}>
+                      {r.deleted_at || r.rep_deleted_at ? (
+                        r.name || r.rep_name || "Deleted account"
+                      ) : (
+                        <SharedIdentity
+                          rep={r.rep?.code ? { id: r.rep_id, ...r.rep } : r}
+                        />
+                      )}
+                    </PersonLink>
                   ) : k.includes("cents") ? (
                     money(r[k])
                   ) : ["status", "stage", "classification"].includes(k) &&
@@ -636,6 +701,8 @@ export function Table({
                     ) : (
                       "—"
                     )
+                  ) : r[k] == null ? (
+                    "—"
                   ) : typeof r[k] === "object" ? (
                     JSON.stringify(r[k])
                   ) : (
@@ -765,16 +832,23 @@ export function Listing({
   return (
     <Card>
       <div className="toolbar">
-        {["businesses", "reps", "applicants", "deals", "content"].includes(
-          name,
-        ) && (
+        {[
+          "businesses",
+          "reps",
+          "applicants",
+          "deals",
+          "content",
+          "diagnostics",
+        ].includes(name) && (
           <input
             type="search"
             aria-label={`Search ${label(name)}`}
             placeholder={
-              name === "content"
-                ? "Search titles and content…"
-                : "Search name or ID…"
+              name === "diagnostics"
+                ? "Paste the request reference…"
+                : name === "content"
+                  ? "Search titles and content…"
+                  : "Search name or ID…"
             }
             value={search}
             onChange={(e) => {
@@ -783,24 +857,26 @@ export function Listing({
             }}
           />
         )}
-        {(tableFilters[name] || []).map((f) => (
-          <select
-            key={f.key}
-            aria-label={`Filter ${label(f.key)}`}
-            value={filters[f.key] || ""}
-            onChange={(e) => {
-              setFilters({ ...filters, [f.key]: e.target.value });
-              setPage(0);
-            }}
-          >
-            <option value="">All {label(f.key)}</option>
-            {f.values.map((v) => (
-              <option key={v} value={v}>
-                {label(v)}
-              </option>
-            ))}
-          </select>
-        ))}
+        {(tableFilters[name] || [])
+          .filter((f) => !new URLSearchParams(query).has(f.key))
+          .map((f) => (
+            <select
+              key={f.key}
+              aria-label={`Filter ${label(f.key)}`}
+              value={filters[f.key] || ""}
+              onChange={(e) => {
+                setFilters({ ...filters, [f.key]: e.target.value });
+                setPage(0);
+              }}
+            >
+              <option value="">All {label(f.key)}</option>
+              {f.values.map((v) => (
+                <option key={v} value={v}>
+                  {label(v)}
+                </option>
+              ))}
+            </select>
+          ))}
         {editable && (
           <select
             aria-label="Sort order"

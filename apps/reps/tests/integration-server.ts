@@ -529,12 +529,14 @@ export async function startIntegration(
                         ? "rep_id"
                         : target === "px_deals"
                           ? "deal_id"
-                          : target === "px_verified_sales"
-                            ? "sale_id"
-                            : "";
+                          : target === "px_rep_private"
+                            ? "id"
+                            : target === "px_verified_sales"
+                              ? "sale_id"
+                              : "";
                 if (!foreign) throw Error("Unsupported test join");
                 const nestedAlias = alias + "_" + key;
-                return `(select row_to_json(j) from (select ${selectExpr(inner, nestedAlias)} from ${identifier(target)} ${nestedAlias} where ${nestedAlias}.id=${alias}.${foreign}) j) as ${identifier(key)}`;
+                return `(select row_to_json(j) from (select ${selectExpr(inner, nestedAlias)} from ${identifier(target)} ${nestedAlias} where ${nestedAlias}.${target === "px_rep_private" ? "rep_id" : "id"}=${alias}.${foreign}) j) as ${identifier(key)}`;
               }
               return part === "*"
                 ? alias + ".*"
@@ -610,7 +612,8 @@ export async function startIntegration(
       if (u.pathname.startsWith("/storage/v1/upload/resumable")) {
         const tusHeaders = {
           "Tus-Resumable": "1.0.0",
-          "Access-Control-Expose-Headers": "Location,Upload-Offset,Tus-Resumable",
+          "Access-Control-Expose-Headers":
+            "Location,Upload-Offset,Tus-Resumable",
         };
         const id = u.pathname.split("/").at(-1);
         if (req.method === "POST") {
@@ -640,7 +643,10 @@ export async function startIntegration(
             },
           });
         } else if (!id || !resumable.has(id)) {
-          response = Response.json({ message: "Upload not found" }, { status: 404 });
+          response = Response.json(
+            { message: "Upload not found" },
+            { status: 404 },
+          );
         } else {
           const upload = resumable.get(id)!;
           if (req.method === "HEAD")
@@ -653,11 +659,18 @@ export async function startIntegration(
               },
             });
           else if (req.method === "PATCH") {
-            if (Number(req.headers.get("upload-offset")) !== upload.bytes.length)
-              response = Response.json({ message: "Offset mismatch" }, { status: 409 });
+            if (
+              Number(req.headers.get("upload-offset")) !== upload.bytes.length
+            )
+              response = Response.json(
+                { message: "Offset mismatch" },
+                { status: 409 },
+              );
             else {
               const incomingBytes = new Uint8Array(await req.arrayBuffer());
-              const combined = new Uint8Array(upload.bytes.length + incomingBytes.length);
+              const combined = new Uint8Array(
+                upload.bytes.length + incomingBytes.length,
+              );
               combined.set(upload.bytes);
               combined.set(incomingBytes, upload.bytes.length);
               upload.bytes = combined;
@@ -686,16 +699,30 @@ export async function startIntegration(
                 },
               });
             }
-          } else response = Response.json({ message: "Method not allowed" }, { status: 405 });
+          } else
+            response = Response.json(
+              { message: "Method not allowed" },
+              { status: 405 },
+            );
         }
       } else if (u.pathname.startsWith("/storage/v1/object/sign/public/")) {
         const token = u.pathname.split("/").at(-1) || "";
         const objectPath = signedObjects.get(token);
-        response = objectPath && storedFiles.has(objectPath)
-          ? new Response(storedFiles.get(objectPath) as Uint8Array<ArrayBuffer>, {
-              headers: { "Content-Type": "audio/webm", "Cache-Control": "private, no-store" },
-            })
-          : Response.json({ message: "Signed link expired" }, { status: 404 });
+        response =
+          objectPath && storedFiles.has(objectPath)
+            ? new Response(
+                storedFiles.get(objectPath) as Uint8Array<ArrayBuffer>,
+                {
+                  headers: {
+                    "Content-Type": "audio/webm",
+                    "Cache-Control": "private, no-store",
+                  },
+                },
+              )
+            : Response.json(
+                { message: "Signed link expired" },
+                { status: 404 },
+              );
       } else if (u.pathname.startsWith("/storage/v1/object/sign/")) {
         const objectPath = decodeURIComponent(
           u.pathname.replace(/^\/storage\/v1\/object\/sign\//, ""),
