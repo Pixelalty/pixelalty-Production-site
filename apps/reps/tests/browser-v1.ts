@@ -780,6 +780,7 @@ try {
   await page
     .getByRole("heading", { name: "Historical account record", exact: true })
     .waitFor();
+  await page.getByText(deletedRep.code, { exact: true }).first().waitFor();
   assert.equal(
     (
       await fixture.db.query("select id from auth.users where id=$1", [

@@ -43,7 +43,7 @@ export function AvailableLeads({ onClaim }: { onClaim: (id: string) => void }) {
     }
   };
   return (
-    <Card title="Available lead pool">
+    <Card title="Available lead pool" className="lead-table">
       <p>
         Choose a business you want to work with. Claiming reserves it for you.
       </p>
@@ -178,7 +178,7 @@ export function LeadManagement() {
           Export businesses
         </button>
       </Heading>
-      <Card>
+      <Card className="lead-table">
         <div className="toolbar">
           <label>
             Search businesses

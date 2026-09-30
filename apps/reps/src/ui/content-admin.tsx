@@ -2,12 +2,17 @@ import { useState } from "react";
 import { useApp, Heading, Listing, Modal, Form, type Field } from "./lib";
 import { label, type Row } from "../shared/core";
 type Question = { question: string; options: string[]; answer: string };
-export function ContentAdmin() {
+export function ContentAdmin({
+  agreementsOnly = false,
+}: {
+  agreementsOnly?: boolean;
+}) {
   const app = useApp(),
     [item, setItem] = useState<Row | null>(null),
     [kind, setKind] = useState(
-      new URLSearchParams(location.search).get("kind") === "agreement" &&
-        app.has("owner")
+      agreementsOnly ||
+        (new URLSearchParams(location.search).get("kind") === "agreement" &&
+          app.has("owner"))
         ? "agreement"
         : "lesson",
     ),
@@ -54,8 +59,12 @@ export function ContentAdmin() {
   return (
     <>
       <Heading
-        title="Training & content"
-        description="Publish new versions while preserving past completions and agreement acceptances."
+        title={agreementsOnly ? "Agreements" : "Training & content"}
+        description={
+          agreementsOnly
+            ? "Manage approved agreements while preserving every past acceptance and signed version."
+            : "Publish new versions while preserving past completions and agreement acceptances."
+        }
       >
         <button className="primary" onClick={() => open()}>
           {kind === "agreement"
@@ -72,6 +81,7 @@ export function ContentAdmin() {
       )}
       <Listing
         name="content"
+        query={agreementsOnly ? "&kind=agreement" : ""}
         columns={[
           ["kind", "Kind"],
           ["title", "Title"],
@@ -101,30 +111,38 @@ export function ContentAdmin() {
       />
       {item && (
         <Modal
-          title={item.id ? "Publish a content revision" : "Publish content"}
+          title={
+            agreementsOnly
+              ? "Publish agreement version"
+              : item.id
+                ? "Publish a content revision"
+                : "Publish content"
+          }
           onClose={() => setItem(null)}
         >
-          <label className="field">
-            Content type
-            <select
-              value={kind}
-              disabled={!!item.id}
-              onChange={(e) => setKind(e.target.value)}
-            >
-              {[
-                "lesson",
-                "script",
-                "knowledge",
-                "announcement",
-                "quiz",
-                ...(app.has("owner") ? ["agreement"] : []),
-              ].map((k) => (
-                <option key={k} value={k}>
-                  {label(k)}
-                </option>
-              ))}
-            </select>
-          </label>
+          {!agreementsOnly && (
+            <label className="field">
+              Content type
+              <select
+                value={kind}
+                disabled={!!item.id}
+                onChange={(e) => setKind(e.target.value)}
+              >
+                {[
+                  "lesson",
+                  "script",
+                  "knowledge",
+                  "announcement",
+                  "quiz",
+                  ...(app.has("owner") ? ["agreement"] : []),
+                ].map((k) => (
+                  <option key={k} value={k}>
+                    {label(k)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {kind === "quiz" && (
             <div className="quiz-builder">
               <p>

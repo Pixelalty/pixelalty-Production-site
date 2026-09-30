@@ -752,12 +752,8 @@ export function Academy() {
                     .slice()
                     .sort(
                       (a: Row, b: Row) =>
-                        ["launch", "growth", "premium", "advanced"].indexOf(
-                          a.code,
-                        ) -
-                        ["launch", "growth", "premium", "advanced"].indexOf(
-                          b.code,
-                        ),
+                        a.display_order - b.display_order ||
+                        a.code.localeCompare(b.code),
                     )
                     .map((pkg: Row) => (
                       <article key={pkg.id}>

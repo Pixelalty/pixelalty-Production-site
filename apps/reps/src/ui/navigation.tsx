@@ -203,6 +203,14 @@ export function workspacePages(ctx: Row): WorkspacePage[] {
       "Review restricted tax submissions and correction requests",
     );
   }
+  if (has("owner"))
+    add(
+      "/admin/agreements",
+      "Agreements",
+      "People",
+      FileText,
+      "Approved documents and preserved agreement acceptances",
+    );
   if (has("compliance_admin"))
     add(
       "/admin/compliance",

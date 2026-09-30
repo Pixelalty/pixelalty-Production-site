@@ -682,9 +682,13 @@ export function Table({
                     (r.code?.startsWith("PXL-") ||
                       r.rep?.code?.startsWith("PXL-")) ? (
                     <PersonLink row={r}>
-                      <SharedIdentity
-                        rep={r.rep?.code ? { id: r.rep_id, ...r.rep } : r}
-                      />
+                      {r.deleted_at || r.rep_deleted_at ? (
+                        r.name || r.rep_name || "Deleted account"
+                      ) : (
+                        <SharedIdentity
+                          rep={r.rep?.code ? { id: r.rep_id, ...r.rep } : r}
+                        />
+                      )}
                     </PersonLink>
                   ) : k.includes("cents") ? (
                     money(r[k])
@@ -697,6 +701,8 @@ export function Table({
                     ) : (
                       "—"
                     )
+                  ) : r[k] == null ? (
+                    "—"
                   ) : typeof r[k] === "object" ? (
                     JSON.stringify(r[k])
                   ) : (
@@ -851,24 +857,26 @@ export function Listing({
             }}
           />
         )}
-        {(tableFilters[name] || []).map((f) => (
-          <select
-            key={f.key}
-            aria-label={`Filter ${label(f.key)}`}
-            value={filters[f.key] || ""}
-            onChange={(e) => {
-              setFilters({ ...filters, [f.key]: e.target.value });
-              setPage(0);
-            }}
-          >
-            <option value="">All {label(f.key)}</option>
-            {f.values.map((v) => (
-              <option key={v} value={v}>
-                {label(v)}
-              </option>
-            ))}
-          </select>
-        ))}
+        {(tableFilters[name] || [])
+          .filter((f) => !new URLSearchParams(query).has(f.key))
+          .map((f) => (
+            <select
+              key={f.key}
+              aria-label={`Filter ${label(f.key)}`}
+              value={filters[f.key] || ""}
+              onChange={(e) => {
+                setFilters({ ...filters, [f.key]: e.target.value });
+                setPage(0);
+              }}
+            >
+              <option value="">All {label(f.key)}</option>
+              {f.values.map((v) => (
+                <option key={v} value={v}>
+                  {label(v)}
+                </option>
+              ))}
+            </select>
+          ))}
         {editable && (
           <select
             aria-label="Sort order"

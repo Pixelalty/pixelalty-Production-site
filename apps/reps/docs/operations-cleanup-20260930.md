@@ -8,7 +8,8 @@ design are preserved. The only authorized database is staging
 ## Changes
 
 - Retire Admin Training & Content and My Team navigation. Legacy routes lead to
-  Essentials and Rep Management. Existing curriculum/history remains intact.
+  Essentials and Rep Management. Agreement publishing has its own owner-only Admin
+  page, including the existing onboarding links. Existing curriculum/history remains intact.
 - Version the existing package catalog through Admin Sales Settings. Prices,
   commissions, visibility, starts-at labels and names are editable; stable tier
   ordering does not depend on names. Existing deal/payment snapshots remain
@@ -76,3 +77,12 @@ through Admin, verify the rep claim/note flow, archive one disposable row, delet
 three selected disposable rows, and report the actual remaining counts. Record
 the merged commit, deployed revision and hosted results separately; do not label
 unperformed hosted checks as passing.
+
+First final regression (PR #13, Actions run 36665993757): 128 unit/integration
+tests and 14 PostgreSQL concurrency tests passed. Auth, profile, branding and
+manual finance browser suites passed. The main browser suite completed the new
+package/support/import/claim/delete/playback flows, then caught a stale-data crash
+opening deleted-account history; the onboarding suite caught the removed agreement
+publishing link. Both root causes were corrected, along with a deleted-profile
+request, catalog ordering and mobile lead-table readability found in visual review.
+The required gate is rerun on the corrected commit before deployment.

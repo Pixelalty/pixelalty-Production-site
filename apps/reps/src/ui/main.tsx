@@ -577,7 +577,15 @@ function App() {
   else if (root === "/team" || root === "/admin/content")
     screen = (
       <LegacyRedirect
-        to={root === "/team" ? "/admin/reps" : "/academy"}
+        to={
+          root === "/team"
+            ? "/admin/reps"
+            : has("owner") &&
+                new URLSearchParams(path.split("?")[1]).get("kind") ===
+                  "agreement"
+              ? "/admin/agreements"
+              : "/academy"
+        }
         navigate={navigate}
       />
     );

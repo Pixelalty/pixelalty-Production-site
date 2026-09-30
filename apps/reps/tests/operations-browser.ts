@@ -203,6 +203,12 @@ export async function verifyOperationsAdmin(
   await dialog.waitFor({ state: "hidden" });
   for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
+    await page.waitForFunction(
+      () =>
+        innerWidth > 900 ||
+        (document.querySelector(".sidebar")?.getBoundingClientRect().right ??
+          0) <= 1,
+    );
     assert.ok(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth + 1,
@@ -212,6 +218,7 @@ export async function verifyOperationsAdmin(
     await page.screenshot({
       path: new URL(`lead-management-${width}.png`, out).pathname,
       fullPage: true,
+      animations: "disabled",
     });
   }
   checks.push(

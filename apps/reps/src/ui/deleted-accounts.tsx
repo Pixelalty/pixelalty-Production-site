@@ -68,7 +68,7 @@ export function DeletedAccounts({ id }: { id?: string | null }) {
       )}
       {id && (
         <State {...state}>
-          {state.data && (
+          {state.data?.account && (
             <>
               <Card title={state.data.account.former_name || "Deleted account"}>
                 <dl className="detail-grid">

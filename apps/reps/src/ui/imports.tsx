@@ -484,7 +484,7 @@ export function Imports() {
               </>
             ) : (
               <>
-                <div className="stats">
+                <div className="stats import-counts">
                   {[
                     "ready",
                     "accepted",

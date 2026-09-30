@@ -28,6 +28,7 @@ import {
   type Field,
 } from "./lib";
 import { label, money, type Row } from "../shared/core";
+import { ContentAdmin } from "./content-admin";
 import { SalesSettings, SupportHubSettings } from "./operations-settings";
 import { LeadManagement } from "./lead-management";
 import { DeletedAccounts, RepSummary } from "./deleted-accounts";
@@ -104,6 +105,7 @@ export function Admin() {
   if (page === "/admin/recordings") return <Recordings admin />;
   if (page === "/admin/imports") return <Imports />;
   if (page === "/admin/settings") return <Settings />;
+  if (page === "/admin/agreements") return <ContentAdmin agreementsOnly />;
   if (page === "/admin/sales-settings") return <SalesSettings />;
   if (page === "/admin/reps/deleted")
     return (
@@ -786,13 +788,13 @@ function AdminHome() {
                 icon: SettingsIcon,
               },
               {
-                to: "/admin/content",
-                title: "Publish training & agreements",
-                detail: "Lessons, quizzes, scripts and versioned documents",
+                to: "/admin/agreements",
+                title: "Manage agreements",
+                detail: "Approved documents and preserved acceptance history",
                 icon: BookOpen,
               },
               {
-                to: "/admin/finance",
+                to: "/admin/sales-settings",
                 title: "Configure packages & commissions",
                 detail:
                   "Create prospective versions without changing past deals",
@@ -831,8 +833,8 @@ function AdminHome() {
                   d.required_agreements > 0
                     ? "An active agreement is published."
                     : "Publish your approved agreement before activating reps.",
-                to: "/admin/content",
-                permission: "/admin/content",
+                to: "/admin/agreements",
+                permission: "/admin/agreements",
               },
               {
                 done: !!app.ctx.settings.calling_enabled,

@@ -380,9 +380,11 @@ async function api(
           : "user_id"
       : table === "import_rows"
         ? "row_num"
-        : table === "payouts"
-          ? "updated_at"
-          : "created_at";
+        : table === "packages"
+          ? "display_order"
+          : table === "payouts"
+            ? "updated_at"
+            : "created_at";
     const sort = u.searchParams.get("sort");
     const sortable: Record<string, string[]> = {
       businesses: ["name", "stage", "created_at", "expires_at"],
@@ -395,7 +397,8 @@ async function api(
     q = q
       .order(sort && sortable[table]?.includes(sort) ? sort : order, {
         ascending:
-          table === "import_rows" || u.searchParams.get("direction") === "asc",
+          ["import_rows", "packages"].includes(table) ||
+          u.searchParams.get("direction") === "asc",
       })
       .range(page * 50, page * 50 + 49);
     if (

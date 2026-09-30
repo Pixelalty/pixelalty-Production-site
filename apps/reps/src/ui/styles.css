@@ -2248,3 +2248,33 @@ input[type="file"]::file-selector-button {
     grid-template-columns: 1fr;
   }
 }
+
+/* Keep lead names and phone numbers readable; small screens scroll the table. */
+.lead-table table {
+  min-width: 960px;
+}
+.lead-table td {
+  min-width: 90px;
+  overflow-wrap: break-word;
+}
+.lead-table td:first-child {
+  min-width: 44px;
+}
+.lead-table td:nth-child(2) {
+  min-width: 170px;
+}
+.import-counts > div {
+  padding: 14px;
+  background: var(--soft);
+  border-radius: 10px;
+}
+.import-counts strong {
+  display: block;
+  font-size: 22px;
+  line-height: 1.4;
+}
+.import-counts small {
+  display: block;
+  color: var(--muted);
+  margin-top: 3px;
+}
