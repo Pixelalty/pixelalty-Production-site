@@ -123,7 +123,7 @@ export function BusinessDetails({
             </div>
             {!lead.customer && !lead.dnc && !lead.archived && (
               <Form
-                key={lead.stage}
+                key={`pipeline-${lead.stage}`}
                 initial={{ stage: lead.stage }}
                 fields={[
                   {
@@ -179,7 +179,7 @@ export function BusinessDetails({
                 ))}
             </State>
             <Form
-              key={revision?.id || "new"}
+              key={`note-${revision?.id || "new"}`}
               fields={[
                 {
                   name: "body",

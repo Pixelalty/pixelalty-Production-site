@@ -142,3 +142,19 @@ RLS. The browser regression now searches the full demo name. Review rows are
 labelled "Data row" to distinguish their one-based numbering from worksheet
 line numbers. This verified hosted defect requires a corrective staging release;
 no additional database migration or infrastructure is involved.
+
+The search correction passed all gates and was deployed as staging commit
+`dd12be1a4617ff29f20f6119d80ea706a8680173`, Worker version
+`3bbe6a82-2b9f-4b74-846e-37ae6a6a7afe`. Hosted searches now find exact names
+containing ampersands and periods. Support card create/edit/hide/reactivate,
+reorder and QR upload/replace/remove were exercised through Admin; temporary
+cards/images were removed and the original four cards restored. Legacy routes,
+historical accounts and canonical rep links were verified through the hosted UI.
+
+The ordinary Rep claimed Demo Plumbing Co. successfully. Hosted inspection then
+found duplicate pipeline forms after data refreshes: the sibling pipeline and
+note forms both used the React key `new`. Prefixing the keys by form purpose
+preserves their intended reset behavior and prevents reconciliation collisions.
+Browser regression now verifies exactly one pipeline and note form across a
+claim, note save, favorite refresh and stage change. This is a small hosted
+defect correction with no migration or infrastructure change.
