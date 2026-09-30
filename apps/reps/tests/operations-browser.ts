@@ -300,11 +300,26 @@ export async function verifyOperationsRep(
   await dialog
     .getByLabel("Add a note")
     .fill("Exact workbook lead claimed and reviewed");
+  assert.equal(await dialog.getByLabel("Pipeline stage").count(), 1);
   await dialog.getByRole("button", { name: "Save note", exact: true }).click();
   await dialog
     .getByText("Exact workbook lead claimed and reviewed", { exact: true })
     .first()
     .waitFor();
+  assert.equal(
+    await dialog.getByLabel("Pipeline stage").count(),
+    1,
+    "Refreshing a new lead must not duplicate the pipeline form",
+  );
+  await dialog.getByRole("button", { name: "Favorite", exact: true }).click();
+  await dialog.getByRole("button", { name: "Remove favorite", exact: true }).waitFor();
+  assert.equal(await dialog.getByLabel("Pipeline stage").count(), 1);
+  assert.equal(await dialog.getByLabel("Add a note").count(), 1);
+  await dialog.getByLabel("Pipeline stage").selectOption("working");
+  await dialog.getByRole("button", { name: "Update stage", exact: true }).click();
+  await dialog.locator(".card-head").getByText("Working", { exact: true }).waitFor();
+  assert.equal(await dialog.getByLabel("Pipeline stage").count(), 1);
+  assert.equal(await dialog.getByLabel("Add a note").count(), 1);
   await page.keyboard.press("Escape");
   const saved = (
     await fixture.db.query<any>(
