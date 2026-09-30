@@ -106,6 +106,21 @@ begin
   values(pkg.code,trim(p->>'name'),pkg.version+1,(p->>'price_cents')::int,(p->>'commission_cents')::int,pkg.sale_xp,coalesce(p->>'description',pkg.description),n,coalesce((p->>'starts_at')::boolean,false),coalesce((p->>'visible')::boolean,true),coalesce((p->>'active')::boolean,true)) returning id into new_id;
   perform px_private.audit('package_settings',new_id::text,coalesce(p->>'reason','Prospective catalog update'),jsonb_build_object('before',to_jsonb(pkg),'after',(select to_jsonb(x) from public.px_packages x where id=new_id)));
   return jsonb_build_object('id',new_id);
+ elsif action='support_card_move' then
+  perform px_private.require_role(array['support','sales_admin']);
+  select value into cfg from public.px_settings where id for update;
+  cards:=coalesce(cfg->'support_channels','[]'); key:=p->>'card_id';
+  if coalesce((p->>'direction')::int,0) not in (-1,1) then raise exception 'Choose move up or move down.';end if;
+  select ord::int into n from jsonb_array_elements(cards) with ordinality a(c,ord) where c->>'id'=key;
+  if n is null then raise exception 'This support option changed. Reload and try again.';end if;
+  if n+(p->>'direction')::int not between 1 and jsonb_array_length(cards) then return '{}';end if;
+  select jsonb_agg(jsonb_set(c,'{display_order}',to_jsonb(pos*10)) order by pos) into cards from (
+   select c,row_number() over(order by case when ord=n then n+(p->>'direction')::int when ord=n+(p->>'direction')::int then n else ord end) pos
+   from jsonb_array_elements(cards) with ordinality a(c,ord)
+  ) ranked;
+  update public.px_settings set value=jsonb_set(value,'{support_channels}',cards) where id;
+  perform px_private.audit(action,key,'Reorder support options',jsonb_build_object('before',cfg->'support_channels','after',cards));
+  return '{}';
  elsif action='support_media_retire' then
   perform px_private.require_role(array['support','sales_admin']);
   select value into cfg from public.px_settings where id for update;

@@ -313,6 +313,29 @@ test("operational workflows use the real migrated database and preserve protecte
         icon: "users",
       };
       await rpc(db, "px_action", "support_card_save", card);
+      await rpc(db, "px_action", "support_card_save", {
+        ...card,
+        display_order: 1,
+      });
+      await rpc(db, "px_action", "support_card_move", {
+        card_id: "discord",
+        direction: 1,
+      });
+      let ordered = (await rpc(db, "px_report", "support_hub", { admin: true }))
+        .rows;
+      assert.equal(ordered[1].id, "discord");
+      await rpc(db, "px_action", "support_card_move", {
+        card_id: "discord",
+        direction: -1,
+      });
+      ordered = (await rpc(db, "px_report", "support_hub", { admin: true }))
+        .rows;
+      assert.equal(ordered[0].id, "discord");
+      assert.deepEqual(
+        ordered.map((r: any) => r.display_order),
+        [10, 20, 30, 40, 50],
+      );
+
       await actor(db, rep);
       assert.ok(
         (await rpc(db, "px_report", "support_hub")).rows.some(

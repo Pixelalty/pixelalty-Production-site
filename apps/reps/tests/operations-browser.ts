@@ -74,6 +74,18 @@ export async function verifyOperationsAdmin(
   const card = page
     .getByRole("row")
     .filter({ hasText: "Pixelalty Discord test" });
+  await card
+    .getByRole("button", {
+      name: "Move Pixelalty Discord test up",
+      exact: true,
+    })
+    .click();
+  await card
+    .getByRole("button", {
+      name: "Move Pixelalty Discord test down",
+      exact: true,
+    })
+    .click();
   await card.getByRole("button", { name: "Hide", exact: true }).click();
   await card.getByRole("button", { name: "Reactivate", exact: true }).click();
   await card.getByRole("button", { name: "Edit", exact: true }).click();

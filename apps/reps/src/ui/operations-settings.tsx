@@ -237,14 +237,7 @@ export function SupportHubSettings() {
     return result;
   };
   const move = async (row: Row, direction: number) => {
-    const rows: Row[] = state.data?.rows || [],
-      index = rows.findIndex((r) => r.id === row.id),
-      other = rows[index + direction];
-    if (!other) return;
-    await save({
-      ...row,
-      display_order: Math.max(1, other.display_order + direction),
-    });
+    await app.mutate("support_card_move", { card_id: row.id, direction });
   };
   const fields: Field[] = [
     { name: "title", label: "Card title", required: true, maxLength: 100 },
