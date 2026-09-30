@@ -646,6 +646,12 @@ try {
     timeout: 5000,
   });
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  // Compare two active reps so onboarding route restrictions do not mask the
+  // recording-ownership check. This changes only the disposable SQL fixture.
+  await fixture.db.query(
+    "update public.px_reps set status='active' where id=$1",
+    [fixture.newRep],
+  );
   await login("new@example.test");
   await go("/recordings");
   assert.equal(
