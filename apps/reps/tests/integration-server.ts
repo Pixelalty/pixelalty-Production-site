@@ -392,8 +392,20 @@ export async function startIntegration(
   const split = (s: string) => {
     const a: string[] = [];
     let depth = 0,
-      start = 0;
+      start = 0,
+      quoted = false,
+      escaped = false;
     for (let i = 0; i < s.length; i++) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (quoted && s[i] === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (s[i] === '"') quoted = !quoted;
+      if (quoted) continue;
       if (s[i] === "(") depth++;
       if (s[i] === ")") depth--;
       if (s[i] === "," && !depth) {
@@ -471,7 +483,8 @@ export async function startIntegration(
         const filter = (col: string, raw: string) => {
           const dot = raw.indexOf("."),
             op = raw.slice(0, dot),
-            v = raw.slice(dot + 1),
+            rawValue = raw.slice(dot + 1),
+            v: string = rawValue.startsWith('"') ? JSON.parse(rawValue) : rawValue,
             column = "t." + identifier(col);
           if (op === "is")
             return (

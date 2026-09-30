@@ -559,7 +559,7 @@ export function Imports() {
             name="import_rows"
             query={`&batch=${batch.id}`}
             columns={[
-              ["row_num", "Spreadsheet row"],
+              ["row_num", "Data row"],
               ["business_name", "Business"],
               ["phone", "Phone"],
               ["error", "Validation result"],

@@ -113,3 +113,32 @@ table at 390px, tablet/desktop layouts and light/dark MFA screens. The disposabl
 browser fixture imported 25 demo rows, deleted three, archived one and retained
 22. These are fixture results, not hosted staging data. Staging had zero business
 rows immediately after migration and the preserved recording was still ready.
+
+## Hosted verification and search correction
+
+PR #13 merged as `2f167279f39e6d9d17ad79408ae63460bed511ce`. Cloudflare staging
+build `786056bc-8db0-439e-bad7-a2ed9f89cbc8` deployed Worker version
+`4f5f3adb-54ac-45e2-8cea-b6840bfa886c`; browser assets matched the tested build.
+The final pre-merge workflow `36668485348` passed the same 128 application tests,
+14 concurrency tests, all six browser suites, build, lint, types and packaging.
+
+Actual hosted Admin verification used secure sign-in and the original workbook:
+25 accepted, zero rejected/duplicates/DNC exceptions, batch
+`2b97f3c5-dd31-4d0a-8109-585bdac3fc0f`. Single deletion removed
+Example Towing & Recovery; bulk deletion removed Demo Remodeling Group and
+Placeholder Junk Removal. Sample Window & Door was archived separately.
+The database retained 22 demo businesses, one archived. The preserved recording
+played without a media error; pause, seeking and speed controls worked. Its
+separate download produced a valid 555,529-byte WebM, SHA-256
+`a7509beef55686965218e40545dca0318a1d8739d72345c727dd17f496a25eb2`.
+A temporary Launch commission change persisted across reload, then the original
+$125 amount was restored with a new prospective version.
+
+Hosted testing found full-name search silently stripped punctuation such as `&`.
+The correction retains the entered name, quotes PostgREST filter values and
+escapes SQL LIKE wildcards. The regression uses the real Worker and migrated SQL
+to verify punctuation, quoted names, literal wildcards, injection-shaped text and
+RLS. The browser regression now searches the full demo name. Review rows are
+labelled "Data row" to distinguish their one-based numbering from worksheet
+line numbers. This verified hosted defect requires a corrective staging release;
+no additional database migration or infrastructure is involved.

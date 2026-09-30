@@ -474,16 +474,17 @@ async function api(
             : "rep_id",
         user.id,
       );
-    const search = u.searchParams
-      .get("q")
-      ?.replace(/[^\p{L}\p{N}\s-]/gu, "")
-      .slice(0, 100);
+    const search = u.searchParams.get("q")?.trim().slice(0, 100);
+    // Keep punctuation in real names. Quote PostgREST values separately from
+    // escaping SQL LIKE wildcards so punctuation cannot become filter syntax.
+    const pattern = `%${(search || "").replace(/[\\%_]/g, "\\$&")}%`;
+    const quotedPattern = JSON.stringify(pattern);
     if (search && ["businesses", "reps", "applicants"].includes(table))
-      q = q.or(`name.ilike.%${search}%,code.ilike.%${search}%`);
+      q = q.or(`name.ilike.${quotedPattern},code.ilike.${quotedPattern}`);
     if (search && table === "diagnostics") q = q.eq("id", search);
     if (search && table === "content")
-      q = q.or(`title.ilike.%${search}%,body.ilike.%${search}%`);
-    if (search && table === "deals") q = q.ilike("code", `%${search}%`);
+      q = q.or(`title.ilike.${quotedPattern},body.ilike.${quotedPattern}`);
+    if (search && table === "deals") q = q.ilike("code", pattern);
     const result = await q;
     if (result.error) throw new HttpError(400, "Unable to load this view.");
     const rows = (result.data as Row[]).map((r) => ({
